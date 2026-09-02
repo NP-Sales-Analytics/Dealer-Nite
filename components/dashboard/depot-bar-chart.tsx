@@ -19,10 +19,10 @@ export function DepotBarChart({ rows }: { rows: DepotRow[] }) {
   const aman = Math.min(page, totalPages);
   const mulai = (aman - 1) * PER_PAGE;
   const tampil = rows.slice(mulai, mulai + PER_PAGE);
-  // Bar diskalakan ke jumlah HADIR tertinggi, bukan undangan: daftarnya diurutkan
-  // menurut kehadiran, jadi bar terpanjang harus jatuh di peringkat 1. Memakai
-  // undangan membuat peringkat 10 tampak lebih panjang daripada peringkat 1.
-  const maksHadir = Math.max(1, ...rows.map((r) => r.qtyHadir));
+  // Bar diskalakan ke jumlah TOKO hadir tertinggi, bukan undangan: daftarnya
+  // diurutkan menurut kehadiran, jadi bar terpanjang harus jatuh di peringkat 1.
+  // Memakai undangan membuat peringkat 10 tampak lebih panjang daripada peringkat 1.
+  const maksHadir = Math.max(1, ...rows.map((r) => r.tokoHadir));
 
   return (
     <div className="rounded-2xl border border-border bg-card shadow-xs">
@@ -30,7 +30,7 @@ export function DepotBarChart({ rows }: { rows: DepotRow[] }) {
         <div className="min-w-0">
           <h2 className="font-semibold">Sebaran per Depot</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Perbandingan pax diundang &amp; pax hadir antar depot
+            Berapa toko yang sudah datang dari yang diundang tiap depot
           </p>
         </div>
         <span className="shrink-0 rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-muted-foreground">
@@ -45,7 +45,7 @@ export function DepotBarChart({ rows }: { rows: DepotRow[] }) {
           <ol className="space-y-4 p-4 sm:p-5">
             {tampil.map((r, i) => {
               const peringkat = mulai + i + 1;
-              const lebarHadir = Math.min(100, (r.qtyHadir / maksHadir) * 100);
+              const lebarHadir = Math.min(100, (r.tokoHadir / maksHadir) * 100);
 
               return (
                 <li key={r.depot}>
@@ -72,9 +72,10 @@ export function DepotBarChart({ rows }: { rows: DepotRow[] }) {
                       </span>
                     </div>
                     <span className="shrink-0 pl-[2.1rem] text-xs tabular-nums text-muted-foreground sm:ml-auto sm:pl-0">
-                      <span className="font-semibold text-foreground">{r.qtyUndangan}</span> diundang
+                      <span className="font-semibold text-foreground">{r.tokoDiundang}</span> toko diundang
                       {' · '}
-                      <span className="font-semibold text-foreground">{r.qtyHadir}</span> hadir
+                      <span className="font-semibold text-foreground">{r.tokoHadir}</span> hadir
+                      <span className="ml-1 text-muted-foreground">({r.qtyHadir} pax)</span>
                     </span>
                   </div>
 

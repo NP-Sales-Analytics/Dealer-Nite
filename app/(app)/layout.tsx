@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { AppSidebar } from '@/components/shared/app-sidebar';
 import { Brand } from '@/components/shared/brand';
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { getSessionUser } from '@/lib/auth';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -11,6 +12,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!user) redirect('/login');
 
   return (
+    // TooltipProvider dibutuhkan saat sidebar diciutkan: yang tersisa hanya ikon,
+    // dan namanya muncul sebagai tooltip.
+    <TooltipProvider>
     <SidebarProvider>
       <AppSidebar user={user} />
       <SidebarInset className="min-w-0 bg-background">
@@ -23,5 +27,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <div className="min-w-0 flex-1 p-4 md:p-6">{children}</div>
       </SidebarInset>
     </SidebarProvider>
+    </TooltipProvider>
   );
 }

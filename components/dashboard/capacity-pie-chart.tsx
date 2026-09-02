@@ -1,7 +1,7 @@
 'use client';
 
 import { Cell, Label, Pie, PieChart } from 'recharts';
-import type { Summary } from './dashboard-client';
+import type { Summary } from '@/lib/dashboard/types';
 import {
   ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent,
   type ChartConfig,

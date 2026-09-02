@@ -1,6 +1,6 @@
 import { CheckCircle2, Store, UserCheck, Users } from 'lucide-react';
 import type { ComponentType } from 'react';
-import type { Summary } from './dashboard-client';
+import type { Summary } from '@/lib/dashboard/types';
 
 /** Pola "Metric Item" dari design.md: ikon dalam kotak netral, label kecil, angka besar. */
 function Kpi({

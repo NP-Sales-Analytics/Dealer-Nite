@@ -56,12 +56,16 @@ Dua catatan soal `DATABASE_URL` yang sudah pernah menggigit:
 
 ## Role dan hak akses
 
-| Role | `/reservation` | `/dashboard` | `/admin/users` | Mendarat di |
-|---|---|---|---|---|
-| `superadmin` | ya | ya | ya | `/reservation` |
-| `admin_rsvp` | ya | tidak | tidak | `/reservation` |
-| `rsm` | tidak | ya | tidak | `/dashboard` |
-| `customer` | tidak | tidak | tidak | `/no-access` |
+| Role | `/reservation` | `/dashboard` | `/kehadiran` | `/admin/users` | Mendarat di |
+|---|---|---|---|---|---|
+| `superadmin` | ya | ya | ya (bisa ubah) | ya | `/reservation` |
+| `admin_rsvp` | ya | tidak | ya (bisa ubah) | tidak | `/reservation` |
+| `rsm` | tidak | ya | ya (lihat saja) | tidak | `/dashboard` |
+| `customer` | tidak | tidak | tidak | tidak | `/no-access` |
+
+`/kehadiran` menampilkan daftar toko yang sudah hadir, terpisah dari dashboard
+supaya daftar yang bisa ratusan baris tidak memaksa scroll panjang. RSM hanya
+memantau; tombol ubah/hapus disembunyikan untuknya dan API menolaknya juga.
 
 `customer` disiapkan untuk modul kedua dan belum punya halaman.
 
@@ -108,7 +112,14 @@ Design system diturunkan dari TailAdmin (`design.md`) dengan warna utama indigo
   bernomor, 10 depot per halaman. 36 depot dengan nama panjang tidak terbaca
   sebagai batang sumbu-kategori di layar HP. Panjang bar diskalakan ke jumlah
   hadir tertinggi supaya urutan visual sama dengan urutan peringkat.
-- **Check-in terbaru** menampilkan 20 catatan per halaman dan bisa diedit.
+- **Daftar toko hadir** (`/kehadiran`) menampilkan 20 catatan per halaman, bisa
+  dicari dan disaring per region/depot. Hapus berdiri sendiri di baris tabel,
+  bukan di dalam dialog edit - membatalkan salah-catat adalah aksi tersering.
+- **Filter region mengeluarkan manual entry** karena region hanya ada di master
+  data customer. Itu perilaku yang diharapkan, bukan bug.
+- **"Toko hadir" hanya menghitung toko terdaftar**, baik di KPI maupun sebaran
+  depot. Manual entry adalah tamu di luar daftar undangan; memasukkannya membuat
+  jumlah hadir bisa melebihi jumlah diundang. Pax-nya tetap ikut dijumlahkan.
 
 ## Catatan arsitektur
 
