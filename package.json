@@ -43,6 +43,7 @@
     "csv-parse": "^7.0.2",
     "eslint": "^9",
     "eslint-config-next": "15.5.25",
+    "playwright-core": "^1.62.1",
     "tailwindcss": "^4",
     "tsx": "^4.23.13",
     "typescript": "^5",

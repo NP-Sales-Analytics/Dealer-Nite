@@ -1,11 +1,11 @@
 import { sql } from 'drizzle-orm';
-import { unstable_cache } from 'next/cache';
 import { NextResponse } from 'next/server';
 import { requireRoleApi } from '@/lib/auth';
+import { cache15s } from '@/lib/dashboard/cache';
 import { attendanceRate } from '@/lib/dashboard/compute';
 import { db } from '@/lib/db';
 
-const load = unstable_cache(
+const load = cache15s(
   async () => {
     const rows = (await db.execute(sql`
       select
@@ -17,8 +17,6 @@ const load = unstable_cache(
     `)) as unknown as Record<string, number>[];
     return rows[0];
   },
-  ['dashboard-summary'],
-  { revalidate: 15, tags: ['dashboard'] },
 );
 
 export async function GET() {

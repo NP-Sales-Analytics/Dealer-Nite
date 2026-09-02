@@ -128,3 +128,18 @@
     @apply font-sans;
   }
 }
+/* Chart palette: slot kategorikal 1 & 2, urutan tetap.
+   Default shadcn (base neutral) semuanya chroma 0, jadi dua seri tampil abu-abu
+   yang sama. Nilai ini divalidasi terhadap surface asli kartu (#ffffff / #171717):
+   CVD protan dE 24.7 light / 26.8 dark, kontras >= 3:1, semua check lolos.
+   Warna mengikuti entitas, bukan urutan: biru = undangan/kapasitas,
+   oranye = kehadiran aktual, konsisten di bar chart maupun donut. */
+:root {
+  --chart-1: #2a78d6;
+  --chart-2: #eb6834;
+}
+
+.dark {
+  --chart-1: #3987e5;
+  --chart-2: #d95926;
+}

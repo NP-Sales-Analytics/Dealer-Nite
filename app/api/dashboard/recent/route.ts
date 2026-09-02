@@ -1,10 +1,10 @@
 import { sql } from 'drizzle-orm';
-import { unstable_cache } from 'next/cache';
 import { NextResponse } from 'next/server';
 import { requireRoleApi } from '@/lib/auth';
+import { cache15s } from '@/lib/dashboard/cache';
 import { db } from '@/lib/db';
 
-const load = unstable_cache(
+const load = cache15s(
   async () => db.execute(sql`
     select r.id,
            coalesce(c.nama_toko, r.manual_nama_customer)  as nama,
@@ -17,8 +17,6 @@ const load = unstable_cache(
     order by r.checked_in_at desc
     limit 15
   `),
-  ['dashboard-recent'],
-  { revalidate: 15, tags: ['dashboard'] },
 );
 
 export async function GET() {

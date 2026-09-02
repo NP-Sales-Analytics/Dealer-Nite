@@ -1,13 +1,13 @@
 import { sql } from 'drizzle-orm';
-import { unstable_cache } from 'next/cache';
 import { NextResponse } from 'next/server';
 import { requireRoleApi } from '@/lib/auth';
+import { cache15s } from '@/lib/dashboard/cache';
 import { sortDepots, type DepotRow } from '@/lib/dashboard/compute';
 import { db } from '@/lib/db';
 
 // FULL OUTER JOIN supaya depot manual-entry yang tidak ada di master data
 // tetap muncul di chart.
-const load = unstable_cache(
+const load = cache15s(
   async () => {
     const rows = (await db.execute(sql`
       with target as (
@@ -29,8 +29,6 @@ const load = unstable_cache(
     `)) as unknown as DepotRow[];
     return sortDepots(rows);
   },
-  ['dashboard-by-depot'],
-  { revalidate: 15, tags: ['dashboard'] },
 );
 
 export async function GET() {
