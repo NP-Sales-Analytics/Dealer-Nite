@@ -46,3 +46,6 @@ next-env.d.ts
 
 # bootstrap credentials (jangan pernah di-commit)
 .superadmin-credentials.txt
+
+# cookie jar sesi untuk pengujian lokal
+cookies.txt
