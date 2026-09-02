@@ -12,6 +12,10 @@ export type CustomerSeedRow = {
 };
 
 const clean = (v: unknown) => String(v ?? '').trim().replace(/\s+/g, ' ');
+// Nama toko disimpan huruf besar semua supaya daftar terlihat rapi dan
+// pencarian tidak bergantung pada cara admin mengetik. Tanpa ini, menjalankan
+// ulang seed akan mengembalikan huruf kecil dari CSV.
+const upper = (v: unknown) => clean(v).toUpperCase();
 
 export function parseCustomerCsv(csvText: string): CustomerSeedRow[] {
   const records = parse(csvText, {
@@ -27,7 +31,7 @@ export function parseCustomerCsv(csvText: string): CustomerSeedRow[] {
 
   for (const rec of records) {
     const kodeSap = clean(rec['KODE SAP TOKO/PERUSAHAAN YANG DIUNDANG']);
-    const namaToko = clean(rec['NAMA TOKO/PERUSAHAAN YANG DIUNDANG']);
+    const namaToko = upper(rec['NAMA TOKO/PERUSAHAAN YANG DIUNDANG']);
     if (!kodeSap || !namaToko) continue;
 
     const qty = Number.parseInt(clean(rec['QTY']), 10);
@@ -47,7 +51,7 @@ export function parseCustomerCsv(csvText: string): CustomerSeedRow[] {
       depot: clean(rec['DEPOT']),
       picRsmAsm: clean(rec['NAMA PIC RSM/ASM (yang ikut ke Jakarta)']),
       namaToko,
-      namaPemilik: clean(rec['NAMA PEMILIK TOKO YANG DATANG']),
+      namaPemilik: upper(rec['NAMA PEMILIK TOKO YANG DATANG']),
       kodeSap,
       qtyUndangan,
     });

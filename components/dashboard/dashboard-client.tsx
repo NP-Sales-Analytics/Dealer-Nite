@@ -1,8 +1,6 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { ArrowRight } from 'lucide-react';
-import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { CapacityPieChart } from './capacity-pie-chart';
 import { DepotBarChart } from './depot-bar-chart';
@@ -80,20 +78,6 @@ export function DashboardClient() {
             <CapacityPieChart summary={summary.data} />
           </div>
 
-          {/* Tabelnya pindah ke halaman sendiri: daftar yang bisa ratusan baris
-              memaksa scroll panjang sebelum sampai ke bawah dashboard. */}
-          <Link
-            href="/kehadiran"
-            className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 shadow-xs transition-colors hover:bg-secondary/40 sm:p-5"
-          >
-            <span className="min-w-0">
-              <span className="block font-semibold">Lihat daftar toko hadir</span>
-              <span className="block text-sm text-muted-foreground">
-                {summary.data.tokoCheckin} toko tercatat &middot; cari, saring, dan koreksi catatan
-              </span>
-            </span>
-            <ArrowRight className="size-5 shrink-0 text-muted-foreground" />
-          </Link>
         </div>
       )}
     </>

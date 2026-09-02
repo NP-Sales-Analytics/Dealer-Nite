@@ -46,7 +46,7 @@ export function CreateUserDialog() {
           <div className="space-y-2">
             <Label htmlFor="u-role">Role</Label>
             <Select name="role" defaultValue="admin_rsvp">
-              <SelectTrigger id="u-role" className="h-11 w-full">
+              <SelectTrigger id="u-role" className="h-11 w-full data-[size=default]:h-11">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

@@ -1,30 +1,31 @@
+import Image from 'next/image';
 import { cn } from '@/lib/utils';
 
 /**
- * Satu-satunya tempat identitas visual didefinisikan.
- * Ketika file logo tersedia, ganti blok <span> berikut dengan <Image> di sini saja -
- * sidebar dan halaman login otomatis ikut.
+ * Identitas visual, satu tempat untuk sidebar dan halaman no-access.
+ * Halaman login memakai logo penuh (logo-nippon-full.png) langsung.
  */
 export function Brand({
   className,
-  subtitle = 'Penerimaan Tamu',
+  subtitle = 'Launching Pylox Premium',
   size = 'md',
 }: {
   className?: string;
   subtitle?: string | null;
   size?: 'md' | 'lg';
 }) {
+  const sisi = size === 'lg' ? 44 : 36;
+
   return (
     <div className={cn('flex items-center gap-3', className)}>
-      <span
-        className={cn(
-          'grid shrink-0 place-items-center rounded-xl bg-primary font-semibold text-primary-foreground',
-          size === 'lg' ? 'size-11 text-lg' : 'size-9 text-base',
-        )}
-        aria-hidden
-      >
-        P
-      </span>
+      <Image
+        src="/logo-nippon.png"
+        alt="Nippon Paint"
+        width={sisi}
+        height={sisi}
+        priority
+        className="shrink-0 rounded-lg"
+      />
       <span className="min-w-0">
         <span
           className={cn(
@@ -32,7 +33,7 @@ export function Brand({
             size === 'lg' ? 'text-xl' : 'text-base',
           )}
         >
-          Pylox
+          Nippon
         </span>
         {subtitle && (
           <span className="block truncate text-xs leading-tight text-muted-foreground">

@@ -77,7 +77,7 @@ export function UserTable({ rows, currentUserId }: { rows: Row[]; currentUserId:
             <p className="font-medium leading-snug break-words">{u.fullName || 'Tanpa nama'}</p>
             <p className="mt-0.5 text-sm text-muted-foreground break-all">{u.email}</p>
             <div className="mt-3 flex items-center gap-2">
-              <RoleSelect u={u} className="h-11 flex-1" disabled={pending || u.id === currentUserId} onChange={(v) => ubahRole(u, v)} />
+              <RoleSelect u={u} className="h-11 flex-1 data-[size=default]:h-11" disabled={pending || u.id === currentUserId} onChange={(v) => ubahRole(u, v)} />
               <Button
                 variant="outline"
                 size="icon"
@@ -111,7 +111,7 @@ export function UserTable({ rows, currentUserId }: { rows: Row[]; currentUserId:
               <TableRow key={u.id}>
                 <TableCell className="font-medium">{u.email}</TableCell>
                 <TableCell>{u.fullName || '-'}</TableCell>
-                <TableCell><RoleSelect u={u} className="w-56" disabled={pending || u.id === currentUserId} onChange={(v) => ubahRole(u, v)} /></TableCell>
+                <TableCell><RoleSelect u={u} className="w-56 data-[size=default]:h-11" disabled={pending || u.id === currentUserId} onChange={(v) => ubahRole(u, v)} /></TableCell>
                 <TableCell className="text-right">
                   <Button
                     variant="ghost"

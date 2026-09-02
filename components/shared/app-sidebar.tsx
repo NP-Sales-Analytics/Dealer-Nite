@@ -1,6 +1,7 @@
 'use client';
 
 import { ChevronLeft, ClipboardCheck, LayoutDashboard, ListChecks, LogOut, Users } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ComponentType } from 'react';
@@ -31,16 +32,16 @@ export function AppSidebar({ user }: { user: SessionUser }) {
 
   return (
     <Sidebar collapsible="icon">
-      {/* Tombol collapse menempel di tengah tepi kanan sidebar, bukan di header:
-          posisinya tetap sama baik sidebar terbuka maupun tertutup, jadi jalan
-          keluarnya selalu di tempat yang sama. Desktop saja - di HP sidebar
-          sudah berupa drawer dengan tombol sendiri di header. */}
+      {/* Menempel tepat di garis pemisah sidebar, sejajar bawah header, sesuai
+          referensi. -right-3 dengan tombol 24px membuat titik tengahnya jatuh
+          persis di garis. Desktop saja - di HP sidebar sudah berupa drawer
+          dengan tombolnya sendiri di header. */}
       <button
         type="button"
         onClick={toggleSidebar}
         aria-label={tertutup ? 'Buka navigasi' : 'Tutup navigasi'}
         title={tertutup ? 'Buka navigasi' : 'Tutup navigasi'}
-        className="absolute -right-3 top-1/2 z-20 hidden size-6 -translate-y-1/2 place-items-center rounded-full border border-sidebar-border bg-sidebar text-muted-foreground shadow-xs transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none md:grid"
+        className="absolute -right-3 top-[4.6rem] z-20 hidden size-6 place-items-center rounded-full border border-sidebar-border bg-sidebar text-muted-foreground shadow-xs transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none md:grid"
       >
         <ChevronLeft className={`size-3.5 transition-transform ${tertutup ? 'rotate-180' : ''}`} />
       </button>
@@ -49,12 +50,13 @@ export function AppSidebar({ user }: { user: SessionUser }) {
         <div className="group-data-[collapsible=icon]:hidden">
           <Brand />
         </div>
-        <span
-          className="hidden size-9 place-items-center rounded-xl bg-primary text-base font-semibold text-primary-foreground group-data-[collapsible=icon]:grid"
-          aria-hidden
-        >
-          P
-        </span>
+        <Image
+          src="/logo-nippon.png"
+          alt="Nippon Paint"
+          width={36}
+          height={36}
+          className="hidden rounded-lg group-data-[collapsible=icon]:block"
+        />
       </SidebarHeader>
 
       <SidebarContent>

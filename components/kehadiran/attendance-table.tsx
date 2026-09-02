@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { EditCheckinDialog } from './edit-checkin-dialog';
 import { HapusCheckinDialog } from './hapus-checkin-dialog';
@@ -57,50 +57,9 @@ function PillPax({ hadir, undangan }: { hadir: number; undangan: number | null }
   );
 }
 
-function PillWaktu({ nilai }: { nilai: string }) {
-  return (
-    <span className="inline-flex items-center rounded-full bg-accent px-2.5 py-1 text-xs font-medium tabular-nums text-accent-foreground">
-      {jam(nilai)}
-    </span>
-  );
-}
-
-function TombolAksi({
-  row, onEdit, onHapus,
-}: {
-  row: AttendanceRow;
-  onEdit: () => void;
-  onHapus: () => void;
-}) {
-  return (
-    // 44px di HP sesuai aturan target sentuh; di desktop dengan mouse 36px cukup.
-    <div className="flex items-center gap-1.5">
-      {/* Hapus berdiri sendiri, bukan tersembunyi di dalam dialog edit:
-          membatalkan salah-catat adalah aksi tersering setelah salah ketik. */}
-      <button
-        type="button"
-        onClick={onHapus}
-        aria-label={`Hapus catatan ${row.nama}`}
-        title="Hapus"
-        className="grid size-11 place-items-center rounded-lg border border-border text-destructive transition-colors hover:bg-destructive/10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none md:size-9"
-      >
-        <Trash2 className="size-4" />
-      </button>
-      <button
-        type="button"
-        onClick={onEdit}
-        aria-label={`Ubah catatan ${row.nama}`}
-        title="Ubah"
-        className="grid size-11 place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none md:size-9"
-      >
-        <Pencil className="size-4" />
-      </button>
-    </div>
-  );
-}
-
 export function AttendanceTable({
-  rows, page, totalPages, total, pageSize, depots, adaFilter, bisaUbah, onPageChange, onChanged,
+  rows, page, totalPages, total, pageSize, depots, adaFilter, bisaUbah, urut,
+  onPageChange, onUrutChange, onChanged,
 }: {
   rows: AttendanceRow[];
   page: number;
@@ -110,7 +69,9 @@ export function AttendanceTable({
   depots: string[];
   adaFilter: boolean;
   bisaUbah: boolean;
+  urut: 'asc' | 'desc';
   onPageChange: (p: number) => void;
+  onUrutChange: (v: 'asc' | 'desc') => void;
   onChanged: () => void;
 }) {
   const [edit, setEdit] = useState<AttendanceRow | null>(null);
@@ -134,42 +95,32 @@ export function AttendanceTable({
 
   return (
     <div className="min-w-0 rounded-2xl border border-border bg-card shadow-xs">
-      {/* HP: kartu. Lima kolom tidak muat di 375px. */}
-      <ul className="divide-y divide-border md:hidden">
-        {rows.map((r) => (
-          <li key={r.id} className="flex items-start gap-3 px-4 py-4">
-            <Avatar nama={r.nama} />
-            <div className="min-w-0 flex-1">
-              <p className="flex flex-wrap items-center gap-1.5 font-medium leading-snug">
-                <span className="min-w-0 break-words">{r.nama}</span>
-                {r.isManualEntry && <Badge variant="outline" className="shrink-0">Manual</Badge>}
-              </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {r.depot}
-                {r.depotDiubah && ' (diubah)'}
-                {r.kodeSap && ` · ${r.kodeSap}`}
-              </p>
-              <p className="mt-2 flex flex-wrap items-center gap-1.5">
-                <PillPax hadir={r.qtyHadir} undangan={r.qtyUndangan} />
-                <PillWaktu nilai={r.checkedInAt} />
-              </p>
-            </div>
-            {bisaUbah && (
-              <TombolAksi row={r} onEdit={() => setEdit(r)} onHapus={() => setHapus(r)} />
-            )}
-          </li>
-        ))}
-      </ul>
-
-      <div className="hidden overflow-x-auto md:block">
-        <Table>
+      {/* Satu layout untuk semua ukuran layar. Di HP tabelnya digeser ke kanan,
+          bukan berubah jadi kartu, supaya susunan kolom yang dihafal admin tetap
+          sama di laptop maupun HP. */}
+      <div className="overflow-x-auto">
+        <Table className="min-w-[46rem]">
           <TableHeader>
             <TableRow>
-              <TableHead className="py-4">Depot</TableHead>
+              <TableHead className="py-4 pl-5">Depot</TableHead>
               <TableHead className="py-4">Nama Customer</TableHead>
-              <TableHead className="py-4">Pax (Jumlah Orang)</TableHead>
-              <TableHead className="py-4">Waktu</TableHead>
-              {bisaUbah && <TableHead className="py-4 text-right">Aksi</TableHead>}
+              <TableHead className="py-4 text-center">Pax (Jumlah Orang)</TableHead>
+              <TableHead className="py-4 text-center">
+                <button
+                  type="button"
+                  onClick={() => onUrutChange(urut === 'desc' ? 'asc' : 'desc')}
+                  aria-label={
+                    urut === 'desc'
+                      ? 'Urutkan dari yang paling awal datang'
+                      : 'Urutkan dari yang paling baru datang'
+                  }
+                  className="mx-auto inline-flex items-center gap-1 rounded-md px-2 py-1 transition-colors hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                >
+                  Waktu
+                  {urut === 'desc' ? <ArrowDown className="size-3.5" /> : <ArrowUp className="size-3.5" />}
+                </button>
+              </TableHead>
+              {bisaUbah && <TableHead className="py-4 pr-5 text-center">Aksi</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -177,7 +128,7 @@ export function AttendanceTable({
               <TableRow key={r.id}>
                 {/* py-4 di tiap sel: baris setinggi default terasa berdempetan
                     ketika isinya dua baris teks + avatar. */}
-                <TableCell className="whitespace-nowrap py-4 text-muted-foreground">
+                <TableCell className="whitespace-nowrap py-4 pl-5 text-muted-foreground">
                   {r.depot}
                   {r.depotDiubah && (
                     <span className="ml-1 text-xs text-accent-foreground">(diubah)</span>
@@ -197,14 +148,35 @@ export function AttendanceTable({
                     </div>
                   </div>
                 </TableCell>
-                <TableCell className="py-4">
+                <TableCell className="py-4 text-center">
                   <PillPax hadir={r.qtyHadir} undangan={r.qtyUndangan} />
                 </TableCell>
-                <TableCell className="py-4"><PillWaktu nilai={r.checkedInAt} /></TableCell>
+                <TableCell className="py-4 text-center tabular-nums text-muted-foreground">
+                  {jam(r.checkedInAt)}
+                </TableCell>
                 {bisaUbah && (
-                  <TableCell className="py-4">
-                    <div className="flex justify-end">
-                      <TombolAksi row={r} onEdit={() => setEdit(r)} onHapus={() => setHapus(r)} />
+                  <TableCell className="py-4 pr-5">
+                    <div className="flex items-center justify-center gap-1.5">
+                      {/* Hapus berdiri sendiri, bukan tersembunyi di dalam dialog
+                          edit: membatalkan salah-catat adalah aksi tersering. */}
+                      <button
+                        type="button"
+                        onClick={() => setHapus(r)}
+                        aria-label={`Hapus catatan ${r.nama}`}
+                        title="Hapus"
+                        className="grid size-10 place-items-center rounded-lg border border-border text-destructive transition-colors hover:bg-destructive/10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                      >
+                        <Trash2 className="size-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEdit(r)}
+                        aria-label={`Ubah catatan ${r.nama}`}
+                        title="Ubah"
+                        className="grid size-10 place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                      >
+                        <Pencil className="size-4" />
+                      </button>
                     </div>
                   </TableCell>
                 )}
@@ -214,7 +186,7 @@ export function AttendanceTable({
         </Table>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-3 sm:px-5">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-5 py-3">
         <p className="text-xs text-muted-foreground">
           Menampilkan {mulai + 1}&ndash;{Math.min(mulai + rows.length, total)} dari {total} catatan
         </p>

@@ -12,7 +12,9 @@ export const reservationInputSchema = z.discriminatedUnion('isManualEntry', [
   }).strict(),
   z.object({
     isManualEntry: z.literal(true),
-    manualNamaCustomer: z.string().trim().min(2).max(200),
+    // Nama disamakan jadi huruf besar sejak validasi, bukan di UI: POST dan
+    // PATCH sama-sama lewat sini, jadi tidak ada jalur yang terlewat.
+    manualNamaCustomer: z.string().trim().min(2).max(200).transform((v) => v.toUpperCase()),
     manualDepot: z.string().trim().min(1).max(100),
     qtyHadir,
   }).strict(),
@@ -26,7 +28,7 @@ export type ReservationInput = z.infer<typeof reservationInputSchema>;
 export const reservationPatchSchema = z.object({
   qtyHadir: z.number().int().min(0).max(1000).optional(),
   depotOverride: z.string().trim().min(1).max(100).nullable().optional(),
-  manualNamaCustomer: z.string().trim().min(2).max(200).optional(),
+  manualNamaCustomer: z.string().trim().min(2).max(200).transform((v) => v.toUpperCase()).optional(),
 }).strict();
 
 export type ReservationPatch = z.infer<typeof reservationPatchSchema>;

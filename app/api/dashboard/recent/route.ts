@@ -14,6 +14,8 @@ export async function GET(request: NextRequest) {
 
   const { region, depot, q } = readFilter(request);
   const page = Math.max(1, Number(request.nextUrl.searchParams.get('page') ?? '1') || 1);
+  // Default terbaru dulu; 'asc' untuk melihat siapa yang datang paling awal.
+  const naik = request.nextUrl.searchParams.get('sort') === 'asc';
   const offset = (page - 1) * PAGE_SIZE;
 
   // Satu definisi kondisi dipakai untuk data maupun hitungan total, supaya
@@ -42,7 +44,7 @@ export async function GET(request: NextRequest) {
     from public.reservations r
     left join public.customers c on c.id = r.customer_id
     where ${kondisi}
-    order by r.checked_in_at desc
+    order by r.checked_in_at ${naik ? sql`asc` : sql`desc`}
     limit ${PAGE_SIZE} offset ${offset}
   `);
 

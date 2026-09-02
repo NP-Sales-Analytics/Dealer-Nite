@@ -22,6 +22,10 @@ npm run dev
 | `npm run check:page` | Screenshot + cek error JS satu halaman: `npm run check:page -- <url> <file.png>` |
 | `npm run check:overflow` | Cari elemen yang melebihi lebar layar HP: `npm run check:overflow -- <url>` |
 
+Komponen shadcn `SelectTrigger` membawa `data-[size=default]:h-8`, yang
+mengalahkan `h-11` biasa. Untuk menyamakan tingginya dengan input lain, tulis
+`data-[size=default]:h-11`, bukan `h-11` saja.
+
 Dua perintah `check:*` memakai Chromium headless lewat `playwright-core` dan butuh
 sesi login. Buat cookienya dulu:
 
@@ -100,9 +104,9 @@ Design system diturunkan dari TailAdmin (`design.md`) dengan warna utama indigo
 - **Mobile-first.** Target sentuh minimal 44px, dan setiap halaman diuji pada
   375px. Tabel (`user-table`, `recent-checkin-list`) berubah jadi daftar kartu di
   bawah `md` karena 4 kolom tidak muat di layar HP.
-- **Identitas visual** ada di satu tempat, `components/shared/brand.tsx`. Untuk
-  memasang logo, ganti blok `<span>` di file itu dengan `<Image>` — sidebar,
-  login, dan halaman no-access ikut otomatis.
+- **Logo** ada di `public/logo-nippon.png` (ikon sidebar) dan
+  `public/logo-nippon-full.png` (halaman login), sumbernya folder `Icon/`.
+  Identitas sidebar dirakit di `components/shared/brand.tsx`.
 - **Dua warna referensi digelapkan satu step** karena versi aslinya gagal kontras:
   teks nav aktif `#465FFF` → `#3B50E0` (4.34 → 5.52) dan teks badge sukses
   `#039855` → `#027A48` (3.54 → 5.13). Warna isian tombol tetap `#465FFF`.
@@ -113,8 +117,19 @@ Design system diturunkan dari TailAdmin (`design.md`) dengan warna utama indigo
   sebagai batang sumbu-kategori di layar HP. Panjang bar diskalakan ke jumlah
   hadir tertinggi supaya urutan visual sama dengan urutan peringkat.
 - **Daftar toko hadir** (`/kehadiran`) menampilkan 20 catatan per halaman, bisa
-  dicari dan disaring per region/depot. Hapus berdiri sendiri di baris tabel,
-  bukan di dalam dialog edit - membatalkan salah-catat adalah aksi tersering.
+  dicari, disaring per region/depot, dan diurutkan menurut waktu datang. Hapus
+  berdiri sendiri di baris tabel, bukan di dalam dialog edit - membatalkan
+  salah-catat adalah aksi tersering.
+- **Tabelnya tidak berubah bentuk di HP.** Susunan kolomnya sama di laptop
+  maupun ponsel dan digeser ke kanan bila sempit, supaya urutan kolom yang
+  sudah dihafal admin tetap sama di kedua perangkat.
+- **Isi dropdown filter diturunkan dari catatan kehadiran**, bukan seluruh
+  master data: menampilkan 36 depot padahal baru 7 yang punya tamu membuat
+  daftar terasa seolah semua sudah hadir, dan sebagian besar pilihannya dijamin
+  nol hasil.
+- **Nama customer disimpan huruf besar semua.** Diseragamkan di skema Zod (input
+  baru dan edit), parser CSV (seed ulang), dan migrasi `0003` untuk data lama -
+  tiga jalur itu semuanya perlu, kalau ada yang terlewat huruf kecil masuk lagi.
 - **Filter region mengeluarkan manual entry** karena region hanya ada di master
   data customer. Itu perilaku yang diharapkan, bukan bug.
 - **"Toko hadir" hanya menghitung toko terdaftar**, baik di KPI maupun sebaran

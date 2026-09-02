@@ -63,7 +63,7 @@ export function FilterBar({
 
         <div className="flex gap-2.5">
           <Select value={value.region} onValueChange={(v) => v && setRegion(v)}>
-            <SelectTrigger className="h-11 min-w-0 flex-1 sm:w-44 sm:flex-none">
+            <SelectTrigger className="h-11 min-w-0 flex-1 data-[size=default]:h-11 sm:w-44 sm:flex-none">
               <SelectValue>
                 {value.region === 'semua' ? 'Semua Region' : `Region ${value.region}`}
               </SelectValue>
@@ -77,7 +77,7 @@ export function FilterBar({
           </Select>
 
           <Select value={value.depot} onValueChange={(v) => v && onChange({ ...value, depot: v })}>
-            <SelectTrigger className="h-11 min-w-0 flex-1 sm:w-52 sm:flex-none">
+            <SelectTrigger className="h-11 min-w-0 flex-1 data-[size=default]:h-11 sm:w-52 sm:flex-none">
               <SelectValue>
                 {value.depot === 'semua' ? 'Semua Depot' : value.depot}
               </SelectValue>

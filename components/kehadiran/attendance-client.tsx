@@ -15,8 +15,9 @@ const fetcher = <T,>(url: string) => async (): Promise<T> => {
   return res.json();
 };
 
-const buildQuery = (f: FilterState, page: number) => {
+const buildQuery = (f: FilterState, page: number, urut: 'asc' | 'desc') => {
   const p = new URLSearchParams({ page: String(page) });
+  if (urut === 'asc') p.set('sort', 'asc');
   if (f.region !== 'semua') p.set('region', f.region);
   if (f.depot !== 'semua') p.set('depot', f.depot);
   if (f.q.trim()) p.set('q', f.q.trim());
@@ -26,6 +27,7 @@ const buildQuery = (f: FilterState, page: number) => {
 export function AttendanceClient({ bisaUbah }: { bisaUbah: boolean }) {
   const [filter, setFilter] = useState<FilterState>(FILTER_KOSONG);
   const [page, setPage] = useState(1);
+  const [urut, setUrut] = useState<'asc' | 'desc'>('desc');
   const queryClient = useQueryClient();
 
   // Ketikan di-debounce; region/depot langsung berlaku karena sekali klik.
@@ -48,8 +50,8 @@ export function AttendanceClient({ bisaUbah }: { bisaUbah: boolean }) {
   });
 
   const data = useQuery({
-    queryKey: ['kehadiran', filterEfektif, page],
-    queryFn: fetcher<AttendanceResponse>(`/api/dashboard/recent?${buildQuery(filterEfektif, page)}`),
+    queryKey: ['kehadiran', filterEfektif, page, urut],
+    queryFn: fetcher<AttendanceResponse>(`/api/dashboard/recent?${buildQuery(filterEfektif, page, urut)}`),
     refetchInterval: 15_000,
     // Tahan hasil lama saat pindah halaman supaya tabel tidak berkedip kosong.
     placeholderData: keepPreviousData,
@@ -88,7 +90,9 @@ export function AttendanceClient({ bisaUbah }: { bisaUbah: boolean }) {
           depots={namaDepot}
           adaFilter={adaFilter}
           bisaUbah={bisaUbah}
+          urut={urut}
           onPageChange={setPage}
+          onUrutChange={(v) => { setUrut(v); setPage(1); }}
           onChanged={() => queryClient.invalidateQueries()}
         />
       )}
