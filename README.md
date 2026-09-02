@@ -18,6 +18,19 @@ npm run dev
 | `npm run build` && `npm start` | Build + jalankan versi produksi |
 | `npm test` | 19 unit test (parser CSV, skema Zod, hitungan dashboard) |
 | `npm run seed` | Import/refresh data customer. Idempotent — aman dijalankan berulang |
+| `npm run check:flow` | Uji alur pencatatan di browser sungguhan (cari → pilih → simpan → duplikat → manual) |
+| `npm run check:page` | Screenshot + cek error JS satu halaman: `npm run check:page -- <url> <file.png>` |
+
+Dua perintah `check:*` memakai Chromium headless lewat `playwright-core` dan butuh
+sesi login. Buat cookienya dulu:
+
+```bash
+COOKIE_OUT=cookies.txt npx tsx --env-file=.env.local scripts/make-cookie.ts <email> <password>
+```
+
+**Jangan jalankan `npm run build` selagi `npm start` hidup** — hash chunk di `.next`
+berubah di bawah server yang berjalan dan browser gagal memuat chunk. Hentikan
+server dulu, build, baru jalankan lagi.
 
 ## Environment variables
 
