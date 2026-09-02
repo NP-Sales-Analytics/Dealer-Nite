@@ -104,6 +104,11 @@ Design system diturunkan dari TailAdmin (`design.md`) dengan warna utama indigo
   `#039855` → `#027A48` (3.54 → 5.13). Warna isian tombol tetap `#465FFF`.
 - **Konfirmasi memakai `AlertDialog`**, bukan `confirm()` native: popup sistem di
   HP mudah ter-dismiss tak sengaja padahal isinya keputusan menimpa data.
+- **Sebaran per depot bukan chart recharts** melainkan baris progress bar
+  bernomor, 10 depot per halaman. 36 depot dengan nama panjang tidak terbaca
+  sebagai batang sumbu-kategori di layar HP. Panjang bar diskalakan ke jumlah
+  hadir tertinggi supaya urutan visual sama dengan urutan peringkat.
+- **Check-in terbaru** menampilkan 20 catatan per halaman dan bisa diedit.
 
 ## Catatan arsitektur
 
@@ -128,6 +133,13 @@ Design system diturunkan dari TailAdmin (`design.md`) dengan warna utama indigo
   (`2026-09-02 06:15:05.88+00`) dan harus di-`new Date()` apa adanya - mengubah
   spasi jadi `T` membuat parser strict dan menghasilkan `Invalid Date`, karena
   offset `+00` tanpa menit bukan ISO valid.
+- **Koreksi depot bersifat per-catatan** (`reservations.depot_override`), bukan
+  mengubah `customers.depot`. Depot toko berasal dari master data SAP; satu
+  koreksi malam event tidak boleh memindahkan toko itu secara permanen untuk
+  laporan berikutnya. Urutan pemakaian: `depot_override` -> `customers.depot`
+  -> `manual_depot`, dan agregasi per depot mengikuti urutan yang sama.
+- **Nama hanya bisa diubah pada manual entry.** Toko terdaftar namanya dari
+  master data; API menolak dengan `NAMA_TERKUNCI`.
 - **Idempotensi check-in**: unique index parsial di `reservations.customer_id`
   membuat pencatatan ulang meng-update baris yang sama, jadi `sum(qty_hadir)` tidak
   pernah dobel-hitung walau dua admin mencatat toko yang sama bersamaan.

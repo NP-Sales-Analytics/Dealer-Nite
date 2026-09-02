@@ -1,4 +1,11 @@
-export type DepotRow = { depot: string; qtyUndangan: number; qtyHadir: number };
+export type DepotRow = {
+  depot: string;
+  region: string | null;
+  qtyUndangan: number;
+  qtyHadir: number;
+  tokoDiundang: number;
+  tokoHadir: number;
+};
 
 export function attendanceRate(hadir: number, undangan: number): number {
   if (undangan <= 0) return 0;

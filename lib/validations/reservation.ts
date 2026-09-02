@@ -19,3 +19,14 @@ export const reservationInputSchema = z.discriminatedUnion('isManualEntry', [
 ]);
 
 export type ReservationInput = z.infer<typeof reservationInputSchema>;
+
+// Perubahan catatan kehadiran yang sudah tersimpan. Semua field opsional supaya
+// UI bisa mengirim hanya yang berubah. depotOverride null = kembali mengikuti
+// depot master data.
+export const reservationPatchSchema = z.object({
+  qtyHadir: z.number().int().min(0).max(1000).optional(),
+  depotOverride: z.string().trim().min(1).max(100).nullable().optional(),
+  manualNamaCustomer: z.string().trim().min(2).max(200).optional(),
+}).strict();
+
+export type ReservationPatch = z.infer<typeof reservationPatchSchema>;
