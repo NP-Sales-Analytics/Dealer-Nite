@@ -8,10 +8,12 @@ async function main() {
   const url = process.argv[2];
   const shot = process.argv[3];
 
-  const jar = readFileSync('cookies.txt', 'utf8').split(/\r?\n/).filter((l) => l && !l.startsWith('#'));
+  const domain = new URL(url).hostname;
+  const jarFile = process.env.COOKIE_FILE ?? 'cookies.txt';
+  const jar = readFileSync(jarFile, 'utf8').split(/\r?\n/).filter((l) => l && !l.startsWith('#'));
   const cookies = jar.map((l) => {
     const f = l.split('\t');
-    return { name: f[5], value: f[6], domain: 'localhost', path: '/' };
+    return { name: f[5], value: f[6], domain, path: '/' };
   });
 
   const browser = await chromium.launch({ executablePath: EXE });

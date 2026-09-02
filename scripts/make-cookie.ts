@@ -4,7 +4,9 @@ import { createClient } from '@supabase/supabase-js';
 // Membuat cookie jar curl yang formatnya sama dengan @supabase/ssr,
 // supaya endpoint ber-auth bisa diuji dari terminal tanpa browser.
 async function main() {
-  const [, , email, password] = process.argv;
+  const [, , email, password, domainArg] = process.argv;
+  const domain = domainArg ?? 'localhost';
+  const secure = domain === 'localhost' ? 'FALSE' : 'TRUE';
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const ref = new URL(url).hostname.split('.')[0];
 
@@ -22,7 +24,7 @@ async function main() {
   if (value.length <= CHUNK) parts.push([name, value]);
   else for (let i = 0, n = 0; i < value.length; i += CHUNK, n++) parts.push([`${name}.${n}`, value.slice(i, i + CHUNK)]);
 
-  const lines = parts.map(([n, v]) => `localhost\tFALSE\t/\tFALSE\t${expiry}\t${n}\t${v}`);
+  const lines = parts.map(([n, v]) => `${domain}\tFALSE\t/\t${secure}\t${expiry}\t${n}\t${v}`);
   writeFileSync(process.env.COOKIE_OUT || 'cookies.txt', '# Netscape HTTP Cookie File\n' + lines.join('\n') + '\n');
   console.log(`cookie ditulis (${parts.length} chunk) untuk ${data.user!.email}`);
 }

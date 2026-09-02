@@ -48,7 +48,7 @@ next-env.d.ts
 .superadmin-credentials.txt
 
 # cookie jar sesi untuk pengujian lokal
-cookies.txt
+cookies*.txt
 .gstack/
 
 # hasil sementara pengecekan halaman
