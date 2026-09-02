@@ -27,7 +27,7 @@ export function CapacityPieChart({ summary }: { summary: Summary }) {
   ];
 
   return (
-    <Card>
+    <Card className="min-w-0 overflow-hidden">
       <CardHeader>
         <CardTitle>Kapasitas vs Aktual</CardTitle>
       </CardHeader>

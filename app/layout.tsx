@@ -1,22 +1,26 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Outfit } from "next/font/google";
 import "./globals.css";
 import { QueryProvider } from "@/components/shared/query-provider";
 import { Toaster } from "@/components/ui/sonner";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const outfit = Outfit({
+  variable: "--font-sans",
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
   title: "Pylox — Penerimaan Tamu",
   description: "Pencatatan kehadiran tamu undangan",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  // Jangan kunci zoom: admin di lapangan perlu memperbesar nama toko yang mirip.
+  maximumScale: 5,
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({
@@ -25,10 +29,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="id">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+    // colorScheme dipaksa terang supaya kontrol native (scrollbar, autofill,
+    // keyboard) tidak ikut dark mode OS. Aplikasi ini light-only.
+    <html lang="id" className="light" style={{ colorScheme: "light" }}>
+      <body className={`${outfit.variable} font-sans antialiased`}>
         <QueryProvider>{children}</QueryProvider>
         <Toaster richColors position="top-center" />
       </body>

@@ -17,7 +17,13 @@ async function main() {
   });
 
   const browser = await chromium.launch({ executablePath: EXE });
-  const ctx = await browser.newContext({ viewport: { width: 1440, height: 1800 } });
+  // VIEWPORT=375x812 untuk memotret tampilan HP.
+  const [vw, vh] = (process.env.VIEWPORT ?? '1440x1800').split('x').map(Number);
+  const ctx = await browser.newContext({
+    viewport: { width: vw, height: vh },
+    isMobile: vw < 768,
+    hasTouch: vw < 768,
+  });
   await ctx.addCookies(cookies);
   const page = await ctx.newPage();
 

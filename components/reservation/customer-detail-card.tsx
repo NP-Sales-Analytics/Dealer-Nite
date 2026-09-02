@@ -1,19 +1,23 @@
 import type { CustomerSearchResult } from './search-bar';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 const Row = ({ label, value }: { label: string; value: string | number | null }) => (
-  <div className="flex justify-between gap-4 py-1 text-sm">
-    <span className="text-muted-foreground">{label}</span>
+  <div className="flex items-start justify-between gap-4 py-2 text-sm">
+    <span className="shrink-0 text-muted-foreground">{label}</span>
     <span className="text-right font-medium">{value ?? '-'}</span>
   </div>
 );
 
 export function CustomerDetailCard({ customer }: { customer: CustomerSearchResult }) {
   return (
-    <Card>
-      <CardHeader><CardTitle>{customer.namaToko}</CardTitle></CardHeader>
-      <CardContent className="divide-y">
-        <Row label="Kode SAP" value={customer.kodeSap} />
+    <div className="rounded-2xl border border-border bg-card p-4 shadow-xs">
+      <div className="mb-1 flex flex-wrap items-center gap-2">
+        <h2 className="text-lg font-semibold leading-snug">{customer.namaToko}</h2>
+        {customer.sudahHadir && <Badge variant="secondary">Sudah dicatat</Badge>}
+      </div>
+      <p className="mb-3 text-sm text-muted-foreground">{customer.kodeSap}</p>
+
+      <div className="divide-y divide-border border-t border-border">
         <Row label="Depot" value={customer.depot} />
         <Row label="Wilayah / Region" value={`${customer.wilayah ?? '-'} / ${customer.region ?? '-'}`} />
         <Row label="Pemilik yang datang" value={customer.namaPemilik || '-'} />
@@ -21,7 +25,7 @@ export function CustomerDetailCard({ customer }: { customer: CustomerSearchResul
         {customer.sudahHadir && (
           <Row label="Sudah tercatat hadir" value={`${customer.qtyHadirSebelumnya} orang`} />
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

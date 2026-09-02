@@ -1,9 +1,9 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { Search, X } from 'lucide-react';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { useDebounce } from '@/lib/use-debounce';
 
 export type CustomerSearchResult = {
@@ -36,35 +36,58 @@ export function SearchBar({ onSelect }: { onSelect: (c: CustomerSearchResult) =>
   const results = data?.results ?? [];
 
   return (
-    <div className="space-y-2">
-      <Input
-        value={term}
-        onChange={(e) => setTerm(e.target.value)}
-        placeholder="Ketik nama toko atau kode SAP..."
-        autoFocus
-      />
+    <div className="space-y-3">
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
+        <input
+          value={term}
+          onChange={(e) => setTerm(e.target.value)}
+          placeholder="Ketik nama toko atau kode SAP..."
+          autoFocus
+          autoComplete="off"
+          aria-label="Cari toko"
+          className="h-12 w-full rounded-xl border border-border bg-card pl-12 pr-12 text-base shadow-xs placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:outline-none"
+        />
+        {term && (
+          <button
+            type="button"
+            onClick={() => setTerm('')}
+            aria-label="Hapus pencarian"
+            className="absolute right-0 top-0 grid h-12 w-12 place-items-center text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          >
+            <X className="size-5" />
+          </button>
+        )}
+      </div>
+
       {debounced.trim().length >= 2 && (
-        <div className="rounded-md border">
+        <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
           {isFetching && results.length === 0 && (
-            <p className="p-3 text-sm text-muted-foreground">Mencari...</p>
+            <p className="p-4 text-sm text-muted-foreground">Mencari...</p>
           )}
           {!isFetching && results.length === 0 && (
-            <p className="p-3 text-sm text-muted-foreground">Tidak ada hasil.</p>
+            <p className="p-4 text-sm text-muted-foreground">
+              Tidak ada hasil. Coba kata lain, atau tambahkan manual.
+            </p>
           )}
-          <ul className="divide-y">
+          <ul className="divide-y divide-border">
             {results.map((c) => (
               <li key={c.id}>
                 <button
                   type="button"
                   onClick={() => { onSelect(c); setTerm(''); }}
-                  className="flex w-full flex-col items-start gap-0.5 p-3 text-left hover:bg-muted"
+                  className="flex w-full flex-col items-start gap-1 px-4 py-3 text-left transition-colors hover:bg-secondary/60 active:bg-secondary focus-visible:bg-secondary focus-visible:outline-none"
                 >
-                  <span className="flex items-center gap-2 font-medium">
-                    {c.namaToko}
-                    {c.sudahHadir && <Badge variant="secondary">Sudah dicatat</Badge>}
+                  <span className="flex w-full flex-wrap items-center gap-2">
+                    <span className="font-medium leading-snug">{c.namaToko}</span>
+                    {c.sudahHadir && (
+                      <Badge variant="secondary" className="shrink-0">Sudah dicatat</Badge>
+                    )}
                   </span>
-                  <span className="text-xs text-muted-foreground">
-                    {c.kodeSap} · {c.depot ?? '-'} · {c.wilayah ?? '-'} / {c.region ?? '-'} · undangan {c.qtyUndangan} orang
+                  <span className="text-xs leading-relaxed text-muted-foreground">
+                    {c.kodeSap} · {c.depot ?? '-'} · {c.wilayah ?? '-'} / {c.region ?? '-'}
+                    {' · '}
+                    <span className="font-medium text-foreground">undangan {c.qtyUndangan} orang</span>
                   </span>
                 </button>
               </li>

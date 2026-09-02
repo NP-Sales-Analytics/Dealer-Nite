@@ -20,6 +20,7 @@ npm run dev
 | `npm run seed` | Import/refresh data customer. Idempotent — aman dijalankan berulang |
 | `npm run check:flow` | Uji alur pencatatan di browser sungguhan (cari → pilih → simpan → duplikat → manual) |
 | `npm run check:page` | Screenshot + cek error JS satu halaman: `npm run check:page -- <url> <file.png>` |
+| `npm run check:overflow` | Cari elemen yang melebihi lebar layar HP: `npm run check:overflow -- <url>` |
 
 Dua perintah `check:*` memakai Chromium headless lewat `playwright-core` dan butuh
 sesi login. Buat cookienya dulu:
@@ -27,6 +28,10 @@ sesi login. Buat cookienya dulu:
 ```bash
 COOKIE_OUT=cookies.txt npx tsx --env-file=.env.local scripts/make-cookie.ts <email> <password>
 ```
+
+`check:page` menerima `VIEWPORT=375x812` untuk memotret tampilan HP, dan
+`check:flow`/`check:page` menerima `BASE_URL` + `COOKIE_FILE` untuk diarahkan ke
+produksi.
 
 **Jangan jalankan `npm run build` selagi `npm start` hidup** — hash chunk di `.next`
 berubah di bawah server yang berjalan dan browser gagal memuat chunk. Hentikan
@@ -80,6 +85,26 @@ update public.profiles set role = 'superadmin' where email = 'email@anda.com';
 Isi `UPSTASH_REDIS_REST_URL` dan `UPSTASH_REDIS_REST_TOKEN`, lalu redeploy.
 Tanpa keduanya, `lib/rate-limit.ts` meloloskan semua request — tidak perlu ubah kode.
 
+## Tampilan
+
+Design system diturunkan dari TailAdmin (`design.md`) dengan warna utama indigo
+`#465FFF`, font Outfit, dan **light mode saja** — tidak ada toggle, dan
+`colorScheme` dipaksa terang supaya kontrol native tidak ikut dark mode OS.
+
+- **Navigasi** memakai shadcn `Sidebar`: menu kiri di desktop, drawer hamburger
+  di HP. Daftar menunya difilter per role di `components/shared/app-sidebar.tsx`.
+- **Mobile-first.** Target sentuh minimal 44px, dan setiap halaman diuji pada
+  375px. Tabel (`user-table`, `recent-checkin-list`) berubah jadi daftar kartu di
+  bawah `md` karena 4 kolom tidak muat di layar HP.
+- **Identitas visual** ada di satu tempat, `components/shared/brand.tsx`. Untuk
+  memasang logo, ganti blok `<span>` di file itu dengan `<Image>` — sidebar,
+  login, dan halaman no-access ikut otomatis.
+- **Dua warna referensi digelapkan satu step** karena versi aslinya gagal kontras:
+  teks nav aktif `#465FFF` → `#3B50E0` (4.34 → 5.52) dan teks badge sukses
+  `#039855` → `#027A48` (3.54 → 5.13). Warna isian tombol tetap `#465FFF`.
+- **Konfirmasi memakai `AlertDialog`**, bukan `confirm()` native: popup sistem di
+  HP mudah ter-dismiss tak sengaja padahal isinya keputusan menimpa data.
+
 ## Catatan arsitektur
 
 - **Koneksi DB** lewat Supavisor transaction pooler (`prepare: false`). Pool sengaja
@@ -98,6 +123,11 @@ Tanpa keduanya, `lib/rate-limit.ts` meloloskan semua request — tidak perlu uba
   memakai index GIN `gin_trgm_ops` yang sama.
 - **Cache dashboard** 15 detik per proses (`lib/dashboard/cache.ts`), dengan dedup
   in-flight sehingga cache dingin + banyak admin serentak tetap satu query.
+- **Jam check-in dipaku ke Asia/Jakarta** lewat `Intl`, bukan mengikuti timezone
+  perangkat. `checked_in_at` datang sebagai string mentah driver
+  (`2026-09-02 06:15:05.88+00`) dan harus di-`new Date()` apa adanya - mengubah
+  spasi jadi `T` membuat parser strict dan menghasilkan `Invalid Date`, karena
+  offset `+00` tanpa menit bukan ISO valid.
 - **Idempotensi check-in**: unique index parsial di `reservations.customer_id`
   membuat pencatatan ulang meng-update baris yang sama, jadi `sum(qty_hadir)` tidak
   pernah dobel-hitung walau dua admin mencatat toko yang sama bersamaan.

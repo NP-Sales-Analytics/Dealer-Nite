@@ -1,6 +1,7 @@
 'use client';
 
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
+import { useIsMobile } from '@/hooks/use-mobile';
 import type { DepotRow } from '@/lib/dashboard/compute';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -14,24 +15,26 @@ const config = {
 } satisfies ChartConfig;
 
 export function DepotBarChart({ rows }: { rows: DepotRow[] }) {
+  const isMobile = useIsMobile();
   // 35 depot dengan nama panjang: batang horizontal, dan tinggi mengikuti jumlah
   // baris supaya label sumbu tidak saling tumpuk.
-  const height = Math.max(320, rows.length * 30);
+  const height = Math.max(320, rows.length * (isMobile ? 26 : 30));
 
   return (
-    <Card>
+    <Card className="min-w-0 overflow-hidden">
       <CardHeader>
         <CardTitle>Kehadiran per Depot</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="max-h-[560px] overflow-y-auto pr-2">
+        <div className="max-h-[420px] overflow-y-auto pr-1 sm:max-h-[560px] sm:pr-2">
           <ChartContainer config={config} style={{ height }} className="w-full">
             <BarChart data={rows} layout="vertical" margin={{ left: 8, right: 16 }} barGap={2}>
               <CartesianGrid horizontal={false} />
               <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} />
               <YAxis
-                type="category" dataKey="depot" width={132} interval={0}
-                tick={{ fontSize: 11 }} tickLine={false} axisLine={false}
+                type="category" dataKey="depot"
+                width={isMobile ? 92 : 132} interval={0}
+                tick={{ fontSize: isMobile ? 10 : 11 }} tickLine={false} axisLine={false}
               />
               <ChartTooltip content={<ChartTooltipContent />} />
               <ChartLegend content={<ChartLegendContent />} />

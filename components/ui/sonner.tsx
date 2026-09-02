@@ -1,15 +1,15 @@
 "use client"
 
-import { useTheme } from "next-themes"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme()
-
   return (
     <Sonner
-      theme={theme as ToasterProps["theme"]}
+      // Dipaku terang. Default sonner adalah "system", dan tanpa ThemeProvider
+      // ia membaca prefers-color-scheme OS - toast gelap di atas UI terang
+      // pada HP yang dark mode-nya menyala (persis kondisi malam event).
+      theme="light"
       className="toaster group"
       icons={{
         success: (

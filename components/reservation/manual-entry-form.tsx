@@ -44,29 +44,38 @@ export function ManualEntryForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      {/* max-h + scroll: di HP keyboard menutupi separuh layar, tanpa ini
+          tombol Simpan tidak bisa dijangkau. */}
+      <DialogContent className="max-h-[90svh] overflow-y-auto">
         <DialogHeader><DialogTitle>Tambah Tamu Manual</DialogTitle></DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="m-nama">Nama Customer</Label>
-            <Input id="m-nama" value={nama} onChange={(e) => setNama(e.target.value)} />
+            <Input className="h-11" id="m-nama" value={nama} onChange={(e) => setNama(e.target.value)} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="m-depot">Depot</Label>
             {/* datalist native: autocomplete 35 depot tanpa library combobox */}
-            <Input id="m-depot" list="depot-list" value={depot} onChange={(e) => setDepot(e.target.value)} />
+            <Input className="h-11" id="m-depot" list="depot-list" value={depot} onChange={(e) => setDepot(e.target.value)} />
             <datalist id="depot-list">
               {depots.map((d) => <option key={d} value={d} />)}
             </datalist>
           </div>
           <div className="space-y-2">
             <Label htmlFor="m-qty">Jumlah Orang yang Hadir</Label>
-            <Input id="m-qty" type="number" min={0} inputMode="numeric" value={qty} onChange={(e) => setQty(e.target.value)} />
+            <Input className="h-11" id="m-qty" type="number" min={0} inputMode="numeric" value={qty} onChange={(e) => setQty(e.target.value)} />
           </div>
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>Batal</Button>
-          <Button onClick={submit} disabled={!valid || submitting}>
+        <DialogFooter className="gap-2 sm:gap-2">
+          <Button
+            variant="outline"
+            className="h-11 flex-1 sm:flex-none"
+            onClick={() => onOpenChange(false)}
+            disabled={submitting}
+          >
+            Batal
+          </Button>
+          <Button className="h-11 flex-1 sm:flex-none" onClick={submit} disabled={!valid || submitting}>
             {submitting ? 'Menyimpan...' : 'Simpan'}
           </Button>
         </DialogFooter>

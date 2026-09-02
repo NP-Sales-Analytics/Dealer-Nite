@@ -46,6 +46,12 @@ async function main() {
 
   await page.locator('#qty').fill('1');
   await page.getByRole('button', { name: 'Simpan Kehadiran' }).click();
+  // Toko ini mungkin sudah pernah dicatat dari run sebelumnya; kalau dialog
+  // duplikat muncul, setujui supaya alur lanjut.
+  const dupAwal = page.getByRole('button', { name: 'Ya, ganti' });
+  if (await dupAwal.waitFor({ state: 'visible', timeout: 8000 }).then(() => true, () => false)) {
+    await dupAwal.click();
+  }
   await page.waitForTimeout(2500);
 
   const toastSukses = await page.locator('text=tercatat hadir').first()
@@ -64,12 +70,25 @@ async function main() {
   await page.locator('button', { hasText: 'KARMAN' }).first().click();
   await page.waitForTimeout(500);
   await page.locator('#qty').fill('9');
-  dialogs.length = 0;
   await page.getByRole('button', { name: 'Simpan Kehadiran' }).click();
-  for (let i = 0; i < 30 && dialogs.length < 2; i++) await page.waitForTimeout(500);
 
-  ok('konfirmasi duplikat muncul', dialogs.some((d) => /sudah dicatat hadir/i.test(d)), dialogs[0] ?? '(tidak ada)');
-  ok('konfirmasi melebihi undangan muncul', dialogs.some((d) => /melebihi undangan/i.test(d)), dialogs[1] ?? '(tidak ada)');
+  // Konfirmasi sekarang AlertDialog di dalam halaman, bukan confirm() native,
+  // jadi page.on('dialog') tidak akan pernah menyala. Tunggu teksnya muncul lalu
+  // tekan tombol aksinya.
+  const dialogDuplikat = page.getByRole('alertdialog').filter({ hasText: /sudah tercatat hadir/i });
+  const adaDuplikat = await dialogDuplikat
+    .waitFor({ state: 'visible', timeout: 25000 }).then(() => true, () => false);
+  ok('konfirmasi duplikat muncul', adaDuplikat,
+    adaDuplikat ? (await dialogDuplikat.innerText()).split(String.fromCharCode(10)).join(' ') : '(tidak ada)');
+  if (adaDuplikat) await page.getByRole('button', { name: 'Ya, ganti' }).click();
+
+  const dialogKuota = page.getByRole('alertdialog').filter({ hasText: /melebihi undangan/i });
+  const adaKuota = await dialogKuota
+    .waitFor({ state: 'visible', timeout: 25000 }).then(() => true, () => false);
+  ok('konfirmasi melebihi undangan muncul', adaKuota,
+    adaKuota ? (await dialogKuota.innerText()).split(String.fromCharCode(10)).join(' ') : '(tidak ada)');
+  if (adaKuota) await page.getByRole('button', { name: 'Tetap simpan' }).click();
+  await page.waitForTimeout(2000);
 
   // --- Alur 3: manual entry ---
   await page.waitForTimeout(500);

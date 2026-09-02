@@ -40,13 +40,13 @@ export function DashboardClient() {
       </p>
     );
   }
-  if (!summary.data) return <Skeleton className="h-64 w-full" />;
+  if (!summary.data) return <Skeleton className="h-64 w-full rounded-2xl" />;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <KpiCards summary={summary.data} />
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2"><DepotBarChart rows={depot.data?.rows ?? []} /></div>
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-3">
+        <div className="min-w-0 lg:col-span-2"><DepotBarChart rows={depot.data?.rows ?? []} /></div>
         <CapacityPieChart summary={summary.data} />
       </div>
       <RecentCheckinList rows={recent.data?.rows ?? []} />
