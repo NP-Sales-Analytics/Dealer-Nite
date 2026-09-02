@@ -1,36 +1,97 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Pylox — Modul Reservation (Penerimaan Tamu)
 
-## Getting Started
+Pencatatan kehadiran tamu undangan untuk malam event, plus dashboard rekap real-time.
+Modul pertama dari aplikasi yang akan bertambah modulnya (Target, dll).
 
-First, run the development server:
+## Menjalankan secara lokal
 
 ```bash
+npm install
+cp .env.example .env.local     # lalu isi nilainya (lihat tabel di bawah)
+npm run seed                   # import 136 customer dari Data_Awal_Customer.csv
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+| Perintah | Fungsi |
+|---|---|
+| `npm run dev` | Development server |
+| `npm run build` && `npm start` | Build + jalankan versi produksi |
+| `npm test` | 19 unit test (parser CSV, skema Zod, hitungan dashboard) |
+| `npm run seed` | Import/refresh data customer. Idempotent — aman dijalankan berulang |
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Key | Dari mana | Wajib |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase → Settings → API | ya |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase → Settings → API | ya |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Settings → API. **Jangan** beri prefix `NEXT_PUBLIC_` | ya |
+| `DATABASE_URL` | Supabase → Connect → **Transaction pooler** (port 6543) | ya |
+| `UPSTASH_REDIS_REST_URL` | Upstash | tidak |
+| `UPSTASH_REDIS_REST_TOKEN` | Upstash | tidak |
 
-## Learn More
+Dua catatan soal `DATABASE_URL` yang sudah pernah menggigit:
 
-To learn more about Next.js, take a look at the following resources:
+- Buang bracket `[ ]` yang mengelilingi password di string contoh Supabase.
+- Kalau password mengandung `@`, `:`, `/`, atau `#`, karakter itu **wajib** di-percent-encode
+  (`@` → `%40`). Kalau tidak, parser URL memotong di tempat yang salah dan koneksi gagal.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Role dan hak akses
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Role | `/reservation` | `/dashboard` | `/admin/users` | Mendarat di |
+|---|---|---|---|---|
+| `superadmin` | ya | ya | ya | `/reservation` |
+| `admin_rsvp` | ya | tidak | tidak | `/reservation` |
+| `rsm` | tidak | ya | tidak | `/dashboard` |
+| `customer` | tidak | tidak | tidak | `/no-access` |
 
-## Deploy on Vercel
+`customer` disiapkan untuk modul kedua dan belum punya halaman.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Menambah user
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Superadmin membukanya di **User → Tambah User**. Role disimpan di `user_metadata`
+saat pembuatan, dan trigger `handle_new_user` menuliskannya ke tabel `profiles`.
+
+Superadmin tidak bisa mengubah role atau menghapus akunnya sendiri, supaya
+superadmin terakhir tidak bisa mengunci dirinya keluar.
+
+**Superadmin pertama** (kalau memulai dari database kosong): buat user di Supabase
+Dashboard → Authentication → Users, lalu naikkan rolenya:
+
+```sql
+update public.profiles set role = 'superadmin' where email = 'email@anda.com';
+```
+
+## Mengaktifkan rate limiting
+
+Isi `UPSTASH_REDIS_REST_URL` dan `UPSTASH_REDIS_REST_TOKEN`, lalu redeploy.
+Tanpa keduanya, `lib/rate-limit.ts` meloloskan semua request — tidak perlu ubah kode.
+
+## Catatan arsitektur
+
+- **Koneksi DB** lewat Supavisor transaction pooler (`prepare: false`). Pool sengaja
+  lebih dari satu koneksi: dengan `max: 1`, satu query tersendat membuat seluruh
+  request berikutnya antre dan aplikasi beku sampai proses di-restart.
+- **Otorisasi role** dibaca dari tabel `profiles` di server component/route handler
+  (`lib/auth.ts`), bukan disalin ke JWT — satu sumber kebenaran.
+- **RLS aktif tanpa policy** di ketiga tabel. Aplikasi masuk lewat role `postgres`
+  yang punya `BYPASSRLS`, sedangkan anon key yang ter-expose di browser tidak bisa
+  membaca apa pun lewat PostgREST. Terverifikasi: anon key maupun JWT user yang
+  sah sama-sama mengembalikan `[]`.
+- **Pencarian** memakai `word_similarity` (`<%`), bukan `similarity` (`%`). Pada data
+  nyata, query pendek melawan nama toko panjang skornya di bawah threshold default
+  (`pantalli` vs `PT.PANTALI BERKAH SENTOSA` = 0.259 < 0.3) sehingga typo tidak
+  ketemu; `word_similarity` mencocokkan ke potongan terbaik (0.700). Keduanya
+  memakai index GIN `gin_trgm_ops` yang sama.
+- **Cache dashboard** 15 detik per proses (`lib/dashboard/cache.ts`), dengan dedup
+  in-flight sehingga cache dingin + banyak admin serentak tetap satu query.
+- **Idempotensi check-in**: unique index parsial di `reservations.customer_id`
+  membuat pencatatan ulang meng-update baris yang sama, jadi `sum(qty_hadir)` tidak
+  pernah dobel-hitung walau dua admin mencatat toko yang sama bersamaan.
+
+## Data awal
+
+`Data_Awal_Customer.csv` berisi 139 baris; 2 baris terakhir adalah baris kosong dan
+baris total dari spreadsheet asal, dan dibuang saat seed. Satu kode SAP (`624628`)
+muncul dua kali dan qty-nya dijumlahkan, sehingga hasil akhirnya
+**136 toko / 166 orang** — sama dengan total di file aslinya.
