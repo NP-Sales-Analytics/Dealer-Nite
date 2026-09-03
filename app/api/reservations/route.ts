@@ -1,6 +1,7 @@
 import { eq, sql } from 'drizzle-orm';
 import { NextResponse, type NextRequest } from 'next/server';
 import { requireRoleApi } from '@/lib/auth';
+import { bersihkanCacheDashboard } from '@/lib/dashboard/cache';
 import { db } from '@/lib/db';
 import { customers, reservations } from '@/lib/db/schema';
 import { rateLimit } from '@/lib/rate-limit';
@@ -27,6 +28,7 @@ export async function POST(request: NextRequest) {
       qtyHadir: input.qtyHadir,
       checkedInBy: user.id,
     });
+    bersihkanCacheDashboard();
     return NextResponse.json({ status: 'created' }, { status: 201 });
   }
 
@@ -82,5 +84,6 @@ export async function POST(request: NextRequest) {
       set: { qtyHadir: input.qtyHadir, checkedInBy: user.id, checkedInAt: sql`now()` },
     });
 
+  bersihkanCacheDashboard();
   return NextResponse.json({ status: existing ? 'updated' : 'created' }, { status: existing ? 200 : 201 });
 }

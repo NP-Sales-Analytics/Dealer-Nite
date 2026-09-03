@@ -3,7 +3,7 @@
 import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
-import { requireRole, type Role } from '@/lib/auth';
+import { lupakanProfil, requireRole, type Role } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { profiles } from '@/lib/db/schema';
 
@@ -46,6 +46,8 @@ export async function changeRole(userId: string, role: Role) {
   await requireRole(['superadmin']);
   if (!ROLES.includes(role)) throw new Error('Role tidak valid');
   await db.update(profiles).set({ role }).where(eq(profiles.id, userId));
+  // Tanpa ini, role lama masih dipakai sampai cache 60 detik habis.
+  lupakanProfil(userId);
   revalidatePath('/admin/users');
 }
 
@@ -54,5 +56,6 @@ export async function deleteUser(userId: string) {
   if (me.id === userId) throw new Error('Tidak bisa menghapus akun sendiri');
   const { error } = await adminClient().auth.admin.deleteUser(userId);
   if (error) throw new Error(error.message);
+  lupakanProfil(userId);
   revalidatePath('/admin/users');
 }

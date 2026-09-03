@@ -1,14 +1,14 @@
 import { sql } from 'drizzle-orm';
 import { NextResponse, type NextRequest } from 'next/server';
 import { requireRoleApi } from '@/lib/auth';
-import { cache15s } from '@/lib/dashboard/cache';
+import { cacheDashboard } from '@/lib/dashboard/cache';
 import { sortDepots, type DepotRow } from '@/lib/dashboard/compute';
 import { filterKey, readFilter } from '@/lib/dashboard/filters';
 import { db } from '@/lib/db';
 
 // FULL OUTER JOIN supaya depot manual-entry yang tidak ada di master data
 // tetap muncul di daftar.
-const load = cache15s(async (key: string) => {
+const load = cacheDashboard(async (key: string) => {
   const [region, depot] = key.split('|');
   const r = region || null;
   const d = depot || null;

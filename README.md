@@ -21,6 +21,8 @@ npm run dev
 | `npm run check:flow` | Uji alur pencatatan di browser sungguhan (cari → pilih → simpan → duplikat → manual) |
 | `npm run check:page` | Screenshot + cek error JS satu halaman: `npm run check:page -- <url> <file.png>` |
 | `npm run check:overflow` | Cari elemen yang melebihi lebar layar HP: `npm run check:overflow -- <url>` |
+| `npm run check:api-load` | Hitung request API per aksi + ukur latensi tiap endpoint |
+| `npm run check:load` | Kirim 10/30/60 request bersamaan, laporkan p50/p95 dan kegagalan |
 
 Komponen shadcn `SelectTrigger` membawa `data-[size=default]:h-8`, yang
 mengalahkan `h-11` biasa. Untuk menyamakan tingginya dengan input lain, tulis
@@ -152,8 +154,30 @@ Design system diturunkan dari TailAdmin (`design.md`) dengan warna utama indigo
   (`pantalli` vs `PT.PANTALI BERKAH SENTOSA` = 0.259 < 0.3) sehingga typo tidak
   ketemu; `word_similarity` mencocokkan ke potongan terbaik (0.700). Keduanya
   memakai index GIN `gin_trgm_ops` yang sama.
-- **Cache dashboard** 15 detik per proses (`lib/dashboard/cache.ts`), dengan dedup
-  in-flight sehingga cache dingin + banyak admin serentak tetap satu query.
+- **Cache dashboard** per proses (`lib/ttl-cache.ts` + `lib/dashboard/cache.ts`):
+  15 detik untuk agregat, 5 detik untuk daftar kehadiran. Dedup permintaan
+  bersamaan membuat cache dingin + banyak admin serentak tetap satu query.
+  Setiap penulisan catatan memanggil `bersihkanCacheDashboard()` sehingga admin
+  yang baru mengedit langsung melihat hasilnya, tanpa menunggu masa berlaku.
+- **Middleware tidak memverifikasi ulang auth untuk `/api`** selama token masih
+  lebih dari 10 menit dari kedaluwarsa; sisa berlakunya dibaca dari cookie tanpa
+  jaringan. Sebelumnya tiap panggilan API melakukan `auth.getUser()` dua kali
+  (middleware + route handler), masing-masing ~128ms round-trip ke Supabase.
+  Perpanjangan sesi tetap terjadi di middleware, karena hanya di sanalah cookie
+  baru bisa ditulis - route handler tidak bisa menulis cookie.
+- **Profil (role) di-cache 60 detik per user.** Identitas tetap diverifikasi
+  Supabase tiap request; yang di-cache hanya pemetaan id -> role. Perubahan role
+  memanggil `lupakanProfil()` supaya langsung berlaku di instance itu.
+- **Rute `/api` menjawab 401, bukan redirect 307** ke halaman login: klien fetch
+  butuh status yang bisa dibaca, bukan HTML.
+
+Hasil terukur dari perubahan di atas (lokal, DB di ap-northeast-2):
+
+| | sebelum | sesudah |
+|---|---|---|
+| `/api/dashboard/summary` | 446ms | 151ms |
+| `/api/dashboard/recent` | 797ms | 155ms |
+| 60 request bersamaan | - | 1125ms total, 0 gagal |
 - **Jam check-in dipaku ke Asia/Jakarta** lewat `Intl`, bukan mengikuti timezone
   perangkat. `checked_in_at` datang sebagai string mentah driver
   (`2026-09-02 06:15:05.88+00`) dan harus di-`new Date()` apa adanya - mengubah

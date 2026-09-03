@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 import { requireRoleApi } from '@/lib/auth';
-import { cache15s } from '@/lib/dashboard/cache';
+import { cacheDashboard } from '@/lib/dashboard/cache';
 import { db } from '@/lib/db';
 
 export type FilterOptions = {
@@ -15,7 +15,7 @@ export type FilterOptions = {
  * membuat daftar terasa seolah semua sudah hadir, dan sebagian besar pilihannya
  * dijamin menghasilkan nol baris.
  */
-const load = cache15s(async () => {
+const load = cacheDashboard(async () => {
   const rows = (await db.execute(sql`
     select distinct
       coalesce(nullif(trim(coalesce(r.depot_override, c.depot, r.manual_depot)), ''), '(Tanpa Depot)') as depot,

@@ -1,12 +1,12 @@
 import { sql } from 'drizzle-orm';
 import { NextResponse, type NextRequest } from 'next/server';
 import { requireRoleApi } from '@/lib/auth';
-import { cache15s } from '@/lib/dashboard/cache';
+import { cacheDashboard } from '@/lib/dashboard/cache';
 import { attendanceRate } from '@/lib/dashboard/compute';
 import { filterKey, readFilter, type DashboardFilter } from '@/lib/dashboard/filters';
 import { db } from '@/lib/db';
 
-const load = cache15s(async (key: string) => {
+const load = cacheDashboard(async (key: string) => {
   const [region, depot] = key.split('|');
   const r = region || null;
   const d = depot || null;

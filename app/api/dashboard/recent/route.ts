@@ -2,20 +2,20 @@ import { sql } from 'drizzle-orm';
 import { NextResponse, type NextRequest } from 'next/server';
 import { requireRoleApi } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { cacheDashboard } from '@/lib/dashboard/cache';
 import { readFilter } from '@/lib/dashboard/filters';
 
 const PAGE_SIZE = 20;
 
-// Tidak di-cache: daftar ini bisa diedit dari layar yang sama, jadi hasilnya
-// harus langsung mencerminkan perubahan. Query-nya ringan (limit 20 + count).
-export async function GET(request: NextRequest) {
-  const user = await requireRoleApi(['superadmin', 'rsm', 'admin_rsvp']);
-  if (user instanceof NextResponse) return user;
-
-  const { region, depot, q } = readFilter(request);
-  const page = Math.max(1, Number(request.nextUrl.searchParams.get('page') ?? '1') || 1);
-  // Default terbaru dulu; 'asc' untuk melihat siapa yang datang paling awal.
-  const naik = request.nextUrl.searchParams.get('sort') === 'asc';
+// Di-cache 5 detik. Setiap klien mem-poll daftar ini tiap 15 detik, jadi tanpa
+// cache 100 admin berarti 200 query DB per 15 detik (baris + hitungan total).
+// Penulisan catatan membersihkan cache seketika lewat bersihkanCacheDashboard(),
+// sehingga admin yang baru mengedit langsung melihat hasilnya.
+const load = cacheDashboard(async (key: string) => {
+  const { region, depot, q, page, sort } = JSON.parse(key) as {
+    region: string | null; depot: string | null; q: string | null; page: number; sort: 'asc' | 'desc';
+  };
+  const naik = sort === 'asc';
   const offset = (page - 1) * PAGE_SIZE;
 
   // Satu definisi kondisi dipakai untuk data maupun hitungan total, supaya
@@ -56,11 +56,26 @@ export async function GET(request: NextRequest) {
   `)) as unknown as { total: number }[];
   const total = totalRows[0]?.total ?? 0;
 
-  return NextResponse.json({
+  return {
     rows,
     page,
     pageSize: PAGE_SIZE,
     total,
     totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)),
-  });
+  };
+}, 5_000);
+
+export async function GET(request: NextRequest) {
+  const user = await requireRoleApi(['superadmin', 'rsm', 'admin_rsvp']);
+  if (user instanceof NextResponse) return user;
+
+  const { region, depot, q } = readFilter(request);
+  const page = Math.max(1, Number(request.nextUrl.searchParams.get('page') ?? '1') || 1);
+  // Default terbaru dulu; 'asc' untuk melihat siapa yang datang paling awal.
+  const sort = request.nextUrl.searchParams.get('sort') === 'asc' ? 'asc' : 'desc';
+
+  // Kunci sebagai JSON: nama depot dan kata pencarian bisa berisi karakter
+  // apa pun, jadi tidak ada pemisah yang benar-benar aman.
+  const key = JSON.stringify({ region, depot, q, page, sort });
+  return NextResponse.json(await load(key));
 }

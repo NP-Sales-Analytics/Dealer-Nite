@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { NextResponse, type NextRequest } from 'next/server';
 import { requireRoleApi } from '@/lib/auth';
+import { bersihkanCacheDashboard } from '@/lib/dashboard/cache';
 import { db } from '@/lib/db';
 import { reservations } from '@/lib/db/schema';
 import { rateLimit } from '@/lib/rate-limit';
@@ -43,6 +44,7 @@ export async function PATCH(request: NextRequest, { params }: Ctx) {
     })
     .where(eq(reservations.id, id));
 
+  bersihkanCacheDashboard();
   return NextResponse.json({ status: 'updated' });
 }
 
@@ -54,5 +56,6 @@ export async function DELETE(_request: NextRequest, { params }: Ctx) {
   const deleted = await db.delete(reservations).where(eq(reservations.id, id)).returning({ id: reservations.id });
   if (deleted.length === 0) return NextResponse.json({ code: 'NOT_FOUND' }, { status: 404 });
 
+  bersihkanCacheDashboard();
   return NextResponse.json({ status: 'deleted' });
 }
