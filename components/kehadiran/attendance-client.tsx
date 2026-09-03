@@ -31,7 +31,9 @@ export function AttendanceClient({ bisaUbah }: { bisaUbah: boolean }) {
   const queryClient = useQueryClient();
 
   // Ketikan di-debounce; region/depot langsung berlaku karena sekali klik.
-  const qDebounced = useDebounce(filter.q, 300);
+  // Di-trim di sini, bukan hanya di buildQuery: kunci query yang menyimpan
+  // "abc " terhitung beda dari "abc" dan memicu fetch untuk pencarian yang sama.
+  const qDebounced = useDebounce(filter.q, 300).trim();
   const filterEfektif = useMemo(
     () => ({ ...filter, q: qDebounced }),
     [filter.region, filter.depot, qDebounced], // eslint-disable-line react-hooks/exhaustive-deps

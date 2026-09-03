@@ -45,5 +45,9 @@ export async function GET() {
   const user = await requireRoleApi(['superadmin', 'rsm', 'admin_rsvp']);
   if (user instanceof NextResponse) return user;
 
-  return NextResponse.json(await load());
+  // Isi dropdown jarang berubah; satu menit di browser sepadan dengan
+  // staleTime 5 menit di klien. `private` karena route ini dijaga login.
+  return NextResponse.json(await load(), {
+    headers: { 'Cache-Control': 'private, max-age=60, stale-while-revalidate=300' },
+  });
 }

@@ -42,11 +42,19 @@ const load = cacheDashboard(async (key: string) => {
   return rows[0];
 });
 
+// Cache di browser, bukan di CDN. `private` wajib: route ini dijaga login,
+// dan cache bersama akan menyajikan angkanya ke siapa pun tanpa cek auth.
+// stale-while-revalidate membuat reload cepat memakai salinan lama dulu.
+const CACHE = { 'Cache-Control': 'private, max-age=10, stale-while-revalidate=30' };
+
 export async function GET(request: NextRequest) {
   const user = await requireRoleApi(['superadmin', 'rsm', 'admin_rsvp']);
   if (user instanceof NextResponse) return user;
 
   const filter: DashboardFilter = readFilter(request);
   const s = await load(filterKey(filter));
-  return NextResponse.json({ ...s, persentase: attendanceRate(s.totalHadir, s.totalUndangan) });
+  return NextResponse.json(
+    { ...s, persentase: attendanceRate(s.totalHadir, s.totalUndangan) },
+    { headers: CACHE },
+  );
 }

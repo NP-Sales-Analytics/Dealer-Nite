@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { CapacityPieChart } from './capacity-pie-chart';
 import { DepotBarChart } from './depot-bar-chart';
@@ -28,8 +28,9 @@ const buildQuery = (f: FilterState) => {
 };
 
 // Endpoint di-cache 15 detik di server; polling 15 detik membuat layar ikut
-// segar tanpa menambah beban DB.
-const POLL = { refetchInterval: 15_000 } as const;
+// segar tanpa menambah beban DB. keepPreviousData menahan angka lama saat
+// filter berubah, jadi kartu tidak berkedip kosong sambil menunggu data baru.
+const POLL = { refetchInterval: 15_000, placeholderData: keepPreviousData } as const;
 
 export function DashboardClient() {
   const [filter, setFilter] = useState<FilterState>(FILTER_KOSONG);

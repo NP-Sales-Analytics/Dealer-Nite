@@ -21,13 +21,19 @@ export type CustomerSearchResult = {
 
 export function SearchBar({ onSelect }: { onSelect: (c: CustomerSearchResult) => void }) {
   const [term, setTerm] = useState('');
-  const debounced = useDebounce(term, 300);
+  // Kunci query memakai nilai yang sudah di-debounce DAN sudah di-trim: tanpa
+  // trim, "toko" dan "toko " jadi dua kunci berbeda untuk pencarian yang sama.
+  const q = useDebounce(term, 300).trim();
+  const cukupPanjang = q.length >= 2;
 
   const { data, isFetching } = useQuery({
-    queryKey: ['customer-search', debounced],
-    enabled: debounced.trim().length >= 2,
+    queryKey: ['customer-search', q],
+    enabled: cukupPanjang,
+    // Menghapus lalu mengetik ulang kata yang sama dalam 30 detik tidak menembak
+    // server lagi - hasilnya diambil dari cache untuk kunci yang sama.
+    staleTime: 30_000,
     queryFn: async (): Promise<{ results: CustomerSearchResult[] }> => {
-      const res = await fetch(`/api/customers/search?q=${encodeURIComponent(debounced)}`);
+      const res = await fetch(`/api/customers/search?q=${encodeURIComponent(q)}`);
       if (!res.ok) throw new Error('Pencarian gagal');
       return res.json();
     },
@@ -60,7 +66,7 @@ export function SearchBar({ onSelect }: { onSelect: (c: CustomerSearchResult) =>
         )}
       </div>
 
-      {debounced.trim().length >= 2 && (
+      {cukupPanjang && (
         <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
           {isFetching && results.length === 0 && (
             <p className="p-4 text-sm text-muted-foreground">Mencari...</p>
