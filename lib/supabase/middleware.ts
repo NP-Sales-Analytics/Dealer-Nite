@@ -1,7 +1,10 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
-const PUBLIC_PATHS = ['/login', '/auth'];
+// /order dan /leaderboard pakai sesi customer (cookie tersendiri), bukan Supabase
+// Auth. Tanpa ini, middleware me-redirect mereka ke /login admin. Otorisasi
+// customer ditegakkan di dalam route/page-nya lewat getCustomerId/requireCustomerApi.
+const PUBLIC_PATHS = ['/login', '/auth', '/order', '/leaderboard'];
 
 // Token berlaku 1 jam. Diperbarui saat sisanya tinggal 10 menit, jadi request
 // biasa tidak perlu menghubungi Supabase sama sekali.
