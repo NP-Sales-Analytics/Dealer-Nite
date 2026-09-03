@@ -90,6 +90,56 @@ async function main() {
     !gantiRegionDash.some((u) => u.includes('/filters')),
     gantiRegionDash.join(', ') || '-');
 
+  // ---------- Search bar ----------
+  await p.goto(`${BASE}/reservation`, { waitUntil: 'domcontentloaded' });
+  await p.waitForTimeout(3000);
+
+  const kotak = p.getByLabel('Cari toko');
+  const ketik = await hitung(p, async () => {
+    // delay 80ms: kecepatan mengetik wajar, jauh di bawah jeda debounce 300ms.
+    await kotak.pressSequentially('panta', { delay: 80 });
+  });
+  ok('ketik 5 huruf = 1 request pencarian', ketik.length === 1,
+    `${ketik.length} request: ${ketik.join(', ') || '-'}`);
+
+  const ulang = await hitung(p, async () => {
+    for (let i = 0; i < 5; i++) await kotak.press('Backspace');
+    await kotak.pressSequentially('panta', { delay: 80 });
+  });
+  ok('hapus lalu ketik ulang kata sama = 0 request (staleTime 30 detik)', ulang.length === 0,
+    `${ulang.length} request: ${ulang.join(', ') || '-'}`);
+
+  const pendek = await hitung(p, async () => {
+    for (let i = 0; i < 4; i++) await kotak.press('Backspace');
+  });
+  ok('sisa 1 huruf tidak menembak API', pendek.length === 0,
+    `${pendek.length} request: ${pendek.join(', ') || '-'}`);
+
+  // ---------- Waktu perpindahan halaman ----------
+  // Dua angka yang berbeda artinya: "terasa" = kapan layar berhenti diam
+  // (skeleton loading.tsx muncul), "selesai" = kapan judul halaman tujuan ada.
+  const navigasi = async (label: string, judul: string) => {
+    const a = Date.now();
+    await p.getByRole('link', { name: label }).click();
+    await p.locator('[data-slot="skeleton"], h1').first().waitFor({ state: 'visible' });
+    const terasa = Date.now() - a;
+    await p.getByRole('heading', { name: judul, level: 1 }).waitFor({ state: 'visible' });
+    return { terasa, selesai: Date.now() - a };
+  };
+
+  await p.goto(`${BASE}/dashboard`, { waitUntil: 'domcontentloaded' });
+  await p.waitForTimeout(3000);
+
+  for (const [label, judul] of [
+    ['Toko Hadir', 'Toko Hadir'],
+    ['Pencatatan', 'Pencatatan Kehadiran'],
+    ['Dashboard', 'Dashboard Kehadiran'],
+  ] as const) {
+    const { terasa, selesai } = await navigasi(label, judul);
+    ok(`nav ke ${label}: layar merespons < 150ms`, terasa < 150, `${terasa}ms`);
+    ok(`nav ke ${label}: konten siap < 600ms`, selesai < 600, `${selesai}ms`);
+  }
+
   // ---------- Bolak-balik antar halaman ----------
   const bolakBalik = await hitung(p, async () => {
     await p.getByRole('link', { name: 'Toko Hadir' }).click();

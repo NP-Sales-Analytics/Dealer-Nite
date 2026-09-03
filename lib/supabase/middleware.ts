@@ -66,12 +66,18 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  // Memanggil getUser() di sini yang membuat token diperbarui dan cookie barunya
-  // ditulis; route handler tidak bisa menulis cookie, jadi hanya di sinilah
-  // perpanjangan sesi bisa terjadi.
-  const { data: { user } } = await supabase.auth.getUser();
+  // getClaims(), BUKAN getUser(): tanda tangan JWT diverifikasi lokal lewat
+  // WebCrypto (kunci ES256 proyek ini), jadi navigasi antar halaman tidak lagi
+  // membayar round-trip ~128ms ke Supabase. Lihat lib/auth.ts untuk alasan
+  // lengkap dan batasnya.
+  //
+  // Pemanggilan di sinilah yang membuat token diperbarui dan cookie barunya
+  // ditulis saat mendekati kedaluwarsa; route handler tidak bisa menulis cookie,
+  // jadi hanya di sini perpanjangan sesi bisa terjadi. Karena itu rute halaman
+  // sengaja TIDAK diberi fast-path seperti rute API di atas.
+  const { data } = await supabase.auth.getClaims();
 
-  if (!user && !rutaApi && !PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
+  if (!data?.claims && !rutaApi && !PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);

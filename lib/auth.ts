@@ -20,8 +20,8 @@ export const HOME_BY_ROLE: Record<Role, string> = {
 /**
  * Profil (nama + role) di-cache 60 detik per user.
  *
- * Identitas TIDAK ikut di-cache: user id tetap berasal dari auth.getUser() yang
- * diverifikasi Supabase pada setiap request. Yang disimpan hanya pemetaan
+ * Identitas TIDAK ikut di-cache: user id tetap berasal dari JWT yang tanda
+ * tangannya diverifikasi ulang pada setiap request. Yang disimpan hanya pemetaan
  * id -> role, dan itu jarang berubah. Menghemat satu query DB (terukur ~90ms)
  * pada tiap panggilan API.
  *
@@ -40,14 +40,26 @@ export const lupakanProfil = (userId?: string) => cacheProfil.clear(userId);
 // halaman memanggilnya lagi lewat requireRole.
 export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
 
-  const profile = await cacheProfil.get(user.id);
+  // getClaims(), BUKAN getUser(). Proyek ini memakai kunci penanda ES256, jadi
+  // getClaims memverifikasi tanda tangan JWT secara lokal lewat WebCrypto -
+  // tetap aman secara kriptografis, tapi tanpa round-trip ke Supabase yang
+  // terukur ~128ms. Kunci publiknya (JWKS) diambil sekali per proses lalu
+  // disimpan di cache tingkat modul milik auth-js, bukan per-instance klien.
+  //
+  // Yang hilang: sesi yang dicabut manual di Supabase baru benar-benar berhenti
+  // saat tokennya kedaluwarsa (maks 1 jam). Penghapusan user tidak terpengaruh -
+  // profiles.id ber-cascade ke auth.users, jadi baris profilnya ikut hilang dan
+  // aksesnya tertutup dalam <=60 detik lewat masa berlaku cacheProfil.
+  const { data } = await supabase.auth.getClaims();
+  const userId = data?.claims.sub;
+  if (!userId) return null;
+
+  const profile = await cacheProfil.get(userId);
   if (!profile) return null;
 
   return {
-    id: user.id,
+    id: userId,
     email: profile.email,
     fullName: profile.fullName,
     role: profile.role as Role,
