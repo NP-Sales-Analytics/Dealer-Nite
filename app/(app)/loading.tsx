@@ -15,10 +15,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 export default function Loading() {
   return (
     <div className="mx-auto w-full max-w-7xl">
-      <div className="mb-5 sm:mb-6">
-        <Skeleton className="h-7 w-56 sm:h-8" />
-        <Skeleton className="mt-2 h-4 w-72 max-w-full" />
-      </div>
       <Skeleton className="mb-4 h-16 w-full rounded-2xl sm:mb-6" />
       <Skeleton className="h-96 w-full rounded-2xl" />
     </div>

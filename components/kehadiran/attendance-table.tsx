@@ -2,32 +2,13 @@
 
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import { DetailCheckinDialog } from './detail-checkin-dialog';
 import { EditCheckinDialog } from './edit-checkin-dialog';
 import { HapusCheckinDialog } from './hapus-checkin-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { AttendanceRow } from '@/lib/dashboard/types';
-
-// checked_in_at datang sebagai string mentah driver ("2026-09-02 06:15:05.88+00").
-// JANGAN ubah spasi jadi "T": offset "+00" tanpa menit bukan ISO valid, dan
-// parser jadi strict lalu mengembalikan Invalid Date. Bentuk aslinya justru
-// diterima. Zona dipaku ke Asia/Jakarta supaya jam tidak ikut timezone perangkat.
-const jam = (v: string) =>
-  new Date(v).toLocaleTimeString('id-ID', {
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'Asia/Jakarta',
-  });
-
-// Buang prefiks badan usaha supaya inisial mewakili nama tokonya, bukan "PT".
-const inisial = (nama: string) =>
-  nama
-    .replace(/^(PT|CV)[.\s]+/i, '')
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase())
-    .join('') || '?';
+import { inisial, jamJakarta } from '@/lib/utils';
 
 function Avatar({ nama }: { nama: string }) {
   return (
@@ -74,6 +55,7 @@ export function AttendanceTable({
   onUrutChange: (v: 'asc' | 'desc') => void;
   onChanged: () => void;
 }) {
+  const [detail, setDetail] = useState<AttendanceRow | null>(null);
   const [edit, setEdit] = useState<AttendanceRow | null>(null);
   const [hapus, setHapus] = useState<AttendanceRow | null>(null);
   const mulai = (page - 1) * pageSize;
@@ -86,7 +68,7 @@ export function AttendanceTable({
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
           {adaFilter
-            ? 'Coba ganti region atau depot, atau kosongkan kata kuncinya.'
+            ? 'Coba ganti wilayah, region, atau depot, atau kosongkan kata kuncinya.'
             : 'Catatan akan muncul di sini begitu admin mulai mencatat tamu di halaman Pencatatan.'}
         </p>
       </div>
@@ -125,7 +107,23 @@ export function AttendanceTable({
           </TableHeader>
           <TableBody>
             {rows.map((r) => (
-              <TableRow key={r.id}>
+              // Seluruh baris membuka panel detail. Diberi role/tabIndex supaya
+              // bisa dicapai keyboard juga; tombol aksi di kolom terakhir tetap
+              // berdiri sendiri lewat stopPropagation.
+              <TableRow
+                key={r.id}
+                role="button"
+                tabIndex={0}
+                aria-label={`Lihat detail ${r.nama}`}
+                onClick={() => setDetail(r)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === 'Spacebar' || e.key === ' ') {
+                    e.preventDefault();
+                    setDetail(r);
+                  }
+                }}
+                className="cursor-pointer transition-colors hover:bg-secondary/50 focus-visible:bg-secondary focus-visible:outline-none"
+              >
                 {/* py-4 di tiap sel: baris setinggi default terasa berdempetan
                     ketika isinya dua baris teks + avatar. */}
                 <TableCell className="whitespace-nowrap py-4 pl-5 text-muted-foreground">
@@ -152,7 +150,7 @@ export function AttendanceTable({
                   <PillPax hadir={r.qtyHadir} undangan={r.qtyUndangan} />
                 </TableCell>
                 <TableCell className="py-4 text-center tabular-nums text-muted-foreground">
-                  {jam(r.checkedInAt)}
+                  {jamJakarta(r.checkedInAt)}
                 </TableCell>
                 {bisaUbah && (
                   <TableCell className="py-4 pr-5">
@@ -161,7 +159,7 @@ export function AttendanceTable({
                           edit: membatalkan salah-catat adalah aksi tersering. */}
                       <button
                         type="button"
-                        onClick={() => setHapus(r)}
+                        onClick={(e) => { e.stopPropagation(); setHapus(r); }}
                         aria-label={`Hapus catatan ${r.nama}`}
                         title="Hapus"
                         className="grid size-10 place-items-center rounded-lg border border-border text-destructive transition-colors hover:bg-destructive/10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
@@ -170,7 +168,7 @@ export function AttendanceTable({
                       </button>
                       <button
                         type="button"
-                        onClick={() => setEdit(r)}
+                        onClick={(e) => { e.stopPropagation(); setEdit(r); }}
                         aria-label={`Ubah catatan ${r.nama}`}
                         title="Ubah"
                         className="grid size-10 place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
@@ -215,6 +213,15 @@ export function AttendanceTable({
         </div>
       </div>
 
+      {/* Detail ditutup lebih dulu sebelum edit/hapus dibuka: dua dialog
+          bertumpuk membuat fokus keyboard terjebak di lapisan bawah. */}
+      <DetailCheckinDialog
+        row={detail}
+        bisaUbah={bisaUbah}
+        onOpenChange={(v) => !v && setDetail(null)}
+        onEdit={(r) => { setDetail(null); setEdit(r); }}
+        onHapus={(r) => { setDetail(null); setHapus(r); }}
+      />
       <EditCheckinDialog
         row={edit}
         depots={depots}

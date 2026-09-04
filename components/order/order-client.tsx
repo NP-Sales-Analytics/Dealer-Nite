@@ -1,13 +1,20 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Minus, Plus } from 'lucide-react';
-import { toast } from 'sonner';
-import { logoutCustomer } from '@/app/order/login/actions';
-import { Button } from '@/components/ui/button';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { OrderPanel } from './order-panel';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useRealtimeRefresh } from '@/lib/order/use-realtime-refresh';
 
-type Me = { namaToko: string; depot: string | null; kodeSap: string; total: number };
+type Me = {
+  namaToko: string;
+  kodeSap: string;
+  depot: string | null;
+  wilayah: string | null;
+  region: string | null;
+  total: number;
+  rank: number | null;
+};
+
 const ME_KEY = ['order', 'me'] as const;
 
 export function OrderClient() {
@@ -24,77 +31,18 @@ export function OrderClient() {
 
   useRealtimeRefresh(() => qc.invalidateQueries({ queryKey: ME_KEY }));
 
-  const adjust = useMutation({
-    mutationFn: async (qtyChange: number) => {
-      const r = await fetch('/api/order/adjust', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ qtyChange }),
-      });
-      const data = await r.json();
-      if (!r.ok) throw Object.assign(new Error(data.code ?? 'error'), { data });
-      return data as { total: number };
-    },
-    onMutate: async (qtyChange) => {
-      await qc.cancelQueries({ queryKey: ME_KEY });
-      const prev = qc.getQueryData<Me>(ME_KEY);
-      if (prev) qc.setQueryData<Me>(ME_KEY, { ...prev, total: Math.max(0, prev.total + qtyChange) });
-      return { prev };
-    },
-    onError: (err: unknown, _v, ctx) => {
-      if (ctx?.prev) qc.setQueryData(ME_KEY, ctx.prev);
-      const code = (err as { data?: { code?: string } })?.data?.code;
-      toast.error(code === 'NEGATIVE' ? 'Total tidak boleh kurang dari 0.' : 'Gagal menyimpan. Coba lagi.');
-    },
-    onSettled: () => qc.invalidateQueries({ queryKey: ME_KEY }),
-  });
-
-  const total = me.data?.total ?? 0;
-  const busy = adjust.isPending;
+  if (!me.data) return <Skeleton className="mx-auto h-80 w-full max-w-2xl rounded-2xl" />;
 
   return (
-    <main className="mx-auto flex min-h-svh max-w-md flex-col gap-6 p-4">
-      <header className="flex items-start justify-between">
-        <div>
-          <h1 className="text-lg font-semibold">{me.data?.namaToko ?? '...'}</h1>
-          <p className="text-sm text-muted-foreground">
-            {me.data?.depot ?? ''} · {me.data?.kodeSap ?? ''}
-          </p>
-        </div>
-        <form action={logoutCustomer}>
-          <Button variant="ghost" size="sm" type="submit">Keluar</Button>
-        </form>
-      </header>
-
-      <section className="rounded-2xl border border-border bg-card p-6 text-center shadow-xs">
-        <p className="text-sm text-muted-foreground">Total dus tercatat</p>
-        <p className="my-2 text-6xl font-bold tabular-nums">{total}</p>
-        <div className="mt-4 flex items-center justify-center gap-4">
-          <Button
-            size="lg"
-            variant="outline"
-            className="size-16 rounded-full"
-            disabled={busy || total <= 0}
-            onClick={() => adjust.mutate(-1)}
-            aria-label="Kurangi satu dus"
-          >
-            <Minus className="size-7" />
-          </Button>
-          <Button
-            size="lg"
-            className="size-16 rounded-full"
-            disabled={busy}
-            onClick={() => adjust.mutate(1)}
-            aria-label="Tambah satu dus"
-          >
-            <Plus className="size-7" />
-          </Button>
-        </div>
-      </section>
-
-      <a href="/leaderboard" className="text-center text-sm text-primary underline">
-        Lihat papan Top Spender
-      </a>
-    </main>
+    <div className="mx-auto w-full max-w-2xl">
+      <OrderPanel
+        key={`${me.data.kodeSap}-${me.data.total}`}
+        target={me.data}
+        total={me.data.total}
+        rank={me.data.rank}
+        onBatal={() => {}}
+        labelBatal="Reset"
+      />
+    </div>
   );
 }

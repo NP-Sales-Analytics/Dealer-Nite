@@ -1,4 +1,5 @@
 import type { CustomerSearchResult } from './search-bar';
+import { InitialAvatar } from '@/components/shared/initial-avatar';
 import { Badge } from '@/components/ui/badge';
 
 const Row = ({ label, value }: { label: string; value: string | number | null }) => (
@@ -11,11 +12,16 @@ const Row = ({ label, value }: { label: string; value: string | number | null })
 export function CustomerDetailCard({ customer }: { customer: CustomerSearchResult }) {
   return (
     <div className="rounded-2xl border border-border bg-card p-4 shadow-xs">
-      <div className="mb-1 flex flex-wrap items-center gap-2">
-        <h2 className="text-lg font-semibold leading-snug">{customer.namaToko}</h2>
-        {customer.sudahHadir && <Badge variant="secondary">Sudah dicatat</Badge>}
+      <div className="mb-3 flex items-start gap-3">
+        <InitialAvatar nama={customer.namaToko} />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-lg font-semibold leading-snug">{customer.namaToko}</h2>
+            {customer.sudahHadir && <Badge variant="secondary">Sudah dicatat</Badge>}
+          </div>
+          <p className="text-sm text-muted-foreground">{customer.kodeSap}</p>
+        </div>
       </div>
-      <p className="mb-3 text-sm text-muted-foreground">{customer.kodeSap}</p>
 
       <div className="divide-y divide-border border-t border-border">
         <Row label="Depot" value={customer.depot} />

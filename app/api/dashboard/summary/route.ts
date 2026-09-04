@@ -3,33 +3,39 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { requireRoleApi } from '@/lib/auth';
 import { cacheDashboard } from '@/lib/dashboard/cache';
 import { attendanceRate } from '@/lib/dashboard/compute';
-import { filterKey, readFilter, type DashboardFilter } from '@/lib/dashboard/filters';
+import { bacaKunci, filterKey, readFilter, terapkanScope } from '@/lib/dashboard/filters';
 import { db } from '@/lib/db';
 
 const load = cacheDashboard(async (key: string) => {
-  const [region, depot] = key.split('|');
-  const r = region || null;
-  const d = depot || null;
+  const { wilayah, region, depot, kodeSap } = bacaKunci(key);
+  const w = wilayah;
+  const r = region;
+  const d = depot;
+  const k = kodeSap;
 
   // depot_efektif menghormati koreksi per-catatan lebih dulu, lalu master data,
   // baru depot manual - urutan yang sama dipakai di seluruh agregasi.
   const rows = (await db.execute(sql`
     with cust as (
       select * from public.customers
-      where (${r}::text is null or region = ${r}::text)
+      where (${w}::text is null or wilayah = ${w}::text)
+        and (${r}::text is null or region = ${r}::text)
         and (${d}::text is null or depot = ${d}::text)
+        and (${k}::text is null or kode_sap = ${k}::text)
     ),
     res as (
       select r.customer_id, r.is_manual_entry, r.qty_hadir,
              coalesce(r.depot_override, c.depot, r.manual_depot) as depot_efektif,
-             c.region as region
+             c.region as region, c.wilayah as wilayah, c.kode_sap as kode_sap
       from public.reservations r
       left join public.customers c on c.id = r.customer_id
     ),
     res_terfilter as (
       select * from res
-      where (${r}::text is null or region = ${r}::text)
+      where (${w}::text is null or wilayah = ${w}::text)
+        and (${r}::text is null or region = ${r}::text)
         and (${d}::text is null or depot_efektif = ${d}::text)
+        and (${k}::text is null or kode_sap = ${k}::text)
     )
     select
       (select count(*) from cust)::int                                          as "totalToko",
@@ -45,14 +51,23 @@ const load = cacheDashboard(async (key: string) => {
 // Cache di browser, bukan di CDN. `private` wajib: route ini dijaga login,
 // dan cache bersama akan menyajikan angkanya ke siapa pun tanpa cek auth.
 // stale-while-revalidate membuat reload cepat memakai salinan lama dulu.
-const CACHE = { 'Cache-Control': 'private, max-age=10, stale-while-revalidate=30' };
+//
+// `Vary: Cookie` sama wajibnya sejak ada cakupan data: `private` berarti "milik
+// browser ini", BUKAN "milik user ini". Tanpa Vary, login sebagai RSM 3A lalu
+// berganti ke superadmin di browser yang sama masih menyajikan jawaban ber-scope
+// 3A selama cache belum basi. Cookie sesi berbeda per user, jadi menjadikannya
+// bagian kunci cache memisahkan keduanya.
+const CACHE = {
+  'Cache-Control': 'private, max-age=10, stale-while-revalidate=30',
+  Vary: 'Cookie',
+};
 
 export async function GET(request: NextRequest) {
-  const user = await requireRoleApi(['superadmin', 'rsm', 'admin_rsvp']);
+  const user = await requireRoleApi(['superadmin', 'rsm', 'admin_rsvp', 'marketing']);
   if (user instanceof NextResponse) return user;
 
-  const filter: DashboardFilter = readFilter(request);
-  const s = await load(filterKey(filter));
+  // terapkanScope SEBELUM filterKey: cakupan user ikut jadi bagian kunci cache.
+  const s = await load(filterKey(terapkanScope(readFilter(request), user)));
   return NextResponse.json(
     { ...s, persentase: attendanceRate(s.totalHadir, s.totalUndangan) },
     { headers: CACHE },

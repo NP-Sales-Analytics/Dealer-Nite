@@ -3,7 +3,7 @@
 import { Minus, Plus } from 'lucide-react';
 
 /**
- * Stepper jumlah hadir. Dirancang untuk dipakai satu tangan sambil berdiri:
+ * Stepper jumlah. Dirancang untuk dipakai satu tangan sambil berdiri:
  * dua target 48x48px dan angka yang tetap bisa diketik untuk rombongan besar.
  * Mayoritas kasus qty 1-3, jadi keyboard tidak perlu muncul sama sekali.
  */
@@ -12,11 +12,13 @@ export function QtyStepper({
   onChange,
   id = 'qty',
   max = 1000,
+  ariaLabel = 'Jumlah orang yang hadir',
 }: {
   value: string;
   onChange: (v: string) => void;
   id?: string;
   max?: number;
+  ariaLabel?: string;
 }) {
   const n = Number(value);
   const valid = value !== '' && Number.isInteger(n) && n >= 0;
@@ -40,7 +42,7 @@ export function QtyStepper({
         onChange={(e) => onChange(e.target.value.replace(/[^0-9]/g, ''))}
         inputMode="numeric"
         autoComplete="off"
-        aria-label="Jumlah orang yang hadir"
+        aria-label={ariaLabel}
         className="h-12 min-w-0 flex-1 rounded-xl border border-border bg-card text-center text-2xl font-semibold tabular-nums text-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:outline-none"
       />
 

@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "seed": "tsx --env-file=.env.local scripts/seed-customers.ts",
+    "seed:orders": "tsx --env-file=.env.local scripts/seed-orders.ts",
     "check:flow": "tsx scripts/check-flow.ts",
     "check:page": "tsx scripts/check-page.ts",
     "check:overflow": "tsx scripts/check-overflow.ts",

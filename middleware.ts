@@ -1,8 +1,23 @@
-import type { NextRequest } from 'next/server';
-import { updateSession } from '@/lib/supabase/middleware';
+import { NextResponse, type NextRequest } from 'next/server';
 
-export async function middleware(request: NextRequest) {
-  return updateSession(request);
+// Auth memakai cookie sesi custom (lib/session.ts), bukan Supabase Auth.
+// Middleware hanya penjaga halaman: tanpa cookie -> ke /login. Verifikasi tanda
+// tangan cookie dikerjakan di server (getSessionUser via requireHalaman/Role),
+// bukan di edge runtime ini - jadi cookie palsu tetap ditolak di sana.
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Rute API mengembalikan 401 sendiri lewat requireRoleApi/requireCustomerApi;
+  // klien fetch butuh JSON, bukan redirect HTML.
+  if (pathname.startsWith('/api')) return NextResponse.next();
+  if (pathname === '/login' || pathname.startsWith('/auth')) return NextResponse.next();
+
+  if (!request.cookies.has('pylox_session')) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/login';
+    return NextResponse.redirect(url);
+  }
+  return NextResponse.next();
 }
 
 export const config = {

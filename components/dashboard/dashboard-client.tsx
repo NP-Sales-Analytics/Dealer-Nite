@@ -21,6 +21,7 @@ const fetcher = <T,>(url: string) => async (): Promise<T> => {
 
 const buildQuery = (f: FilterState) => {
   const p = new URLSearchParams();
+  if (f.wilayah !== 'semua') p.set('wilayah', f.wilayah);
   if (f.region !== 'semua') p.set('region', f.region);
   if (f.depot !== 'semua') p.set('depot', f.depot);
   const s = p.toString();

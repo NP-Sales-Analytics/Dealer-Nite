@@ -8,8 +8,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 
-export type FilterState = { region: string; depot: string; q: string };
-export const FILTER_KOSONG: FilterState = { region: 'semua', depot: 'semua', q: '' };
+export type FilterState = { wilayah: string; region: string; depot: string; q: string };
+export const FILTER_KOSONG: FilterState = { wilayah: 'semua', region: 'semua', depot: 'semua', q: '' };
 
 export function FilterBar({
   value, options, onChange, withSearch = false, searchPlaceholder = 'Cari nama toko atau kode SAP...',
@@ -20,23 +20,39 @@ export function FilterBar({
   withSearch?: boolean;
   searchPlaceholder?: string;
 }) {
-  // Memilih region mempersempit daftar depot: 36 depot dalam satu dropdown sulit
-  // dipindai, dan depot di luar region terpilih pasti tidak akan menghasilkan apa pun.
+  // Bertingkat mengikuti hierarki data: wilayah > region > depot. Memilih
+  // tingkat atas mempersempit tingkat di bawahnya, karena kombinasi di luar
+  // cabang yang dipilih dijamin menghasilkan nol baris.
+  const regionTampil = useMemo(() => {
+    const semua = options?.regions ?? [];
+    if (value.wilayah === 'semua') return semua;
+    return semua.filter((r) => r.wilayah === value.wilayah);
+  }, [options, value.wilayah]);
+
   const depotTampil = useMemo(() => {
-    const semua = options?.depots ?? [];
-    if (value.region === 'semua') return semua;
-    return semua.filter((d) => d.region === value.region || d.region === null);
-  }, [options, value.region]);
+    let semua = options?.depots ?? [];
+    // Tanpa toleransi null: region tiap depot sudah dilengkapi dari hierarki di
+    // sisi server, jadi yang masih kosong memang benar-benar tidak diketahui dan
+    // tidak boleh ikut muncul saat sebuah region dipilih.
+    if (value.wilayah !== 'semua') semua = semua.filter((d) => d.wilayah === value.wilayah);
+    if (value.region !== 'semua') semua = semua.filter((d) => d.region === value.region);
+    return semua;
+  }, [options, value.wilayah, value.region]);
 
-  const aktif = value.region !== 'semua' || value.depot !== 'semua' || value.q.trim() !== '';
+  const aktif =
+    value.wilayah !== 'semua' || value.region !== 'semua'
+    || value.depot !== 'semua' || value.q.trim() !== '';
 
+  // Tingkat di bawah selalu ikut direset supaya tidak tertinggal kombinasi
+  // yang mustahil (misal Region 3B di dalam Indonesia Timur).
+  const setWilayah = (wilayah: string) =>
+    onChange({ ...value, wilayah, region: 'semua', depot: 'semua' });
   const setRegion = (region: string) =>
-    // Depot ikut direset supaya tidak tertinggal kombinasi yang mustahil.
     onChange({ ...value, region, depot: 'semua' });
 
   return (
     <div className="mb-4 rounded-2xl border border-border bg-card p-3 shadow-xs sm:mb-6 sm:p-4">
-      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center">
         {withSearch && (
           <div className="relative min-w-0 flex-1">
             <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -61,7 +77,22 @@ export function FilterBar({
           </div>
         )}
 
-        <div className="flex gap-2.5">
+        {/* Tiga dropdown membungkus di HP, sebaris di layar lebar. */}
+        <div className="flex flex-wrap gap-2.5">
+          <Select value={value.wilayah} onValueChange={(v) => v && setWilayah(v)}>
+            <SelectTrigger className="h-11 min-w-0 flex-1 data-[size=default]:h-11 sm:w-48 sm:flex-none">
+              <SelectValue>
+                {value.wilayah === 'semua' ? 'Semua Wilayah' : value.wilayah}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="semua">Semua Wilayah</SelectItem>
+              {(options?.wilayahs ?? []).map((w) => (
+                <SelectItem key={w} value={w}>{w}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
           <Select value={value.region} onValueChange={(v) => v && setRegion(v)}>
             <SelectTrigger className="h-11 min-w-0 flex-1 data-[size=default]:h-11 sm:w-44 sm:flex-none">
               <SelectValue>
@@ -70,8 +101,8 @@ export function FilterBar({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="semua">Semua Region</SelectItem>
-              {(options?.regions ?? []).map((r) => (
-                <SelectItem key={r} value={r}>Region {r}</SelectItem>
+              {regionTampil.map((r) => (
+                <SelectItem key={r.region} value={r.region}>Region {r.region}</SelectItem>
               ))}
             </SelectContent>
           </Select>

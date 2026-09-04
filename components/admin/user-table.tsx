@@ -1,141 +1,179 @@
 'use client';
 
-import { Trash2 } from 'lucide-react';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
-import { changeRole, deleteUser } from '@/app/(app)/admin/users/actions';
+import { UserDetailDialog } from './user-detail-dialog';
+import { UserFormDialog, type UserRow } from './user-form-dialog';
+import { deleteUser } from '@/app/(app)/admin/users/actions';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import type { Role } from '@/lib/auth';
+import { halamanEfektif, labelScope, ROLE_LABEL } from '@/lib/access';
+import { inisial } from '@/lib/utils';
 
-const ROLE_LABEL: Record<Role, string> = {
-  superadmin: 'Superadmin (semua fitur)',
-  admin_rsvp: 'Admin RSVP (pencatatan)',
-  rsm: 'RSM (dashboard)',
-  customer: 'Customer (modul 2)',
-};
-
-type Row = { id: string; email: string; fullName: string; role: Role };
-
-/**
- * Didefinisikan di tingkat modul, BUKAN di dalam UserTable: komponen yang
- * dibuat ulang tiap render adalah tipe baru bagi React, sehingga seluruh
- * Select ter-unmount dan mount ulang setiap kali state berubah.
- */
-function RoleSelect({
-  u, className, disabled, onChange,
-}: {
-  u: Row;
-  className?: string;
-  disabled: boolean;
-  onChange: (v: string | null) => void;
-}) {
+function Avatar({ nama }: { nama: string }) {
   return (
-    <Select value={u.role} disabled={disabled} onValueChange={onChange}>
-      {/* Children wajib: SelectContent belum ter-mount sampai dropdown dibuka,
-          jadi komponen tidak bisa menurunkan teksnya sendiri dan akan
-          menampilkan nilai enum mentah. */}
-      <SelectTrigger className={className}>
-        <SelectValue>{ROLE_LABEL[u.role]}</SelectValue>
-      </SelectTrigger>
-      <SelectContent>
-        {(Object.keys(ROLE_LABEL) as Role[]).map((r) => (
-          <SelectItem key={r} value={r}>{ROLE_LABEL[r]}</SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <span
+      className="grid size-9 shrink-0 place-items-center rounded-full bg-accent text-[11px] font-semibold text-accent-foreground"
+      aria-hidden
+    >
+      {inisial(nama)}
+    </span>
   );
 }
 
-export function UserTable({ rows, currentUserId }: { rows: Row[]; currentUserId: string }) {
+export function UserTable({ rows, currentUserId }: { rows: UserRow[]; currentUserId: string }) {
   const [pending, start] = useTransition();
-  const [hapus, setHapus] = useState<Row | null>(null);
-
-  // base-ui mengirim string | null pada onValueChange. Guard `v === u.role`
-  // memastikan render ulang / remount tidak pernah menulis perubahan palsu:
-  // tiap user punya dua Select (kartu HP + baris tabel) yang sama-sama ter-mount
-  // dan hanya disembunyikan CSS, jadi menulis tanpa syarat itu berisiko.
-  const ubahRole = (u: Row, v: string | null) => {
-    if (!v || v === u.role) return;
-    start(async () => {
-      await changeRole(u.id, v as Role);
-      toast.success('Role diperbarui.');
-    });
-  };
+  const [detail, setDetail] = useState<UserRow | null>(null);
+  const [edit, setEdit] = useState<UserRow | null>(null);
+  const [tambah, setTambah] = useState(false);
+  const [hapus, setHapus] = useState<UserRow | null>(null);
 
   return (
     <>
-      {/* HP: satu kartu per user. Tabel 4 kolom tidak muat di 375px. */}
-      <ul className="space-y-3 md:hidden">
-        {rows.map((u) => (
-          <li key={u.id} className="rounded-2xl border border-border bg-card p-4 shadow-xs">
-            <p className="font-medium leading-snug break-words">{u.fullName || 'Tanpa nama'}</p>
-            <p className="mt-0.5 text-sm text-muted-foreground break-all">{u.email}</p>
-            <div className="mt-3 flex items-center gap-2">
-              <RoleSelect u={u} className="h-11 flex-1 data-[size=default]:h-11" disabled={pending || u.id === currentUserId} onChange={(v) => ubahRole(u, v)} />
-              <Button
-                variant="outline"
-                size="icon"
-                aria-label={`Hapus ${u.email}`}
-                className="size-11 shrink-0 text-destructive"
-                disabled={pending || u.id === currentUserId}
-                onClick={() => setHapus(u)}
-              >
-                <Trash2 className="size-4" />
-              </Button>
-            </div>
-            {u.id === currentUserId && (
-              <p className="mt-2 text-xs text-muted-foreground">Ini akun Anda sendiri.</p>
-            )}
-          </li>
-        ))}
-      </ul>
-
-      <div className="hidden rounded-2xl border border-border bg-card shadow-xs md:block">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Email</TableHead>
-              <TableHead>Nama</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((u) => (
-              <TableRow key={u.id}>
-                <TableCell className="font-medium">{u.email}</TableCell>
-                <TableCell>{u.fullName || '-'}</TableCell>
-                <TableCell><RoleSelect u={u} className="w-56 data-[size=default]:h-11" disabled={pending || u.id === currentUserId} onChange={(v) => ubahRole(u, v)} /></TableCell>
-                <TableCell className="text-right">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive hover:text-destructive"
-                    disabled={pending || u.id === currentUserId}
-                    onClick={() => setHapus(u)}
-                  >
-                    Hapus
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+      {/* Toolbar di atas tabel, bukan di header halaman: header sekarang milik
+          layout dan dipakai bersama semua halaman. */}
+      <div className="mb-4 flex items-center justify-between gap-3 sm:mb-6">
+        <p className="text-sm text-muted-foreground">
+          {rows.length} akun terdaftar
+        </p>
+        <Button className="h-11 gap-2" onClick={() => setTambah(true)}>
+          <Plus className="size-4" />
+          Tambah User
+        </Button>
       </div>
+
+      {/* Struktur dan ukuran disamakan dengan tabel Detail Toko Hadir: satu
+          layout untuk semua lebar layar, digeser ke kanan di HP alih-alih
+          berubah jadi kartu, supaya susunan kolomnya tetap sama di mana pun. */}
+      <div className="min-w-0 rounded-2xl border border-border bg-card shadow-xs">
+        <div className="overflow-x-auto">
+          <Table className="min-w-[52rem]">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="py-4 pl-5">Nama</TableHead>
+                <TableHead className="py-4">Role</TableHead>
+                <TableHead className="py-4">Cakupan Data</TableHead>
+                <TableHead className="py-4 text-center">Halaman</TableHead>
+                <TableHead className="py-4 pr-5 text-center">Aksi</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((u) => {
+                const akunSendiri = u.id === currentUserId;
+                const boleh = halamanEfektif(u.role, u.allowedPages);
+
+                return (
+                  <TableRow
+                    key={u.id}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Lihat detail ${u.fullName || u.email || 'user'}`}
+                    onClick={() => setDetail(u)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === 'Spacebar' || e.key === ' ') {
+                        e.preventDefault();
+                        setDetail(u);
+                      }
+                    }}
+                    className="cursor-pointer transition-colors hover:bg-secondary/50 focus-visible:bg-secondary focus-visible:outline-none"
+                  >
+                    <TableCell className="py-4 pl-5">
+                      <div className="flex items-center gap-3">
+                        <Avatar nama={u.fullName || u.email || '?'} />
+                        <div className="min-w-0">
+                          <p className="flex items-center gap-1.5 font-medium leading-snug">
+                            <span className="min-w-0 break-words">{u.fullName || 'Tanpa nama'}</span>
+                            {akunSendiri && (
+                              <Badge variant="outline" className="shrink-0">Anda</Badge>
+                            )}
+                          </p>
+                          {u.email && <p className="break-all text-xs text-muted-foreground">{u.email}</p>}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-4">
+                      <Badge variant="secondary">{ROLE_LABEL[u.role]}</Badge>
+                    </TableCell>
+                    <TableCell className="py-4 text-muted-foreground">
+                      {labelScope(u.role, u.dataScope)}
+                    </TableCell>
+                    <TableCell className="py-4 text-center">
+                      <span
+                        className="inline-flex items-center rounded-full bg-secondary px-2.5 py-1 text-xs font-semibold tabular-nums text-muted-foreground"
+                        title={boleh.join(', ') || 'Tidak ada'}
+                      >
+                        {boleh.length} halaman
+                      </span>
+                    </TableCell>
+                    <TableCell className="py-4 pr-5">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setHapus(u); }}
+                          disabled={pending || akunSendiri}
+                          aria-label={`Hapus ${u.fullName || u.email || 'user'}`}
+                          title={akunSendiri ? 'Tidak bisa menghapus akun sendiri' : 'Hapus'}
+                          className="grid size-10 place-items-center rounded-lg border border-border text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setEdit(u); }}
+                          disabled={pending}
+                          aria-label={`Ubah ${u.fullName || u.email || 'user'}`}
+                          title="Ubah"
+                          className="grid size-10 place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                        >
+                          <Pencil className="size-4" />
+                        </button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+
+      {/* Detail ditutup lebih dulu sebelum edit/hapus dibuka: dua dialog
+          bertumpuk membuat fokus keyboard terjebak di lapisan bawah. */}
+      <UserDetailDialog
+        row={detail}
+        akunSendiri={detail?.id === currentUserId}
+        onOpenChange={(v) => !v && setDetail(null)}
+        onEdit={(u) => { setDetail(null); setEdit(u); }}
+        onHapus={(u) => { setDetail(null); setHapus(u); }}
+      />
+
+      <UserFormDialog mode="create" open={tambah} onOpenChange={setTambah} />
+
+      {/* key: state form diisi dari props saat mount, jadi tanpa ini membuka
+          user kedua akan menampilkan isian user pertama. */}
+      {edit && (
+        <UserFormDialog
+          key={edit.id}
+          mode="edit"
+          row={edit}
+          open
+          onOpenChange={(v) => !v && setEdit(null)}
+        />
+      )}
 
       <AlertDialog open={hapus !== null} onOpenChange={(o) => !o && setHapus(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Hapus user ini?</AlertDialogTitle>
             <AlertDialogDescription>
-              {hapus?.email} akan dihapus permanen dan tidak bisa login lagi.
-              Catatan kehadiran yang pernah dibuatnya tetap tersimpan.
+              {hapus?.fullName || hapus?.email || 'User ini'} akan dihapus permanen dan tidak bisa
+              login lagi. Catatan kehadiran yang pernah dibuatnya tetap tersimpan.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

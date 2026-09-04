@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Outfit } from "next/font/google";
 import "./globals.css";
-import { QueryProvider } from "@/components/shared/query-provider";
 import { Toaster } from "@/components/ui/sonner";
 
 const outfit = Outfit({
@@ -33,7 +32,7 @@ export default function RootLayout({
     // keyboard) tidak ikut dark mode OS. Aplikasi ini light-only.
     <html lang="id" className="light" style={{ colorScheme: "light" }}>
       <body className={`${outfit.variable} font-sans antialiased`}>
-        <QueryProvider>{children}</QueryProvider>
+        {children}
         <Toaster richColors position="top-center" />
       </body>
     </html>

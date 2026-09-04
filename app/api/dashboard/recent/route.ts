@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { requireRoleApi } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { cacheDashboard } from '@/lib/dashboard/cache';
-import { readFilter } from '@/lib/dashboard/filters';
+import { readFilter, terapkanScope } from '@/lib/dashboard/filters';
 
 const PAGE_SIZE = 20;
 
@@ -12,8 +12,9 @@ const PAGE_SIZE = 20;
 // Penulisan catatan membersihkan cache seketika lewat bersihkanCacheDashboard(),
 // sehingga admin yang baru mengedit langsung melihat hasilnya.
 const load = cacheDashboard(async (key: string) => {
-  const { region, depot, q, page, sort } = JSON.parse(key) as {
-    region: string | null; depot: string | null; q: string | null; page: number; sort: 'asc' | 'desc';
+  const { wilayah, region, depot, q, kodeSap, page, sort } = JSON.parse(key) as {
+    wilayah: string | null; region: string | null; depot: string | null;
+    q: string | null; kodeSap: string | null; page: number; sort: 'asc' | 'desc';
   };
   const naik = sort === 'asc';
   const offset = (page - 1) * PAGE_SIZE;
@@ -21,7 +22,9 @@ const load = cacheDashboard(async (key: string) => {
   // Satu definisi kondisi dipakai untuk data maupun hitungan total, supaya
   // nomor halaman tidak pernah berbeda dari isinya.
   const kondisi = sql`
-    (${region}::text is null or c.region = ${region}::text)
+    (${wilayah}::text is null or c.wilayah = ${wilayah}::text)
+    and (${region}::text is null or c.region = ${region}::text)
+    and (${kodeSap}::text is null or c.kode_sap = ${kodeSap}::text)
     and (${depot}::text is null or coalesce(r.depot_override, c.depot, r.manual_depot) = ${depot}::text)
     and (
       ${q}::text is null
@@ -36,6 +39,9 @@ const load = cacheDashboard(async (key: string) => {
            coalesce(r.depot_override, c.depot, r.manual_depot, '-')       as depot,
            c.kode_sap                                                     as "kodeSap",
            c.region                                                       as region,
+           c.wilayah                                                      as wilayah,
+           c.nama_pemilik                                                 as "namaPemilik",
+           c.pic_rsm_asm                                                  as "picRsmAsm",
            r.qty_hadir::int                                               as "qtyHadir",
            c.qty_undangan::int                                            as "qtyUndangan",
            r.checked_in_at                                                as "checkedInAt",
@@ -66,16 +72,17 @@ const load = cacheDashboard(async (key: string) => {
 }, 5_000);
 
 export async function GET(request: NextRequest) {
-  const user = await requireRoleApi(['superadmin', 'rsm', 'admin_rsvp']);
+  const user = await requireRoleApi(['superadmin', 'rsm', 'admin_rsvp', 'marketing']);
   if (user instanceof NextResponse) return user;
 
-  const { region, depot, q } = readFilter(request);
+  // Cakupan user dipaksakan di sini, bukan dipercayakan ke query string.
+  const { wilayah, region, depot, q, kodeSap } = terapkanScope(readFilter(request), user);
   const page = Math.max(1, Number(request.nextUrl.searchParams.get('page') ?? '1') || 1);
   // Default terbaru dulu; 'asc' untuk melihat siapa yang datang paling awal.
   const sort = request.nextUrl.searchParams.get('sort') === 'asc' ? 'asc' : 'desc';
 
   // Kunci sebagai JSON: nama depot dan kata pencarian bisa berisi karakter
   // apa pun, jadi tidak ada pemisah yang benar-benar aman.
-  const key = JSON.stringify({ region, depot, q, page, sort });
+  const key = JSON.stringify({ wilayah, region, depot, q, kodeSap, page, sort });
   return NextResponse.json(await load(key));
 }

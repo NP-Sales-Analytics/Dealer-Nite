@@ -8,5 +8,7 @@ export const orderAdjustments = pgTable('order_adjustments', {
     .references(() => customers.id, { onDelete: 'cascade' }),
   qtyChange: integer('qty_change').notNull(),
   note: text('note'),
+  // Staff yang mencatatkan atas nama toko; null = customer self-service.
+  recordedBy: uuid('recorded_by'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });

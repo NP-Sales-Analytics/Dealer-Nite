@@ -1,24 +1,28 @@
 import { asc } from 'drizzle-orm';
-import { CreateUserDialog } from '@/components/admin/create-user-dialog';
 import { UserTable } from '@/components/admin/user-table';
-import { PageHeader } from '@/components/shared/page-header';
-import { requireRole } from '@/lib/auth';
+import { requireHalaman } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { profiles } from '@/lib/db/schema';
 
 export const dynamic = 'force-dynamic';
 
 export default async function UsersPage() {
-  const me = await requireRole(['superadmin']);
-  const rows = await db.select().from(profiles).orderBy(asc(profiles.email));
+  const me = await requireHalaman('/admin/users');
+  // Kolom eksplisit: password_hash TIDAK boleh ikut - ini dikirim ke komponen klien.
+  const rows = await db
+    .select({
+      id: profiles.id,
+      email: profiles.email,
+      fullName: profiles.fullName,
+      role: profiles.role,
+      allowedPages: profiles.allowedPages,
+      dataScope: profiles.dataScope,
+    })
+    .from(profiles)
+    .orderBy(asc(profiles.fullName));
 
   return (
-    <div className="mx-auto w-full max-w-4xl">
-      <PageHeader
-        title="Manajemen User"
-        subtitle={`${rows.length} akun terdaftar`}
-        actions={<CreateUserDialog />}
-      />
+    <div className="mx-auto w-full max-w-6xl">
       <UserTable rows={rows} currentUserId={me.id} />
     </div>
   );

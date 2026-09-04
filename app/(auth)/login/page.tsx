@@ -28,33 +28,27 @@ export default function LoginPage() {
           Masuk ke Nippon
         </h1>
         <p className="mx-auto mt-1.5 mb-6 max-w-[17rem] text-center text-sm text-muted-foreground">
-          Login menggunakan User &amp; Password yang terdaftar.
+          Tim internal masuk dengan password. Customer masuk dengan Kode SAP.
         </p>
 
         <form action={action} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">User</Label>
-            <Input
-              id="email" name="email" type="email" required
-              autoComplete="email" inputMode="email" placeholder="Masukan User"
-              className="h-12"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="credential">Password atau Kode SAP</Label>
             <div className="relative">
               <Input
-                id="password" name="password" required
+                id="credential"
+                name="credential"
+                required
                 type={show ? 'text' : 'password'}
-                autoComplete="current-password" placeholder="Masukan Password"
+                autoComplete="off"
+                placeholder="Masukkan password atau Kode SAP"
                 className="h-12 pr-12"
               />
-              {/* Di HP orang sering salah ketik password dan tidak punya cara memeriksanya. */}
+              {/* Di HP orang sering salah ketik dan tidak punya cara memeriksanya. */}
               <button
                 type="button"
                 onClick={() => setShow((v) => !v)}
-                aria-label={show ? 'Sembunyikan password' : 'Tampilkan password'}
+                aria-label={show ? 'Sembunyikan' : 'Tampilkan'}
                 className="absolute inset-y-0 right-0 grid w-12 place-items-center rounded-r-lg text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
               >
                 {show ? <EyeOff className="size-5" /> : <Eye className="size-5" />}

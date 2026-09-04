@@ -1,23 +1,49 @@
 'use server';
 
+import { eq } from 'drizzle-orm';
+import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { getSessionUser, HOME_BY_ROLE } from '@/lib/auth';
-import { createClient } from '@/lib/supabase/server';
+import { HOME_BY_ROLE, type Role } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { customers, profiles } from '@/lib/db/schema';
+import { hashPassword } from '@/lib/password';
+import { rateLimit } from '@/lib/rate-limit';
+import { clearSessionCookie, setSessionCookie } from '@/lib/session';
 
 export async function signIn(_prev: string | null, formData: FormData): Promise<string | null> {
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({
-    email: String(formData.get('email') ?? ''),
-    password: String(formData.get('password') ?? ''),
-  });
-  if (error) return 'Email atau password salah.';
+  const credential = String(formData.get('credential') ?? '').trim();
+  if (!credential) return 'Masukkan password atau Kode SAP.';
 
-  const user = await getSessionUser();
-  redirect(user ? HOME_BY_ROLE[user.role] : '/no-access');
+  const ip = (await headers()).get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+  const { ok } = await rateLimit(`login:${ip}`);
+  if (!ok) return 'Terlalu banyak percobaan. Coba lagi sebentar.';
+
+  // Tim: password unik = pengenal. Dicek lebih dulu; kalau cocok, ini akun tim.
+  const [team] = await db
+    .select({ id: profiles.id, role: profiles.role })
+    .from(profiles)
+    .where(eq(profiles.passwordHash, hashPassword(credential)))
+    .limit(1);
+  if (team) {
+    await setSessionCookie('team', team.id);
+    redirect(HOME_BY_ROLE[team.role as Role]);
+  }
+
+  // Customer: kode_sap.
+  const [cust] = await db
+    .select({ id: customers.id })
+    .from(customers)
+    .where(eq(customers.kodeSap, credential))
+    .limit(1);
+  if (cust) {
+    await setSessionCookie('customer', cust.id);
+    redirect('/leaderboard');
+  }
+
+  return 'Password atau Kode SAP salah.';
 }
 
 export async function signOut() {
-  const supabase = await createClient();
-  await supabase.auth.signOut();
+  await clearSessionCookie();
   redirect('/login');
 }

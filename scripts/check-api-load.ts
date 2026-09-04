@@ -131,9 +131,9 @@ async function main() {
   await p.waitForTimeout(3000);
 
   for (const [label, judul] of [
-    ['Toko Hadir', 'Toko Hadir'],
-    ['Pencatatan', 'Pencatatan Kehadiran'],
-    ['Dashboard', 'Dashboard Kehadiran'],
+    ['Detail Toko Hadir', 'Detail Toko Hadir'],
+    ['Pencatatan Kehadiran', 'Pencatatan Kehadiran'],
+    ['Dashboard Kehadiran', 'Dashboard Kehadiran'],
   ] as const) {
     const { terasa, selesai } = await navigasi(label, judul);
     ok(`nav ke ${label}: layar merespons < 150ms`, terasa < 150, `${terasa}ms`);
@@ -142,9 +142,9 @@ async function main() {
 
   // ---------- Bolak-balik antar halaman ----------
   const bolakBalik = await hitung(p, async () => {
-    await p.getByRole('link', { name: 'Toko Hadir' }).click();
+    await p.getByRole('link', { name: 'Detail Toko Hadir' }).click();
     await p.waitForTimeout(2500);
-    await p.getByRole('link', { name: 'Dashboard' }).click();
+    await p.getByRole('link', { name: 'Dashboard Kehadiran' }).click();
   }, 3500);
   ok('bolak-balik antar halaman memakai cache, <= 3 request', bolakBalik.length <= 3,
     `${bolakBalik.length} request: ${bolakBalik.join(', ') || '-'}`);

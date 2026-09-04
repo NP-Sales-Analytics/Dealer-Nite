@@ -24,7 +24,7 @@ export function Brand({
         width={sisi}
         height={sisi}
         priority
-        className="shrink-0 rounded-lg"
+        className="shrink-0"
       />
       <span className="min-w-0">
         <span

@@ -1,6 +1,9 @@
 'use client';
 
-import { ChevronLeft, ClipboardCheck, LayoutDashboard, ListChecks, LogOut, Users } from 'lucide-react';
+import {
+  ChevronLeft, ClipboardCheck, LayoutDashboard, ListChecks, LogOut,
+  PlusCircle, Trophy, Users,
+} from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -11,15 +14,38 @@ import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupLabel,
   SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar,
 } from '@/components/ui/sidebar';
-import type { Role, SessionUser } from '@/lib/auth';
+import { halamanEfektif } from '@/lib/access';
+import type { SessionUser } from '@/lib/auth';
 
-// Mapping role -> menu; yang bertambah dari versi lama hanya ikon dan menu
-// "Toko Hadir".
-const LINKS: { href: string; label: string; icon: ComponentType<{ className?: string }>; roles: Role[] }[] = [
-  { href: '/reservation', label: 'Pencatatan', icon: ClipboardCheck, roles: ['superadmin', 'admin_rsvp'] },
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['superadmin', 'rsm'] },
-  { href: '/kehadiran', label: 'Toko Hadir', icon: ListChecks, roles: ['superadmin', 'admin_rsvp', 'rsm'] },
-  { href: '/admin/users', label: 'User', icon: Users, roles: ['superadmin'] },
+type NavLink = { href: string; label: string; icon: ComponentType<{ className?: string }> };
+
+// Dikelompokkan per urusan, bukan satu daftar panjang: begitu "Setting" berisi
+// lebih dari satu halaman, tanpa grup menu operasional harian ikut tenggelam.
+//
+// Label di sini harus sama dengan lib/access.ts - yang ini untuk navigasi,
+// yang di sana untuk daftar pilihan di User Management.
+const GRUP: { label: string; links: NavLink[] }[] = [
+  {
+    label: 'Kehadiran',
+    links: [
+      { href: '/dashboard', label: 'Dashboard Kehadiran', icon: LayoutDashboard },
+      { href: '/reservation', label: 'Pencatatan Kehadiran', icon: ClipboardCheck },
+      { href: '/kehadiran', label: 'Detail Toko Hadir', icon: ListChecks },
+    ],
+  },
+  {
+    label: 'Order',
+    links: [
+      { href: '/leaderboard', label: 'Leaderboard Top Spender', icon: Trophy },
+      { href: '/order', label: 'Tambah Order', icon: PlusCircle },
+    ],
+  },
+  {
+    label: 'Setting',
+    links: [
+      { href: '/admin/users', label: 'User Management', icon: Users },
+    ],
+  },
 ];
 
 const initials = (user: SessionUser) =>
@@ -29,63 +55,80 @@ export function AppSidebar({ user }: { user: SessionUser }) {
   const pathname = usePathname();
   const { setOpenMobile, toggleSidebar, state } = useSidebar();
   const tertutup = state === 'collapsed';
+  // Menu mengikuti halaman yang diizinkan untuk akun ini, bukan rolenya:
+  // superadmin bisa mencabut satu halaman tanpa mengganti role orangnya.
+  const boleh = halamanEfektif(user.role, user.allowedPages);
 
   return (
-    <Sidebar collapsible="icon">
-      {/* Menempel tepat di garis pemisah sidebar, sejajar bawah header, sesuai
-          referensi. -right-3 dengan tombol 24px membuat titik tengahnya jatuh
-          persis di garis. Desktop saja - di HP sidebar sudah berupa drawer
-          dengan tombolnya sendiri di header. */}
+    <Sidebar collapsible="icon" className="z-40">
+      {/* Titik tengah tombol jatuh persis di perpotongan dua garis: -right-3
+          dengan tombol 24px menaruhnya di garis vertikal sidebar, top-14
+          menaruhnya di garis horizontal bawah header (68px dikurangi separuh
+          tinggi tombol). Desktop saja - di HP sidebar berupa drawer yang punya
+          tombolnya sendiri di header.
+
+          Agar terlihat, yang dinaikkan adalah z-index <Sidebar> di atas, bukan
+          tombol ini: kontainer sidebar membuat stacking context sendiri, jadi
+          angka setinggi apa pun di sini tetap terkurung di dalamnya. */}
       <button
         type="button"
         onClick={toggleSidebar}
         aria-label={tertutup ? 'Buka navigasi' : 'Tutup navigasi'}
         title={tertutup ? 'Buka navigasi' : 'Tutup navigasi'}
-        className="absolute -right-3 top-[4.6rem] z-20 hidden size-6 place-items-center rounded-full border border-sidebar-border bg-sidebar text-muted-foreground shadow-xs transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none md:grid"
+        className="absolute -right-3 top-14 z-30 hidden size-6 place-items-center rounded-full border border-sidebar-border bg-sidebar text-muted-foreground shadow-xs transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none md:grid"
       >
         <ChevronLeft className={`size-3.5 transition-transform ${tertutup ? 'rotate-180' : ''}`} />
       </button>
 
-      <SidebarHeader className="border-b border-sidebar-border p-4 group-data-[collapsible=icon]:p-2">
+      <SidebarHeader className="h-[68px] shrink-0 justify-center border-b border-sidebar-border px-4 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-2">
         <div className="group-data-[collapsible=icon]:hidden">
           <Brand />
         </div>
         <Image
           src="/logo-nippon.png"
           alt="Nippon Paint"
-          width={36}
-          height={36}
-          className="hidden rounded-lg group-data-[collapsible=icon]:block"
+          width={32}
+          height={32}
+          className="hidden shrink-0 group-data-[collapsible=icon]:block"
         />
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Menu</SidebarGroupLabel>
-          <SidebarMenu>
-            {LINKS.filter((l) => l.roles.includes(user.role)).map((l) => {
-              const active = pathname === l.href || pathname.startsWith(l.href + '/');
-              return (
-                <SidebarMenuItem key={l.href}>
-                  <SidebarMenuButton
-                    // shadcn build ini memakai base-ui: komposisi lewat `render`,
-                    // bukan `asChild`.
-                    render={<Link href={l.href} />}
-                    isActive={active}
-                    tooltip={l.label}
-                    // Tutup drawer setelah memilih menu; tanpa ini drawer tetap
-                    // menutupi halaman tujuan di HP.
-                    onClick={() => setOpenMobile(false)}
-                    className="h-11 gap-3 text-[15px]"
-                  >
-                    <l.icon className="size-5 shrink-0" />
-                    <span>{l.label}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              );
-            })}
-          </SidebarMenu>
-        </SidebarGroup>
+        {GRUP.map((grup) => {
+          const tampil = grup.links.filter((l) => boleh.includes(l.href));
+          // Grup yang seluruh isinya tertutup untuk role ini tidak perlu
+          // menyisakan judul kosong.
+          if (tampil.length === 0) return null;
+
+          return (
+            <SidebarGroup key={grup.label}>
+              <SidebarGroupLabel>{grup.label}</SidebarGroupLabel>
+              <SidebarMenu>
+                {tampil.map((l) => {
+                  const active = pathname === l.href || pathname.startsWith(l.href + '/');
+                  return (
+                    <SidebarMenuItem key={l.href}>
+                      <SidebarMenuButton
+                        // shadcn build ini memakai base-ui: komposisi lewat `render`,
+                        // bukan `asChild`.
+                        render={<Link href={l.href} />}
+                        isActive={active}
+                        tooltip={l.label}
+                        // Tutup drawer setelah memilih menu; tanpa ini drawer tetap
+                        // menutupi halaman tujuan di HP.
+                        onClick={() => setOpenMobile(false)}
+                        className="h-11 gap-3 text-[15px]"
+                      >
+                        <l.icon className="size-5 shrink-0" />
+                        <span>{l.label}</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroup>
+          );
+        })}
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border p-3 group-data-[collapsible=icon]:p-2">
@@ -93,7 +136,7 @@ export function AppSidebar({ user }: { user: SessionUser }) {
           <span
             className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-semibold text-accent-foreground"
             aria-hidden
-            title={user.email}
+            title={user.email || user.dataScope || ''}
           >
             {initials(user)}
           </span>
@@ -101,8 +144,9 @@ export function AppSidebar({ user }: { user: SessionUser }) {
             <span className="block truncate text-sm font-medium leading-tight">
               {user.fullName || 'Pengguna'}
             </span>
+            {/* Customer tidak punya email; tampilkan Kode SAP (dataScope) sebagai gantinya. */}
             <span className="block truncate text-xs leading-tight text-muted-foreground">
-              {user.email}
+              {user.email || user.dataScope}
             </span>
           </span>
           <form action={signOut} className="group-data-[collapsible=icon]:hidden">

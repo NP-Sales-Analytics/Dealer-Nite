@@ -18,6 +18,7 @@ const fetcher = <T,>(url: string) => async (): Promise<T> => {
 const buildQuery = (f: FilterState, page: number, urut: 'asc' | 'desc') => {
   const p = new URLSearchParams({ page: String(page) });
   if (urut === 'asc') p.set('sort', 'asc');
+  if (f.wilayah !== 'semua') p.set('wilayah', f.wilayah);
   if (f.region !== 'semua') p.set('region', f.region);
   if (f.depot !== 'semua') p.set('depot', f.depot);
   if (f.q.trim()) p.set('q', f.q.trim());
@@ -36,14 +37,14 @@ export function AttendanceClient({ bisaUbah }: { bisaUbah: boolean }) {
   const qDebounced = useDebounce(filter.q, 300).trim();
   const filterEfektif = useMemo(
     () => ({ ...filter, q: qDebounced }),
-    [filter.region, filter.depot, qDebounced], // eslint-disable-line react-hooks/exhaustive-deps
+    [filter.wilayah, filter.region, filter.depot, qDebounced], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   // Filter berubah -> kembali ke halaman 1, kalau tidak nomor halaman bisa
   // menunjuk ke luar rentang hasil yang baru.
   useEffect(() => {
     setPage(1);
-  }, [filterEfektif.region, filterEfektif.depot, filterEfektif.q]);
+  }, [filterEfektif.wilayah, filterEfektif.region, filterEfektif.depot, filterEfektif.q]);
 
   const options = useQuery({
     queryKey: ['filters'],
@@ -65,7 +66,8 @@ export function AttendanceClient({ bisaUbah }: { bisaUbah: boolean }) {
   );
 
   const adaFilter =
-    filterEfektif.region !== 'semua' || filterEfektif.depot !== 'semua' || filterEfektif.q.trim() !== '';
+    filterEfektif.wilayah !== 'semua' || filterEfektif.region !== 'semua'
+    || filterEfektif.depot !== 'semua' || filterEfektif.q.trim() !== '';
 
   return (
     <>

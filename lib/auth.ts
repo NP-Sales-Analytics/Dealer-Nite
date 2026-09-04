@@ -1,70 +1,96 @@
 import { eq } from 'drizzle-orm';
 import { redirect } from 'next/navigation';
-import { cache } from 'react';
-import { ttlCache } from '@/lib/ttl-cache';
 import { NextResponse } from 'next/server';
+import { cache } from 'react';
+import { halamanEfektif } from '@/lib/access';
 import { db } from '@/lib/db';
-import { profiles } from '@/lib/db/schema';
-import { createClient } from '@/lib/supabase/server';
+import { customers, profiles } from '@/lib/db/schema';
+import { getSession } from '@/lib/session';
+import { ttlCache } from '@/lib/ttl-cache';
 
-export type Role = 'superadmin' | 'admin_rsvp' | 'rsm' | 'customer';
-export type SessionUser = { id: string; email: string; fullName: string; role: Role };
+export type Role = 'superadmin' | 'admin_rsvp' | 'marketing' | 'rsm' | 'customer';
+export type SessionUser = {
+  id: string;
+  email: string;
+  fullName: string;
+  role: Role;
+  allowedPages: string[];
+  dataScope: string | null;
+};
 
 export const HOME_BY_ROLE: Record<Role, string> = {
   superadmin: '/reservation',
   admin_rsvp: '/reservation',
+  marketing: '/dashboard',
   rsm: '/dashboard',
-  customer: '/no-access',
+  customer: '/leaderboard',
 };
 
-/**
- * Profil (nama + role) di-cache 60 detik per user.
- *
- * Identitas TIDAK ikut di-cache: user id tetap berasal dari JWT yang tanda
- * tangannya diverifikasi ulang pada setiap request. Yang disimpan hanya pemetaan
- * id -> role, dan itu jarang berubah. Menghemat satu query DB (terukur ~90ms)
- * pada tiap panggilan API.
- *
- * Batasnya: pergantian role baru berlaku penuh setelah 60 detik pada instance
- * yang belum menyentuhnya. Instance yang melakukan perubahan membersihkan
- * cachenya sendiri lewat lupakanProfil().
- */
+// Profil (nama + role + akses) di-cache 60 detik per user. Identitas tetap berasal
+// dari cookie sesi yang tanda tangannya diverifikasi ulang tiap request; yang
+// disimpan hanya pemetaan id -> profil. Perubahan role berlaku penuh dalam <=60
+// detik pada instance yang belum menyentuhnya; instance yang mengubah membersihkan
+// cachenya lewat lupakanProfil().
 const cacheProfil = ttlCache(async (userId: string) => {
   const [profile] = await db.select().from(profiles).where(eq(profiles.id, userId)).limit(1);
   return profile ?? null;
 }, 60_000);
-
 export const lupakanProfil = (userId?: string) => cacheProfil.clear(userId);
 
+// Sama untuk identitas customer (nama toko + kode_sap). Data toko jarang berubah.
+const cacheCustomer = ttlCache(async (id: string) => {
+  const [c] = await db
+    .select({ id: customers.id, namaToko: customers.namaToko, kodeSap: customers.kodeSap })
+    .from(customers)
+    .where(eq(customers.id, id))
+    .limit(1);
+  return c ?? null;
+}, 60_000);
+export const lupakanCustomer = (id?: string) => cacheCustomer.clear(id);
+
 // cache() men-dedup per request: layout (app) memanggilnya untuk sidebar dan tiap
-// halaman memanggilnya lagi lewat requireRole.
+// halaman memanggilnya lagi lewat requireHalaman/requireRole.
 export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
-  const supabase = await createClient();
+  const session = await getSession();
+  if (!session) return null;
 
-  // getClaims(), BUKAN getUser(). Proyek ini memakai kunci penanda ES256, jadi
-  // getClaims memverifikasi tanda tangan JWT secara lokal lewat WebCrypto -
-  // tetap aman secara kriptografis, tapi tanpa round-trip ke Supabase yang
-  // terukur ~128ms. Kunci publiknya (JWKS) diambil sekali per proses lalu
-  // disimpan di cache tingkat modul milik auth-js, bukan per-instance klien.
-  //
-  // Yang hilang: sesi yang dicabut manual di Supabase baru benar-benar berhenti
-  // saat tokennya kedaluwarsa (maks 1 jam). Penghapusan user tidak terpengaruh -
-  // profiles.id ber-cascade ke auth.users, jadi baris profilnya ikut hilang dan
-  // aksesnya tertutup dalam <=60 detik lewat masa berlaku cacheProfil.
-  const { data } = await supabase.auth.getClaims();
-  const userId = data?.claims.sub;
-  if (!userId) return null;
+  if (session.kind === 'team') {
+    const profile = await cacheProfil.get(session.id);
+    if (!profile) return null;
+    return {
+      id: profile.id,
+      email: profile.email ?? '',
+      fullName: profile.fullName,
+      role: profile.role as Role,
+      allowedPages: profile.allowedPages ?? [],
+      dataScope: profile.dataScope,
+    };
+  }
 
-  const profile = await cacheProfil.get(userId);
-  if (!profile) return null;
-
+  // Customer: identitas dari tabel customers, akses = preset role 'customer'
+  // (HALAMAN_BAWAAN), cakupan data terkunci ke kode_sap-nya (terapkanScope).
+  const c = await cacheCustomer.get(session.id);
+  if (!c) return null;
   return {
-    id: userId,
-    email: profile.email,
-    fullName: profile.fullName,
-    role: profile.role as Role,
+    id: c.id,
+    email: '',
+    fullName: c.namaToko,
+    role: 'customer',
+    allowedPages: [],
+    dataScope: c.kodeSap,
   };
 });
+
+/**
+ * Gerbang per-halaman. Yang ditegakkan adalah daftar halaman milik akun
+ * (allowed_pages / preset role), bukan sekadar rolenya.
+ */
+export async function requireHalaman(href: string): Promise<SessionUser> {
+  const user = await getSessionUser();
+  if (!user) redirect('/login');
+  if (!halamanEfektif(user.role, user.allowedPages).includes(href)) redirect('/no-access');
+  return user;
+}
 
 export async function requireRole(allowed: Role[]): Promise<SessionUser> {
   const user = await getSessionUser();

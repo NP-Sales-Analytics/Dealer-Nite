@@ -1,6 +1,5 @@
 import { CheckinForm } from '@/components/reservation/checkin-form';
-import { PageHeader } from '@/components/shared/page-header';
-import { requireRole } from '@/lib/auth';
+import { requireHalaman } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { customers } from '@/lib/db/schema';
 import { ttlCache } from '@/lib/ttl-cache';
@@ -17,16 +16,12 @@ const daftarDepot = ttlCache(async () => {
 }, 5 * 60_000);
 
 export default async function ReservationPage() {
-  await requireRole(['superadmin', 'admin_rsvp']);
+  await requireHalaman('/reservation');
 
   const depots = await daftarDepot.get();
 
   return (
     <div className="mx-auto w-full max-w-2xl">
-      <PageHeader
-        title="Pencatatan Kehadiran"
-        subtitle="Cari toko dengan nama atau kode SAP, lalu isi jumlah orang yang hadir."
-      />
       <CheckinForm depots={depots} />
     </div>
   );
