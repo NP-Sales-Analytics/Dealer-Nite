@@ -18,7 +18,9 @@ export const HALAMAN: { href: string; label: string }[] = [
   { href: '/kehadiran', label: 'Detail Toko Hadir' },
   { href: '/leaderboard', label: 'Leaderboard Top Spender' },
   { href: '/order', label: 'Tambah Order' },
+  { href: '/order/detail', label: 'Detail Order' },
   { href: '/admin/users', label: 'User Management' },
+  { href: '/setting/waktu', label: 'Waktu Penambahan' },
 ];
 
 /**
@@ -29,10 +31,16 @@ export const HALAMAN: { href: string; label: string }[] = [
  * yang dibuat sebelum kolom ini ada tidak mendadak kehilangan akses.
  */
 export const HALAMAN_BAWAAN: Record<Role, string[]> = {
-  superadmin: ['/dashboard', '/reservation', '/kehadiran', '/leaderboard', '/order', '/admin/users'],
-  admin_rsvp: ['/reservation', '/kehadiran', '/leaderboard', '/order'],
-  marketing: ['/dashboard', '/kehadiran', '/leaderboard'],
-  rsm: ['/dashboard', '/kehadiran', '/leaderboard'],
+  superadmin: [
+    '/dashboard', '/reservation', '/kehadiran',
+    '/leaderboard', '/order', '/order/detail',
+    '/admin/users', '/setting/waktu',
+  ],
+  admin_rsvp: ['/reservation', '/kehadiran', '/leaderboard', '/order', '/order/detail'],
+  // Marketing & RSM: Detail Order hanya untuk dilihat - tombol ubah/hapus/tambah
+  // disembunyikan di UI dan ditolak di route mutasinya.
+  marketing: ['/dashboard', '/kehadiran', '/leaderboard', '/order/detail'],
+  rsm: ['/dashboard', '/kehadiran', '/leaderboard', '/order/detail'],
   // Customer hanya modul Order: papan ranking + halaman order miliknya sendiri.
   customer: ['/leaderboard', '/order'],
 };

@@ -1,8 +1,8 @@
 'use client';
 
 import {
-  ChevronLeft, ClipboardCheck, LayoutDashboard, ListChecks, LogOut,
-  PlusCircle, Trophy, Users,
+  ChevronLeft, ClipboardCheck, ClipboardList, Clock, LayoutDashboard, ListChecks,
+  LogOut, PlusCircle, Trophy, Users,
 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -38,15 +38,20 @@ const GRUP: { label: string; links: NavLink[] }[] = [
     links: [
       { href: '/leaderboard', label: 'Leaderboard Top Spender', icon: Trophy },
       { href: '/order', label: 'Tambah Order', icon: PlusCircle },
+      { href: '/order/detail', label: 'Detail Order', icon: ClipboardList },
     ],
   },
   {
     label: 'Setting',
     links: [
       { href: '/admin/users', label: 'User Management', icon: Users },
+      { href: '/setting/waktu', label: 'Waktu Penambahan', icon: Clock },
     ],
   },
 ];
+
+/** Semua href menu, untuk mencari awalan terpanjang yang cocok. */
+const SEMUA_HREF = GRUP.flatMap((g) => g.links.map((l) => l.href));
 
 const initials = (user: SessionUser) =>
   (user.fullName || user.email).trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('') || '?';
@@ -58,6 +63,11 @@ export function AppSidebar({ user }: { user: SessionUser }) {
   // Menu mengikuti halaman yang diizinkan untuk akun ini, bukan rolenya:
   // superadmin bisa mencabut satu halaman tanpa mengganti role orangnya.
   const boleh = halamanEfektif(user.role, user.allowedPages);
+  // Awalan terpanjang yang menang: tanpa ini /order/detail ikut menyalakan
+  // /order, karena keduanya sama-sama cocok sebagai awalan.
+  const hrefAktif = SEMUA_HREF
+    .filter((h) => pathname === h || pathname.startsWith(h + '/'))
+    .sort((a, b) => b.length - a.length)[0];
 
   return (
     <Sidebar collapsible="icon" className="z-40">
@@ -105,7 +115,7 @@ export function AppSidebar({ user }: { user: SessionUser }) {
               <SidebarGroupLabel>{grup.label}</SidebarGroupLabel>
               <SidebarMenu>
                 {tampil.map((l) => {
-                  const active = pathname === l.href || pathname.startsWith(l.href + '/');
+                  const active = l.href === hrefAktif;
                   return (
                     <SidebarMenuItem key={l.href}>
                       <SidebarMenuButton

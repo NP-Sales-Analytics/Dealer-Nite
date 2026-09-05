@@ -1,7 +1,6 @@
 'use server';
 
 import { eq } from 'drizzle-orm';
-import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { HOME_BY_ROLE, type Role } from '@/lib/auth';
 import { db } from '@/lib/db';
@@ -14,8 +13,14 @@ export async function signIn(_prev: string | null, formData: FormData): Promise<
   const credential = String(formData.get('credential') ?? '').trim();
   if (!credential) return 'Masukkan password atau Kode SAP.';
 
-  const ip = (await headers()).get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
-  const { ok } = await rateLimit(`login:${ip}`);
+  // Dikunci pada kredensial yang dicoba, BUKAN pada IP. Di venue seluruh tamu
+  // berbagi satu IP NAT wifi, jadi kunci per-IP akan mengunci SATU RUANGAN
+  // sekaligus tepat pada jam kedatangan. Yang memang perlu direm adalah
+  // tebak-tebakan terhadap satu kredensial, dan itu persis yang dihitung di sini.
+  //
+  // Yang dipakai hash-nya, bukan kredensial mentah: kunci Redis bisa terlihat di
+  // dashboard/log, dan kredensial itu password sungguhan.
+  const { ok } = await rateLimit(`login:${hashPassword(credential)}`);
   if (!ok) return 'Terlalu banyak percobaan. Coba lagi sebentar.';
 
   // Tim: password unik = pengenal. Dicek lebih dulu; kalau cocok, ini akun tim.

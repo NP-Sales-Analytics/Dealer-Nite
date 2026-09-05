@@ -10,7 +10,10 @@ export function QueryProvider({ children }: { children: ReactNode }) {
         // Sepadan dengan cache 15 detik di sisi server: pindah filter bolak-balik
         // dalam rentang ini dilayani dari memori, bukan request baru.
         staleTime: 10_000,
-        retry: 1,
+        // Tanpa retry: saat server sedang kepayahan, mencoba ulang hanya
+        // menggandakan beban, sementara tick interval berikutnya toh hanya
+        // beberapa detik lagi.
+        retry: 0,
         // Kembali ke tab atau wifi tersambung lagi bukan alasan menembak ulang
         // semua query; halaman yang butuh segar sudah punya refetchInterval sendiri.
         refetchOnWindowFocus: false,

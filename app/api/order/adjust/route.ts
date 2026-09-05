@@ -1,10 +1,12 @@
 import { eq, sql } from 'drizzle-orm';
 import { NextResponse, type NextRequest } from 'next/server';
-import { getSessionUser } from '@/lib/auth';
+import { getSessionUser, lupakanCustomer } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { orderAdjustments } from '@/lib/db/schema';
+import { customers, orderAdjustments } from '@/lib/db/schema';
+import { periksaPenambahan, PESAN_TOLAKAN, type Tolakan } from '@/lib/order/aturan';
 import { rateLimit } from '@/lib/rate-limit';
 import { getSession } from '@/lib/session';
+import { bacaTenggat } from '@/lib/settings';
 import { orderAdjustSchema } from '@/lib/validations/order';
 
 // Siapa yang boleh mencatat order atas nama toko (staff on-behalf).
@@ -41,28 +43,56 @@ export async function POST(request: NextRequest) {
   const { ok } = await rateLimit(`order-adjust:${session.kind}:${session.id}`);
   if (!ok) return NextResponse.json({ error: 'Terlalu banyak permintaan' }, { status: 429 });
 
+  const tenggat = await bacaTenggat();
+
   // Transaksi + advisory lock per-toko men-serialkan baca-cek-tulis satu toko, jadi
-  // dua penambahan hampir bersamaan tidak bisa sama-sama lolos cek dan bikin minus.
+  // dua penambahan hampir bersamaan tidak bisa sama-sama lolos cek.
   // ponytail: advisory lock per-toko. Naikkan ke trigger/constraint kalau kelak perlu.
-  const result = await db.transaction(async (tx) => {
+  const hasil = await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${targetId}, 0))`);
 
-    const [{ total: current }] = await tx
+    const [{ total: sekarang }] = await tx
       .select({ total: sql<number>`coalesce(sum(${orderAdjustments.qtyChange}), 0)::int` })
       .from(orderAdjustments)
       .where(eq(orderAdjustments.customerId, targetId));
 
-    if (current + qtyChange < 0) return { rejected: true as const, total: current };
+    // Dibaca di dalam transaksi, bukan dari cache: nilainya ikut menentukan
+    // keputusan, jadi harus versi terbaru.
+    const [toko] = await tx
+      .select({ dusAwal: customers.dusAwal })
+      .from(customers)
+      .where(eq(customers.id, targetId))
+      .limit(1);
+    if (!toko) return { tolakan: 'NOT_FOUND' as const, total: sekarang };
+
+    const totalBaru = sekarang + qtyChange;
+    const tolakan = periksaPenambahan({ totalBaru, dusAwal: toko.dusAwal, tenggat });
+    if (tolakan) return { tolakan, total: sekarang };
 
     await tx.insert(orderAdjustments).values({ customerId: targetId, qtyChange, recordedBy });
-    return { rejected: false as const, total: current + qtyChange };
+
+    // Pengambilan pertama yang tercatat menjadi lantai permanen.
+    const awalBaru = toko.dusAwal === null && totalBaru > 0 ? totalBaru : null;
+    if (awalBaru !== null) {
+      await tx.update(customers).set({ dusAwal: awalBaru }).where(eq(customers.id, targetId));
+    }
+
+    return { tolakan: null, total: totalBaru, dusAwal: toko.dusAwal ?? awalBaru };
   });
 
-  if (result.rejected) {
+  if (hasil.tolakan === 'NOT_FOUND') {
+    return NextResponse.json({ code: 'NOT_FOUND', error: 'Toko tidak ditemukan' }, { status: 404 });
+  }
+  if (hasil.tolakan) {
+    const kode = hasil.tolakan as NonNullable<Tolakan>;
     return NextResponse.json(
-      { code: 'NEGATIVE', message: 'Total tidak boleh kurang dari 0.', total: result.total },
+      { code: kode, message: PESAN_TOLAKAN[kode], total: hasil.total },
       { status: 409 },
     );
   }
-  return NextResponse.json({ total: result.total });
+
+  // dus_awal ikut di-cache bersama identitas toko; buang supaya lantai barunya terbaca.
+  if (hasil.dusAwal !== null) lupakanCustomer(targetId);
+
+  return NextResponse.json({ total: hasil.total, dusAwal: hasil.dusAwal });
 }

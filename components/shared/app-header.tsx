@@ -38,6 +38,16 @@ const JUDUL: { awalan: string; judul: string; keterangan: string }[] = [
     keterangan: 'Catat jumlah dus yang diambil, lalu simpan.',
   },
   {
+    awalan: '/order/detail',
+    judul: 'Detail Order',
+    keterangan: 'Master data toko beserta jumlah dus dan pengambilan terakhirnya.',
+  },
+  {
+    awalan: '/setting/waktu',
+    judul: 'Waktu Penambahan',
+    keterangan: 'Batas waktu penambahan order. Setelah lewat, semua penambahan terkunci.',
+  },
+  {
     awalan: '/admin/users',
     judul: 'User Management',
     keterangan: 'Kelola akun, halaman yang bisa diakses, dan cakupan datanya.',

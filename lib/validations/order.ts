@@ -9,3 +9,16 @@ export const orderAdjustSchema = z.object({
 }).strict();
 
 export type OrderAdjustInput = z.infer<typeof orderAdjustSchema>;
+
+/**
+ * Perubahan dari halaman Detail Order (admin). Semua opsional supaya UI bisa
+ * mengirim hanya yang berubah. `total` bersifat absolut - selisihnya terhadap
+ * catatan sekarang yang ditulis ke ledger, jadi riwayatnya tetap utuh.
+ */
+export const orderCustomerPatchSchema = z.object({
+  namaToko: z.string().trim().min(2).max(200).transform((v) => v.toUpperCase()).optional(),
+  depot: z.string().trim().min(1).max(100).optional(),
+  total: z.number().int().min(0).max(100000).optional(),
+}).strict();
+
+export type OrderCustomerPatch = z.infer<typeof orderCustomerPatchSchema>;

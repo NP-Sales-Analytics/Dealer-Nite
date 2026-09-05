@@ -15,13 +15,25 @@ export type LeaderRow = {
   region?: string | null;
 };
 
-/** Rank customer yang login. null bila belum punya dus (di luar papan). */
-export function posisiSaya(myTotal: number, jumlahDiAtas: number): number | null {
-  return myTotal > 0 ? jumlahDiAtas + 1 : null;
+/**
+ * Posisi sebuah toko, diambil dari papan peringkat yang sudah dihitung.
+ *
+ * Peringkatnya TIDAK dihitung ulang di sini: nomornya sudah final dari
+ * row_number() di SQL, jadi baris "saya" mustahil menyebut angka yang berbeda
+ * dari daftarnya. Toko tanpa dus tidak ada di papan - artinya total 0 dan belum
+ * berperingkat.
+ */
+export function cariPosisi(
+  papan: Pick<LeaderRow, 'customerId' | 'total' | 'rank'>[],
+  customerId: string,
+): { total: number; rank: number | null } {
+  const baris = papan.find((r) => r.customerId === customerId);
+  return { total: baris?.total ?? 0, rank: baris?.rank ?? null };
 }
 
 /**
- * Batas baris papan. Sengaja besar: baris "saya" harus benar-benar ada di DOM
- * supaya bilah melayang bisa menggulir ke posisinya, sekalipun pesertanya ratusan.
+ * Batas baris papan yang dikirim ke klien. Sengaja besar: baris "saya" harus
+ * benar-benar ada di DOM supaya bilah melayang bisa menggulir ke posisinya,
+ * sekalipun pesertanya ratusan.
  */
 export const TOP_N = 500;

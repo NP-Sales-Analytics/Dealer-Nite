@@ -11,25 +11,28 @@ export function QtyStepper({
   value,
   onChange,
   id = 'qty',
+  min = 0,
   max = 1000,
   ariaLabel = 'Jumlah orang yang hadir',
 }: {
   value: string;
   onChange: (v: string) => void;
   id?: string;
+  /** Batas bawah. Dipakai Tambah Order untuk mengunci pengambilan pertama. */
+  min?: number;
   max?: number;
   ariaLabel?: string;
 }) {
   const n = Number(value);
   const valid = value !== '' && Number.isInteger(n) && n >= 0;
-  const step = (delta: number) => onChange(String(Math.min(max, Math.max(0, (valid ? n : 0) + delta))));
+  const step = (delta: number) => onChange(String(Math.min(max, Math.max(min, (valid ? n : 0) + delta))));
 
   return (
     <div className="flex items-stretch gap-3">
       <button
         type="button"
         onClick={() => step(-1)}
-        disabled={valid && n <= 0}
+        disabled={valid && n <= min}
         aria-label="Kurangi satu"
         className="grid size-12 shrink-0 place-items-center rounded-xl border border-border bg-card text-foreground shadow-xs transition-colors hover:bg-secondary disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
       >

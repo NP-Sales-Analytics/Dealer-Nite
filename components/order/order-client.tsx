@@ -13,6 +13,8 @@ type Me = {
   region: string | null;
   total: number;
   rank: number | null;
+  dusAwal: number | null;
+  tenggat: string | null;
 };
 
 const ME_KEY = ['order', 'me'] as const;
@@ -26,7 +28,8 @@ export function OrderClient() {
       if (!r.ok) throw new Error('me');
       return r.json();
     },
-    refetchInterval: 10_000,
+    // Realtime yang jadi jalur cepat; polling hanya cadangan saat koneksi putus.
+    refetchInterval: 30_000,
   });
 
   useRealtimeRefresh(() => qc.invalidateQueries({ queryKey: ME_KEY }));
@@ -40,6 +43,8 @@ export function OrderClient() {
         target={me.data}
         total={me.data.total}
         rank={me.data.rank}
+        dusAwal={me.data.dusAwal}
+        tenggat={me.data.tenggat}
         onBatal={() => {}}
         labelBatal="Reset"
       />

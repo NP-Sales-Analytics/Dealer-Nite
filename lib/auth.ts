@@ -37,16 +37,29 @@ const cacheProfil = ttlCache(async (userId: string) => {
 }, 60_000);
 export const lupakanProfil = (userId?: string) => cacheProfil.clear(userId);
 
-// Sama untuk identitas customer (nama toko + kode_sap). Data toko jarang berubah.
+// Sama untuk identitas customer. Data toko praktis tidak berubah saat event,
+// jadi 60 detik aman - dan ini yang membuat /api/order/me tidak perlu menyentuh
+// DB sama sekali di jalur panas.
 const cacheCustomer = ttlCache(async (id: string) => {
   const [c] = await db
-    .select({ id: customers.id, namaToko: customers.namaToko, kodeSap: customers.kodeSap })
+    .select({
+      id: customers.id,
+      namaToko: customers.namaToko,
+      kodeSap: customers.kodeSap,
+      depot: customers.depot,
+      wilayah: customers.wilayah,
+      region: customers.region,
+      dusAwal: customers.dusAwal,
+    })
     .from(customers)
     .where(eq(customers.id, id))
     .limit(1);
   return c ?? null;
 }, 60_000);
 export const lupakanCustomer = (id?: string) => cacheCustomer.clear(id);
+
+/** Identitas toko dari cache 60 detik. Dipakai route order untuk hindari query. */
+export const infoCustomer = (id: string) => cacheCustomer.get(id);
 
 // cache() men-dedup per request: layout (app) memanggilnya untuk sidebar dan tiap
 // halaman memanggilnya lagi lewat requireHalaman/requireRole.

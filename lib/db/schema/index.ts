@@ -1,3 +1,4 @@
+export * from './app-settings';
 export * from './customers';
 export * from './order-adjustments';
 export * from './profiles';

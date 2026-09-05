@@ -7,6 +7,8 @@ import { QtyStepper } from '@/components/reservation/qty-stepper';
 import { InitialAvatar } from '@/components/shared/initial-avatar';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { PESAN_TOLAKAN, type Tolakan } from '@/lib/order/aturan';
+import { formatSisa, useSisaWaktu } from '@/lib/order/use-sisa-waktu';
 import { cn } from '@/lib/utils';
 
 export type OrderTarget = {
@@ -24,7 +26,7 @@ const Row = ({ label, value }: { label: string; value: ReactNode }) => (
   </div>
 );
 
-/** Nilai yang perlu menonjol (dus terakhir, posisi ranking). */
+/** Nilai yang perlu menonjol (dus terakhir, pengambilan pertama, ranking). */
 const Chip = ({ children, className }: { children: ReactNode; className?: string }) => (
   <span
     className={cn(
@@ -49,11 +51,17 @@ const GAYA_RANK: Record<number, string> = {
  * Stepper mengubah angka SECARA LOKAL saja; ledger baru ditulis saat "Simpan
  * Order" ditekan, dan yang dikirim adalah selisihnya terhadap catatan terakhir.
  * Jadi menekan + berkali-kali tidak menghasilkan banyak baris di ledger.
+ *
+ * Dua batasan ikut ditampilkan: lantai pengambilan pertama dan tenggat waktu.
+ * Keduanya tetap ditegakkan di /api/order/adjust - yang di sini hanya penjelasan
+ * supaya orang tidak terlanjur mengetik angka yang pasti ditolak.
  */
 export function OrderPanel({
   target,
   total,
   rank,
+  dusAwal,
+  tenggat,
   customerId,
   onBatal,
   labelBatal = 'Batal',
@@ -61,6 +69,9 @@ export function OrderPanel({
   target: OrderTarget;
   total: number;
   rank: number | null;
+  /** Pengambilan pertama yang tercatat = lantai permanen. null = belum pernah. */
+  dusAwal: number | null;
+  tenggat: string | null;
   /** Diisi hanya untuk jalur staff; kosong = order milik sendiri (customer). */
   customerId?: string;
   onBatal: () => void;
@@ -71,9 +82,14 @@ export function OrderPanel({
   const [tercatat, setTercatat] = useState(total);
   const [qty, setQty] = useState(String(total));
 
+  const sisa = useSisaWaktu(tenggat);
+  const terkunci = sisa !== null && sisa <= 0;
+
+  const lantai = dusAwal ?? 0;
   const n = Number(qty);
   const valid = qty !== '' && Number.isInteger(n) && n >= 0;
   const selisih = valid ? n - tercatat : 0;
+  const diBawahLantai = valid && dusAwal !== null && n < dusAwal;
 
   const simpan = useMutation({
     mutationFn: async () => {
@@ -95,8 +111,8 @@ export function OrderPanel({
       qc.invalidateQueries({ queryKey: ['leaderboard'] });
     },
     onError: (err: unknown) => {
-      const code = (err as { data?: { code?: string } })?.data?.code;
-      toast.error(code === 'NEGATIVE' ? 'Total tidak boleh kurang dari 0.' : 'Gagal menyimpan. Coba lagi.');
+      const code = (err as { data?: { code?: string } })?.data?.code as Tolakan | undefined;
+      toast.error(code && code in PESAN_TOLAKAN ? PESAN_TOLAKAN[code] : 'Gagal menyimpan. Coba lagi.');
     },
   });
 
@@ -123,6 +139,16 @@ export function OrderPanel({
             }
           />
           <Row
+            label="Pengambilan Pertama"
+            value={
+              dusAwal === null ? (
+                <span className="text-muted-foreground">Belum ada</span>
+              ) : (
+                <Chip className="bg-secondary text-foreground">{dusAwal} dus</Chip>
+              )
+            }
+          />
+          <Row
             label="Posisi Ranking"
             value={
               rank ? (
@@ -136,29 +162,51 @@ export function OrderPanel({
       </div>
 
       <div className="space-y-3 rounded-2xl border border-border bg-card p-4 shadow-xs">
-        <div>
-          <Label htmlFor="qty-dus" className="text-base">
-            Total keseluruhan pengambilan dus
-          </Label>
-          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-            Isi dengan <span className="font-semibold text-foreground">jumlah keseluruhan dus</span>,
-            bukan tambahannya.
-          </p>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <Label htmlFor="qty-dus" className="text-base">
+              Total keseluruhan pengambilan dus
+            </Label>
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+              Isi dengan <span className="font-semibold text-foreground">jumlah keseluruhan dus</span>,
+              bukan tambahannya.
+            </p>
+          </div>
+          {sisa !== null && (
+            <span
+              className={cn(
+                'shrink-0 rounded-full px-2.5 py-1 text-xs font-bold tabular-nums',
+                terkunci ? 'bg-destructive/10 text-destructive' : 'bg-amber-100 text-amber-900',
+              )}
+              title="Batas waktu penambahan order"
+            >
+              {terkunci ? 'Waktu habis' : `Sisa ${formatSisa(sisa)}`}
+            </span>
+          )}
         </div>
 
         <QtyStepper
           id="qty-dus"
           value={qty}
           onChange={setQty}
+          min={lantai}
           ariaLabel="Total keseluruhan pengambilan dus"
         />
 
         {/* Ringkasan dibuat menonjol dan berbentuk hitungan sebelum -> perubahan
             -> sesudah. Angka di kotak adalah TOTAL, bukan penambahan, dan banyak
             customer berusia lanjut - salah baca di sini berarti salah catat. */}
-        {!valid ? (
+        {terkunci ? (
+          <p className="rounded-xl border-2 border-destructive/30 bg-destructive/5 px-3.5 py-3 text-sm font-medium text-destructive">
+            Waktu penambahan sudah habis. Hubungi panitia bila ada yang perlu dikoreksi.
+          </p>
+        ) : !valid ? (
           <p className="rounded-xl bg-secondary/60 px-3.5 py-3 text-sm text-muted-foreground">
             Isi dulu jumlah totalnya.
+          </p>
+        ) : diBawahLantai ? (
+          <p className="rounded-xl border-2 border-destructive/30 bg-destructive/5 px-3.5 py-3 text-sm font-medium text-destructive">
+            Tidak boleh kurang dari pengambilan pertama ({dusAwal} dus).
           </p>
         ) : selisih === 0 ? (
           <p className="rounded-xl bg-secondary/60 px-3.5 py-3 text-sm text-muted-foreground">
@@ -207,7 +255,10 @@ export function OrderPanel({
         <Button
           variant="outline"
           className="h-12 flex-1 text-base md:flex-none md:px-6"
-          onClick={() => { setQty(String(tercatat)); onBatal(); }}
+          onClick={() => {
+            setQty(String(tercatat));
+            onBatal();
+          }}
           disabled={simpan.isPending}
         >
           {labelBatal}
@@ -215,13 +266,15 @@ export function OrderPanel({
         <Button
           className="h-12 flex-[2] text-base md:flex-none md:px-8"
           onClick={() => simpan.mutate()}
-          disabled={!valid || selisih === 0 || simpan.isPending}
+          disabled={!valid || selisih === 0 || diBawahLantai || terkunci || simpan.isPending}
         >
           {simpan.isPending
             ? 'Menyimpan...'
-            : selisih === 0
-              ? 'Simpan Order'
-              : `Simpan ${selisih > 0 ? '+' : ''}${selisih} dus`}
+            : terkunci
+              ? 'Waktu Habis'
+              : selisih === 0
+                ? 'Simpan Order'
+                : `Simpan ${selisih > 0 ? '+' : ''}${selisih} dus`}
         </Button>
       </div>
     </div>

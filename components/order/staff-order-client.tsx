@@ -12,7 +12,12 @@ export function StaffOrderClient() {
   const info = useQuery({
     queryKey: ['order', 'total', sel?.id],
     enabled: !!sel,
-    queryFn: async (): Promise<{ total: number; rank: number | null }> => {
+    queryFn: async (): Promise<{
+      total: number;
+      rank: number | null;
+      dusAwal: number | null;
+      tenggat: string | null;
+    }> => {
       const r = await fetch(`/api/order/total?customerId=${sel!.id}`);
       if (!r.ok) throw new Error('total');
       return r.json();
@@ -39,6 +44,8 @@ export function StaffOrderClient() {
           target={sel}
           total={info.data.total}
           rank={info.data.rank}
+          dusAwal={info.data.dusAwal}
+          tenggat={info.data.tenggat}
           customerId={sel.id}
           onBatal={() => setSel(null)}
           labelBatal="Ganti toko"

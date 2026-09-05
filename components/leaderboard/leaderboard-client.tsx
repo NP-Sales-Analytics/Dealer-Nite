@@ -1,8 +1,8 @@
 'use client';
 
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Crosshair, Search, X } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { Search, X } from 'lucide-react';
+import { useState } from 'react';
 import { Podium } from './podium';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -15,16 +15,11 @@ type Data = { top: LeaderRow[]; me: MeRow | null };
 const KEY = ['leaderboard'] as const;
 
 /**
- * Pencarian dikerjakan di klien: seluruh papan (maks 500 baris) memang sudah ada
- * di memori demi fitur "gulir ke posisi saya", jadi menyaringnya lokal memberi
- * hasil seketika tanpa request tambahan.
+ * Pencarian dikerjakan di klien: seluruh papan memang sudah ada di memori, jadi
+ * menyaringnya lokal memberi hasil seketika tanpa request tambahan.
  *
  * Tiap kata dicocokkan terpisah dan harus semuanya kena, sehingga "warna jakarta"
  * menemukan toko bernama WARNA yang depotnya Jakarta.
- *
- * Cakupannya mengikuti apa yang dikirim server: sesi customer tidak menerima
- * kodeSap/wilayah/region sama sekali, jadi pencariannya otomatis terbatas pada
- * nama toko dan depot - bukan sekadar disembunyikan di tampilan.
  */
 function cocok(row: LeaderRow, kata: string[]) {
   const teks = [row.namaToko, row.kodeSap, row.wilayah, row.region, row.depot]
@@ -32,6 +27,34 @@ function cocok(row: LeaderRow, kata: string[]) {
     .join(' ')
     .toLowerCase();
   return kata.every((k) => teks.includes(k));
+}
+
+/** Kartu posisi toko sendiri. Untuk customer inilah satu-satunya info peringkat. */
+function KartuPosisi({ me }: { me: MeRow }) {
+  return (
+    <div className="mt-4 rounded-2xl bg-primary px-4 py-4 text-primary-foreground shadow-sm">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-primary-foreground/70">
+        Posisi Toko Anda
+      </p>
+      <div className="mt-2.5 flex items-center gap-3">
+        <span className="w-9 shrink-0 text-center text-lg font-bold tabular-nums">
+          {me.rank ?? '—'}
+        </span>
+        <Avatar size="default" className="size-10">
+          <AvatarFallback className="bg-primary-foreground/20 text-xs font-semibold text-primary-foreground">
+            {inisial(me.namaToko)}
+          </AvatarFallback>
+        </Avatar>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold leading-snug break-words">{me.namaToko}</p>
+          <p className="text-[11px] leading-tight text-primary-foreground/80 break-words">
+            {me.rank ? (me.depot ?? '') : 'Belum ada dus tercatat'}
+          </p>
+        </div>
+        <span className="shrink-0 text-lg font-bold tabular-nums">{me.total}</span>
+      </div>
+    </div>
+  );
 }
 
 export function LeaderboardClient() {
@@ -43,173 +66,101 @@ export function LeaderboardClient() {
       if (!r.ok) throw new Error('leaderboard');
       return r.json();
     },
-    refetchInterval: 10_000,
+    // Realtime yang jadi jalur cepat; polling hanya cadangan saat koneksi putus.
+    refetchInterval: 30_000,
     placeholderData: keepPreviousData,
   });
   useRealtimeRefresh(() => qc.invalidateQueries({ queryKey: KEY }));
 
   const [cari, setCari] = useState('');
 
-  // Elemen yang mewakili "saya" di papan: kartu podium kalau juara 1-3, atau
-  // baris daftar untuk selebihnya. Dipantau supaya bilah melayang hanya muncul
-  // ketika posisinya TIDAK terlihat - kalau sudah kelihatan, barisnya sendiri
-  // yang ditandai dan bilah cuma jadi penghalang.
-  const [nodeSaya, setNodeSaya] = useState<HTMLElement | null>(null);
-  const [terlihat, setTerlihat] = useState(false);
-  const refSaya = useCallback((el: HTMLElement | null) => setNodeSaya(el), []);
-
-  useEffect(() => {
-    if (!nodeSaya) {
-      setTerlihat(false);
-      return;
-    }
-    const io = new IntersectionObserver(([e]) => setTerlihat(e.isIntersecting), { threshold: 0.6 });
-    io.observe(nodeSaya);
-    return () => io.disconnect();
-  }, [nodeSaya]);
-
   if (!q.data) return <Skeleton className="mx-auto h-96 max-w-md rounded-2xl" />;
   const { top, me } = q.data;
+
+  /**
+   * me hanya terisi untuk sesi customer, jadi ini sekaligus penanda perannya.
+   *
+   * Customer melihat podium 1-3 + posisinya sendiri, tanpa daftar peringkat lain
+   * dan tanpa pencarian - melihat posisi toko lain memicu sentimen antar toko.
+   * Servernya memang sudah hanya mengirim 3 baris, jadi ini menyelaraskan
+   * tampilannya, bukan menjadi satu-satunya penjaga.
+   */
+  const tampilanCustomer = !!me;
 
   const kata = cari.trim().toLowerCase().split(/\s+/).filter(Boolean);
   const mencari = kata.length > 0;
   // Saat mencari, podium disembunyikan dan SEMUA yang cocok masuk satu daftar -
   // menyaring podium hanya akan menyisakan kotak kosong.
   const daftar = mencari ? top.filter((r) => cocok(r, kata)) : top.slice(3);
-  // me hanya terisi untuk sesi customer, jadi ini sekaligus penanda perannya.
-  // Server memang sudah memangkas kolomnya; ini menyelaraskan teks bantuannya.
-  const bolehCariKode = !me;
-  const sayaDiPodium = !mencari && me?.rank != null && me.rank <= 3;
-  const tampilkanBilah = !!me && !terlihat;
 
   return (
     <main className="mx-auto max-w-md">
-      <div className="relative mb-4">
-        <Search className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
-        <input
-          value={cari}
-          onChange={(e) => setCari(e.target.value)}
-          placeholder={
-            bolehCariKode ? 'Cari toko, kode SAP, depot, wilayah...' : 'Cari nama toko atau depot...'
-          }
-          autoComplete="off"
-          aria-label="Cari di papan Top Spender"
-          className="h-12 w-full rounded-xl border border-border bg-card pl-12 pr-12 text-base shadow-xs placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:outline-none"
-        />
-        {cari && (
-          <button
-            type="button"
-            onClick={() => setCari('')}
-            aria-label="Hapus pencarian"
-            className="absolute right-0 top-0 grid h-12 w-12 place-items-center text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-          >
-            <X className="size-5" />
-          </button>
-        )}
-      </div>
+      {!tampilanCustomer && (
+        <div className="relative mb-4">
+          <Search className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={cari}
+            onChange={(e) => setCari(e.target.value)}
+            placeholder="Cari toko, kode SAP, depot, wilayah..."
+            autoComplete="off"
+            aria-label="Cari di papan Top Spender"
+            className="h-12 w-full rounded-xl border border-border bg-card pl-12 pr-12 text-base shadow-xs placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:outline-none"
+          />
+          {cari && (
+            <button
+              type="button"
+              onClick={() => setCari('')}
+              aria-label="Hapus pencarian"
+              className="absolute right-0 top-0 grid h-12 w-12 place-items-center text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            >
+              <X className="size-5" />
+            </button>
+          )}
+        </div>
+      )}
 
       {mencari ? (
         <p className="mb-2 text-sm text-muted-foreground">{daftar.length} toko cocok</p>
       ) : (
-        <div ref={sayaDiPodium ? refSaya : undefined}>
-          <Podium top3={top.slice(0, 3)} meId={me?.customerId} />
-        </div>
+        <Podium top3={top.slice(0, 3)} meId={me?.customerId} />
       )}
 
-      <ul
-        className={cn(
-          'divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card',
-          !mencari && 'mt-4',
-        )}
-      >
-        {daftar.map((row) => {
-          const saya = row.customerId === me?.customerId;
-          return (
-            <li
-              key={row.customerId}
-              ref={saya && !sayaDiPodium ? refSaya : undefined}
-              className={cn(
-                'flex items-center gap-3 px-4 py-3',
-                saya && 'bg-primary text-primary-foreground',
-              )}
-            >
-              <span
-                className={cn(
-                  'w-7 shrink-0 text-center text-sm font-semibold tabular-nums',
-                  saya ? 'text-primary-foreground' : 'text-muted-foreground',
-                )}
-              >
+      {tampilanCustomer && me ? (
+        <KartuPosisi me={me} />
+      ) : (
+        <ul
+          className={cn(
+            'divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card',
+            !mencari && 'mt-4',
+          )}
+        >
+          {daftar.map((row) => (
+            <li key={row.customerId} className="flex items-center gap-3 px-4 py-3">
+              <span className="w-7 shrink-0 text-center text-sm font-semibold tabular-nums text-muted-foreground">
                 {row.rank}
               </span>
               <Avatar size="default" className="size-10">
-                <AvatarFallback
-                  className={cn(
-                    'text-xs font-semibold',
-                    saya && 'bg-primary-foreground/20 text-primary-foreground',
-                  )}
-                >
+                <AvatarFallback className="text-xs font-semibold">
                   {inisial(row.namaToko)}
                 </AvatarFallback>
               </Avatar>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium leading-snug break-words">
-                  {row.namaToko}
-                  {saya && <span className="ml-1 font-semibold">&middot; Anda</span>}
-                </p>
+                <p className="text-sm font-medium leading-snug break-words">{row.namaToko}</p>
                 {row.depot && (
-                  <p
-                    className={cn(
-                      'text-xs leading-tight break-words',
-                      saya ? 'text-primary-foreground/80' : 'text-muted-foreground',
-                    )}
-                  >
+                  <p className="text-xs leading-tight text-muted-foreground break-words">
                     {row.depot}
                   </p>
                 )}
               </div>
               <span className="shrink-0 text-sm font-bold tabular-nums">{row.total}</span>
             </li>
-          );
-        })}
-        {daftar.length === 0 && (
-          <li className="px-4 py-8 text-center text-sm text-muted-foreground">
-            {mencari ? 'Tidak ada toko yang cocok.' : 'Belum ada order.'}
-          </li>
-        )}
-      </ul>
-
-      {/* sticky, BUKAN fixed: fixed mengukur dari tepi viewport sehingga di
-          desktop bilahnya bergeser ke kiri karena tidak menghitung lebar
-          sidebar. Sebagai anak biasa di kolom konten, ia otomatis sejajar. */}
-      {tampilkanBilah && me && (
-        <div className="sticky bottom-4 z-20 mt-4">
-          <button
-            type="button"
-            onClick={() => nodeSaya?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
-            disabled={!nodeSaya}
-            aria-label={
-              nodeSaya ? `Lihat posisi Anda, peringkat ${me.rank}` : 'Anda belum punya dus tercatat'
-            }
-            className="flex w-full items-center gap-3 rounded-2xl bg-primary px-4 py-3 text-left text-primary-foreground shadow-lg transition-transform active:scale-[0.99] disabled:cursor-default"
-          >
-            <span className="w-7 shrink-0 text-center text-sm font-bold tabular-nums">
-              {me.rank ?? '—'}
-            </span>
-            <Avatar size="default" className="size-10">
-              <AvatarFallback className="bg-primary-foreground/20 text-xs font-semibold text-primary-foreground">
-                {inisial(me.namaToko)}
-              </AvatarFallback>
-            </Avatar>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold leading-snug break-words">{me.namaToko}</p>
-              <p className="text-[11px] leading-tight text-primary-foreground/80 break-words">
-                {me.rank ? (me.depot ?? '') : 'Belum ada dus tercatat'}
-              </p>
-            </div>
-            <span className="shrink-0 text-sm font-bold tabular-nums">{me.total}</span>
-            {nodeSaya && <Crosshair className="size-4 shrink-0 opacity-80" />}
-          </button>
-        </div>
+          ))}
+          {daftar.length === 0 && (
+            <li className="px-4 py-8 text-center text-sm text-muted-foreground">
+              {mencari ? 'Tidak ada toko yang cocok.' : 'Belum ada order.'}
+            </li>
+          )}
+        </ul>
       )}
     </main>
   );
