@@ -2,10 +2,11 @@ import { sql } from 'drizzle-orm';
 import { NextResponse, type NextRequest } from 'next/server';
 import { requireRoleApi } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { lingkupRegion } from '@/lib/order/akses';
 import { rateLimit } from '@/lib/rate-limit';
 
 export async function GET(request: NextRequest) {
-  const user = await requireRoleApi(['superadmin', 'admin_rsvp']);
+  const user = await requireRoleApi(['superadmin', 'admin_rsvp', 'rsm']);
   if (user instanceof NextResponse) return user;
 
   const { ok } = await rateLimit(`search:${user.id}`);
@@ -18,6 +19,10 @@ export async function GET(request: NextRequest) {
   // seluruh string, sehingga query pendek vs nama toko panjang selalu di bawah
   // threshold 0.3 (terukur: 'pantalli' vs 'PT.PANTALI BERKAH SENTOSA' = 0.259 -> gagal).
   // word_similarity mencocokkan ke potongan terbaik: 0.700 -> lolos. Sama-sama pakai GIN.
+  // RSM hanya boleh menemukan toko di region-nya; role lain tanpa cakupan
+  // mendapat null di sini sehingga syaratnya lolos apa adanya.
+  const region = lingkupRegion(user);
+
   const rows = await db.execute(sql`
     select
       c.id,
@@ -32,9 +37,14 @@ export async function GET(request: NextRequest) {
       r.qty_hadir    as "qtyHadirSebelumnya"
     from public.customers c
     left join public.reservations r on r.customer_id = c.id
-    where c.nama_toko ilike '%' || ${q} || '%'
-       or c.kode_sap  ilike '%' || ${q} || '%'
-       or ${q} <% c.nama_toko
+    where (${region}::text is null or c.region = ${region}::text)
+      -- Tiga syarat pencarian WAJIB dikurung: tanpa ini 'or' terakhir akan
+      -- mengikat ke syarat region dan toko luar region ikut lolos.
+      and (
+        c.nama_toko ilike '%' || ${q} || '%'
+        or c.kode_sap  ilike '%' || ${q} || '%'
+        or ${q} <% c.nama_toko
+      )
     order by greatest(word_similarity(${q}, c.nama_toko), similarity(c.kode_sap, ${q})) desc,
              c.nama_toko asc
     limit 10

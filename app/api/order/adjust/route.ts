@@ -3,14 +3,16 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { getSessionUser, lupakanCustomer } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { customers, orderAdjustments } from '@/lib/db/schema';
+import { bolehUbahOrder, PESAN_LUAR_REGION } from '@/lib/order/akses';
 import { periksaPenambahan, PESAN_TOLAKAN, type Tolakan } from '@/lib/order/aturan';
 import { rateLimit } from '@/lib/rate-limit';
 import { getSession } from '@/lib/session';
 import { bacaTenggat } from '@/lib/settings';
 import { orderAdjustSchema } from '@/lib/validations/order';
 
-// Siapa yang boleh mencatat order atas nama toko (staff on-behalf).
-const STAFF_ORDER_ROLES = ['superadmin', 'admin_rsvp'] as const;
+// Siapa yang boleh mencatat order atas nama toko (staff on-behalf). RSM ikut,
+// tapi dikunci ke region-nya lewat bolehUbahOrder di bawah.
+const STAFF_ORDER_ROLES = ['superadmin', 'admin_rsvp', 'rsm'] as const;
 
 export async function POST(request: NextRequest) {
   const session = await getSession();
@@ -38,6 +40,14 @@ export async function POST(request: NextRequest) {
     }
     targetId = parsed.data.customerId;
     recordedBy = user.id;
+
+    // Ditegakkan DI SINI, bukan sekadar dengan menyaring hasil pencarian:
+    // customerId datang dari body, jadi RSM bisa saja mengirim id toko region
+    // lain. Catatan: pembatasan ini hanya untuk mencatat order - papan Top
+    // Spender tetap memperlihatkan seluruh toko kepada semua peran tim.
+    if (!(await bolehUbahOrder(user, targetId))) {
+      return NextResponse.json({ error: PESAN_LUAR_REGION }, { status: 403 });
+    }
   }
 
   const { ok } = await rateLimit(`order-adjust:${session.kind}:${session.id}`);

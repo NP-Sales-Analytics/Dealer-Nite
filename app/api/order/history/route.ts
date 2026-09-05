@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { requireRoleApi } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { bolehUbahOrder, PESAN_LUAR_REGION } from '@/lib/order/akses';
 
 export type RiwayatRow = {
   id: string;
@@ -21,6 +22,10 @@ export async function GET(request: NextRequest) {
   const id = request.nextUrl.searchParams.get('customerId') ?? '';
   if (!z.uuid().safeParse(id).success) {
     return NextResponse.json({ error: 'customerId tidak valid' }, { status: 400 });
+  }
+
+  if (!(await bolehUbahOrder(user, id))) {
+    return NextResponse.json({ error: PESAN_LUAR_REGION }, { status: 403 });
   }
 
   const rows = (await db.execute(sql`

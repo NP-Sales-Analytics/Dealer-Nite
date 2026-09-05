@@ -10,8 +10,12 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "Pylox — Penerimaan Tamu",
+  title: "Pylox | Launching Premium",
   description: "Pencatatan kehadiran tamu undangan",
+  // Ikon ditunjuk eksplisit ke berkas di /public. app/favicon.ico sengaja
+  // dihapus: Next menyajikannya otomatis di /favicon.ico, dan browser tetap
+  // memungutnya dari sana sehingga ikon lama yang menang.
+  icons: { icon: "/Icon-Nippon.png" },
 };
 
 export const viewport: Viewport = {
