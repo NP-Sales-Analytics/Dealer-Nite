@@ -18,6 +18,7 @@
     "loadtest:reset": "tsx --env-file=.env.loadtest scripts/loadtest-reset.ts",
     "loadtest:race": "tsx --env-file=.env.loadtest scripts/loadtest-race.ts",
     "race:bedah": "tsx --env-file=.env.local scripts/race-bedah.ts",
+    "cek:sinkron": "tsx --env-file=.env.local scripts/cek-sinkron.ts",
     "check:flow": "tsx scripts/check-flow.ts",
     "check:page": "tsx scripts/check-page.ts",
     "check:overflow": "tsx scripts/check-overflow.ts",
