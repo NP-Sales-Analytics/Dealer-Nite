@@ -113,13 +113,25 @@ menyimpulkan "aman di 150 user", sasarannya harus preview Vercel.
 
 ## Region fungsi
 
-`vercel.json` mengunci fungsi ke `sin1` (Singapura). Bawaan Vercel adalah
-`iad1` (Washington DC), dan itu terbaca jelas di header `x-vercel-id:
-sin1::iad1` - permintaan mendarat di edge Singapura lalu diseberangkan ke
-Amerika. Padahal penggunanya di Indonesia dan databasenya di Seoul
-(`aws-0-ap-northeast-2`), jadi bawaan itu menyeberangi Pasifik dua kali:
-sekali untuk pengguna, sekali lagi tiap kali cache meleset dan fungsi
-menembak database.
+`vercel.json` mengunci fungsi ke `icn1` (Seoul) - SAMA dengan region database
+(`aws-0-ap-northeast-2`). Ini pilihan sadar sesudah mengukur, bukan bawaan:
 
-Terukur sebagai lantai 260 ms pada `/api/order/me` - tidak ada satu pun
-request yang bisa lebih cepat dari itu, sebagus apa pun cachenya.
+Sempat dicoba `sin1` (Singapura) lebih dulu dengan alasan "sesudah cache
+diperbaiki, sebagian besar baca sudah tidak menyentuh DB, jadi kedekatan ke
+pengguna lebih penting". Itu benar untuk jalur BACA - tapi uji jalur TULIS
+membuka bahwa alasannya tidak berlaku untuk jalur TULIS: setiap penulisan
+order tetap wajib menyentuh database, dan diagnostik Server-Timing
+membuktikan tiap round trip fungsi -> DB memakan ~140ms saat keduanya beda
+region (Singapura -> Seoul). Satu transaksi order-adjust melakukan 4 round
+trip (lock, select gabungan, insert, commit) = ~570ms HANYA untuk bagian DB,
+sebelum dihitung antrean pool sama sekali.
+
+Sesudah pindah ke icn1: round trip fungsi -> DB turun ke orde milidetik
+tunggal (satu region jaringan Vercel/AWS yang sama), dan bagian DB dari
+transaksi turun drastis. Konsekuensinya: /api/order/me (yang TIDAK di-cache
+CDN, selalu menyentuh fungsi) sedikit lebih jauh dari pengguna Indonesia
+dibanding Singapura - tapi /api/order/leaderboard/top TIDAK terpengaruh sama
+sekali, karena dilayani CDN edge Vercel yang terpisah dari region fungsi.
+
+Kalau nanti databasenya pindah region, region fungsi ini harus disesuaikan
+ulang - dan diukur ulang, bukan ditebak.
