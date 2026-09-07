@@ -7,8 +7,10 @@ export function QueryProvider({ children }: { children: ReactNode }) {
   const [client] = useState(() => new QueryClient({
     defaultOptions: {
       queries: {
-        // Sepadan dengan cache 15 detik di sisi server: pindah filter bolak-balik
-        // dalam rentang ini dilayani dari memori, bukan request baru.
+        // Pindah filter bolak-balik dalam rentang ini dilayani dari memori,
+        // bukan request baru. Tidak mengganggu kesegaran leaderboard: baik
+        // invalidate dari sinyal realtime maupun refetchInterval mengabaikan
+        // staleTime, jadi yang terpengaruh hanya refetch saat komponen mount.
         staleTime: 10_000,
         // Tanpa retry: saat server sedang kepayahan, mencoba ulang hanya
         // menggandakan beban, sementara tick interval berikutnya toh hanya

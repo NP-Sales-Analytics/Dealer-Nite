@@ -8,8 +8,20 @@ const JITTER_MS = 1_000;
 
 /** Selang polling cadangan saat realtime PUTUS - jalur utama sedang mati. */
 export const POLL_PUTUS_MS = 10_000;
-/** Selang polling saat realtime hidup: jaring pengaman saja, bukan jalur utama. */
-export const POLL_TERSAMBUNG_MS = 60_000;
+/**
+ * Selang polling saat realtime hidup: jaring pengaman saja, bukan jalur utama.
+ *
+ * 30 detik, bukan 60. Status SUBSCRIBED hanya membuktikan koneksinya pernah
+ * terbentuk - bukan bahwa event masih mengalir. Koneksi bisa jadi zombie tanpa
+ * memberi tahu siapa pun, dan klien akan terus mengira dirinya sehat. Kalau
+ * pada saat itu pollingnya 60 detik, aplikasi justru jadi DUA KALI lebih lambat
+ * daripada sebelum sinkronisasi realtime diperbaiki.
+ *
+ * Harganya sepele - 180 device / 30 detik = 6 req/detik - dan yang dibeli adalah
+ * jaminan bahwa kegagalan realtime yang senyap tidak akan pernah membuat
+ * keadaan lebih buruk daripada titik awalnya.
+ */
+export const POLL_TERSAMBUNG_MS = 30_000;
 
 /**
  * Panggil onChange setiap ada insert di order_adjustments. Payload diabaikan:
