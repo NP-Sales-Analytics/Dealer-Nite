@@ -61,23 +61,26 @@ export async function POST(request: NextRequest) {
   const hasil = await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${targetId}, 0))`);
 
-    const [{ total: sekarang }] = await tx
-      .select({ total: sql<number>`coalesce(sum(${orderAdjustments.qtyChange}), 0)::int` })
-      .from(orderAdjustments)
-      .where(eq(orderAdjustments.customerId, targetId));
+    // Total dan dus_awal DIGABUNG jadi satu round trip, bukan dua select
+    // terpisah. Database ada di region lain dari fungsinya (Seoul vs Singapura),
+    // jadi tiap round trip menambah RTT penuh - uji beban menunjukkan satu
+    // transaksi lengkap makan ~1 detik bahkan tanpa persaingan sama sekali,
+    // dan sebagian besar itu memang giliran bolak-balik ini, bukan query itu
+    // sendiri. Dibaca di dalam transaksi, bukan dari cache: nilainya ikut
+    // menentukan keputusan, jadi harus versi terbaru.
+    const [toko] = (await tx.execute(sql`
+      select c.dus_awal as "dusAwal",
+             coalesce(sum(oa.qty_change), 0)::int as total
+      from public.customers c
+      left join public.order_adjustments oa on oa.customer_id = c.id
+      where c.id = ${targetId}
+      group by c.id, c.dus_awal
+    `)) as unknown as { dusAwal: number | null; total: number }[];
+    if (!toko) return { tolakan: 'NOT_FOUND' as const, total: 0 };
 
-    // Dibaca di dalam transaksi, bukan dari cache: nilainya ikut menentukan
-    // keputusan, jadi harus versi terbaru.
-    const [toko] = await tx
-      .select({ dusAwal: customers.dusAwal })
-      .from(customers)
-      .where(eq(customers.id, targetId))
-      .limit(1);
-    if (!toko) return { tolakan: 'NOT_FOUND' as const, total: sekarang };
-
-    const totalBaru = sekarang + qtyChange;
+    const totalBaru = toko.total + qtyChange;
     const tolakan = periksaPenambahan({ totalBaru, dusAwal: toko.dusAwal, tenggat });
-    if (tolakan) return { tolakan, total: sekarang };
+    if (tolakan) return { tolakan, total: toko.total };
 
     await tx.insert(orderAdjustments).values({ customerId: targetId, qtyChange, recordedBy });
 
