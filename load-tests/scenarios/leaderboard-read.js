@@ -3,14 +3,24 @@ import http from 'k6/http';
 import { AMBANG, BASE_URL, tahap } from '../config.js';
 import { sesi, tokoVU } from '../utils/helpers.js';
 
-export const options = { stages: tahap(), thresholds: AMBANG };
+export const options = {
+  stages: tahap(),
+  // Ambang per-endpoint, bukan cuma gabungan: kedua jalur ini punya sifat yang
+  // berbeda jauh (satu boleh dilayani CDN, satu tidak), jadi rata-rata gabungan
+  // akan menyamarkan kalau salah satunya yang bermasalah.
+  thresholds: {
+    ...AMBANG,
+    'http_req_duration{ep:top}': ['p(95)<500', 'p(99)<1000'],
+    'http_req_duration{ep:me}': ['p(95)<500', 'p(99)<1000'],
+  },
+};
 
 /**
  * Skenario terberat dari sisi jumlah request: /leaderboard adalah halaman tujuan
  * setiap customer setelah login, dan semuanya memuat ulang berkala.
  *
- * Yang dibuktikan di sini: cache 5 detik di lib/order/papan.ts benar-benar
- * menahan beban, sehingga ratusan pembaca tidak berubah jadi ratusan query.
+ * Yang dibuktikan di sini: podium yang boleh di-cache CDN benar-benar ditahan
+ * di edge, sehingga ratusan pembaca tidak berubah jadi ratusan query.
  */
 export default function () {
   const toko = tokoVU();
@@ -18,8 +28,8 @@ export default function () {
   // Meniru halaman leaderboard customer apa adanya: podium publik (boleh
   // di-cache CDN) dan posisi pribadi, diambil berbarengan.
   const [papan, saya] = http.batch([
-    { method: 'GET', url: `${BASE_URL}/api/order/leaderboard/top` },
-    { method: 'GET', url: `${BASE_URL}/api/order/me`, params: sesi(toko.cookie) },
+    { method: 'GET', url: `${BASE_URL}/api/order/leaderboard/top`, params: { tags: { ep: 'top' } } },
+    { method: 'GET', url: `${BASE_URL}/api/order/me`, params: { ...sesi(toko.cookie), tags: { ep: 'me' } } },
   ]);
 
   check(papan, {
