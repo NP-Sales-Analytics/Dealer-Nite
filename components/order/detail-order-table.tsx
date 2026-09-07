@@ -121,7 +121,7 @@ export function DetailOrderTable({
                       )}
                     </button>
                   </TableHead>
-                  <TableHead className="py-4 pr-5 text-center">Aksi</TableHead>
+                  {bisaUbah && <TableHead className="py-4 pr-5 text-center">Aksi</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -158,40 +158,36 @@ export function DetailOrderTable({
                     <TableCell className="py-4 text-center">
                       <PillWaktu waktu={r.terakhir} kali={r.jumlahAdjustment} />
                     </TableCell>
-                    <TableCell className="py-4 pr-5">
-                      <div className="flex items-center justify-center gap-1.5">
-                        {bisaUbah ? (
-                          <>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setHapus(r);
-                              }}
-                              aria-label={`Hapus ${r.namaToko}`}
-                              title="Hapus"
-                              className="grid size-10 place-items-center rounded-lg border border-border text-destructive transition-colors hover:bg-destructive/10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                            >
-                              <Trash2 className="size-4" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEdit(r);
-                              }}
-                              aria-label={`Ubah ${r.namaToko}`}
-                              title="Ubah"
-                              className="grid size-10 place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                            >
-                              <Pencil className="size-4" />
-                            </button>
-                          </>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">&mdash;</span>
-                        )}
-                      </div>
-                    </TableCell>
+                    {bisaUbah && (
+                      <TableCell className="py-4 pr-5">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setHapus(r);
+                            }}
+                            aria-label={`Hapus ${r.namaToko}`}
+                            title="Hapus"
+                            className="grid size-10 place-items-center rounded-lg border border-border text-destructive transition-colors hover:bg-destructive/10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                          >
+                            <Trash2 className="size-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEdit(r);
+                            }}
+                            aria-label={`Ubah ${r.namaToko}`}
+                            title="Ubah"
+                            className="grid size-10 place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                          >
+                            <Pencil className="size-4" />
+                          </button>
+                        </div>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>

@@ -25,10 +25,13 @@ export async function GET() {
   const info = await infoCustomer(customerId);
   if (!info) return NextResponse.json({ error: 'Belum login' }, { status: 401 });
 
-  const { total, rank } = cariPosisi(await papan.get(), customerId);
+  const { total, rank, terakhir } = cariPosisi(await papan.get(), customerId);
 
   return NextResponse.json(
     {
+      // customerId + terakhir dipakai halaman leaderboard: menandai "Anda" di
+      // podium, dan menampilkan waktu pemecah seri di kartu posisi.
+      customerId,
       namaToko: info.namaToko,
       kodeSap: info.kodeSap,
       depot: info.depot,
@@ -36,6 +39,7 @@ export async function GET() {
       region: info.region,
       total,
       rank,
+      terakhir,
       dusAwal: info.dusAwal,
       tenggat: await bacaTenggat(),
     },

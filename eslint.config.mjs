@@ -18,6 +18,9 @@ const eslintConfig = [
       "out/**",
       "build/**",
       "next-env.d.ts",
+      // Skrip k6: berjalan di runtime k6, bukan Node/Next. Punya global
+      // sendiri (__ENV, __VU, open) dan modul k6/* yang tidak ada di proyek ini.
+      "load-tests/**",
     ],
   },
 ];

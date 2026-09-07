@@ -1,9 +1,10 @@
 import { sql } from 'drizzle-orm';
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { requireRoleApi } from '@/lib/auth';
+import { getSessionUser } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { bolehUbahOrder, PESAN_LUAR_REGION } from '@/lib/order/akses';
+import { getSession } from '@/lib/session';
 
 export type RiwayatRow = {
   id: string;
@@ -13,19 +14,35 @@ export type RiwayatRow = {
   pencatat: string | null;
 };
 
-// Riwayat penyesuaian satu toko, untuk dialog overview di Detail Order.
-// Diambil saat dialog dibuka saja - tidak ikut dipoll.
+const TEAM_ROLES = ['superadmin', 'admin_rsvp', 'marketing', 'rsm'] as const;
+
+/**
+ * Riwayat penyesuaian satu toko - dipakai dialog overview di Detail Order dan
+ * panel Tambah Order. Diambil saat dibutuhkan saja, tidak ikut dipoll.
+ *
+ * Sesi customer hanya pernah melihat riwayatnya SENDIRI: idnya diambil dari
+ * sesi dan parameter customerId diabaikan, sepola dengan /api/order/adjust.
+ */
 export async function GET(request: NextRequest) {
-  const user = await requireRoleApi(['superadmin', 'admin_rsvp', 'marketing', 'rsm']);
-  if (user instanceof NextResponse) return user;
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: 'Belum login' }, { status: 401 });
 
-  const id = request.nextUrl.searchParams.get('customerId') ?? '';
-  if (!z.uuid().safeParse(id).success) {
-    return NextResponse.json({ error: 'customerId tidak valid' }, { status: 400 });
-  }
-
-  if (!(await bolehUbahOrder(user, id))) {
-    return NextResponse.json({ error: PESAN_LUAR_REGION }, { status: 403 });
+  let id: string;
+  if (session.kind === 'customer') {
+    id = session.id;
+  } else {
+    const user = await getSessionUser();
+    if (!user || !TEAM_ROLES.includes(user.role as (typeof TEAM_ROLES)[number])) {
+      return NextResponse.json({ error: 'Tidak punya akses' }, { status: 403 });
+    }
+    id = request.nextUrl.searchParams.get('customerId') ?? '';
+    if (!z.uuid().safeParse(id).success) {
+      return NextResponse.json({ error: 'customerId tidak valid' }, { status: 400 });
+    }
+    // RSM tetap terkunci region-nya, sama seperti jalur mencatat order.
+    if (!(await bolehUbahOrder(user, id))) {
+      return NextResponse.json({ error: PESAN_LUAR_REGION }, { status: 403 });
+    }
   }
 
   const rows = (await db.execute(sql`

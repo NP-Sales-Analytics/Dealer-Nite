@@ -1,15 +1,13 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
 import { Pencil, RotateCcw, Trash2, X } from 'lucide-react';
-import type { RiwayatRow } from '@/app/api/order/history/route';
+import { RiwayatOrder } from './riwayat-order';
 import type { OrderRow } from '@/app/api/order/list/route';
 import { InitialAvatar } from '@/components/shared/initial-avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogClose, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { Skeleton } from '@/components/ui/skeleton';
-import { cn, jamJakarta, tanggalJakarta } from '@/lib/utils';
+import { jamJakarta, tanggalJakarta } from '@/lib/utils';
 
 function Baris({ label, nilai }: { label: string; nilai: string | number | null }) {
   return (
@@ -32,56 +30,6 @@ function Seksi({ judul, children }: { judul: string; children: React.ReactNode }
         {children}
       </div>
     </section>
-  );
-}
-
-/** Riwayat diambil hanya saat dialog terbuka - tidak ikut dipoll oleh tabel. */
-function Riwayat({ customerId }: { customerId: string }) {
-  const q = useQuery({
-    queryKey: ['order-history', customerId],
-    queryFn: async (): Promise<{ rows: RiwayatRow[] }> => {
-      const r = await fetch(`/api/order/history?customerId=${customerId}`);
-      if (!r.ok) throw new Error('history');
-      return r.json();
-    },
-  });
-
-  if (!q.data) return <Skeleton className="h-24 w-full rounded-xl" />;
-  const { rows } = q.data;
-
-  if (rows.length === 0) {
-    return (
-      <p className="rounded-xl border border-border bg-secondary/30 px-4 py-6 text-center text-sm text-muted-foreground">
-        Belum ada penyesuaian. Toko ini belum mengambil dus.
-      </p>
-    );
-  }
-
-  return (
-    <ol className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-secondary/30">
-      {rows.map((r, i) => (
-        <li key={r.id} className="flex items-center gap-3 px-4 py-2.5">
-          <span className="w-5 shrink-0 text-center text-xs tabular-nums text-muted-foreground">
-            {i + 1}
-          </span>
-          <span
-            className={cn(
-              'w-14 shrink-0 text-sm font-bold tabular-nums',
-              r.qtyChange > 0 ? 'text-emerald-700' : 'text-red-700',
-            )}
-          >
-            {r.qtyChange > 0 ? '+' : ''}
-            {r.qtyChange}
-          </span>
-          <span className="min-w-0 flex-1 text-xs leading-tight text-muted-foreground">
-            {tanggalJakarta(r.createdAt)}, {jamJakarta(r.createdAt)}
-            <br />
-            {/* recorded_by kosong = customer mencatat sendiri lewat Tambah Order. */}
-            {r.pencatat ? `dicatat oleh ${r.pencatat}` : 'input mandiri customer'}
-          </span>
-        </li>
-      ))}
-    </ol>
   );
 }
 
@@ -153,7 +101,7 @@ export function DetailOrderDialog({
             <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               Riwayat Penambahan
             </h3>
-            <Riwayat customerId={row.customerId} />
+            <RiwayatOrder customerId={row.customerId} />
           </section>
         </div>
 

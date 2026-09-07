@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
+import { RiwayatOrder } from './riwayat-order';
 import { QtyStepper } from '@/components/reservation/qty-stepper';
 import { InitialAvatar } from '@/components/shared/initial-avatar';
 import { Button } from '@/components/ui/button';
@@ -108,6 +109,7 @@ export function OrderPanel({
       toast.success(`${target.namaToko}: ${data.total} dus tercatat.`);
       // Segarkan total/ranking di panel ini dan papan Top Spender.
       qc.invalidateQueries({ queryKey: ['order'] });
+      qc.invalidateQueries({ queryKey: ['order-history'] });
       qc.invalidateQueries({ queryKey: ['leaderboard'] });
     },
     onError: (err: unknown) => {
@@ -277,6 +279,13 @@ export function OrderPanel({
                 : `Simpan ${selisih > 0 ? '+' : ''}${selisih} dus`}
         </Button>
       </div>
+
+      <section className="space-y-2">
+        <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          Riwayat Penambahan
+        </h3>
+        <RiwayatOrder customerId={customerId} />
+      </section>
     </div>
   );
 }

@@ -52,3 +52,7 @@ cookies*.txt
 .gstack/
 
 # hasil sementara pengecekan halaman
+
+# Uji beban: kredensial staging + data target berisi cookie sesi.
+.env.loadtest
+load-tests/data/target.json

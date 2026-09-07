@@ -1,6 +1,7 @@
+import { Clock } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import type { LeaderRow } from '@/lib/order/leaderboard';
-import { cn, inisial } from '@/lib/utils';
+import { cn, inisial, jamJakarta, tanggalJakarta } from '@/lib/utils';
 
 // Emas / perak / perunggu. Aplikasi ini light-only, jadi nilainya dipatok
 // langsung, bukan lewat token tema.
@@ -51,6 +52,17 @@ function Spot({ row, juara, saya }: { row?: LeaderRow; juara: 1 | 2 | 3; saya?: 
         </span>
       )}
       <span className="text-sm font-bold tabular-nums">{row.total}</span>
+      {/* Waktu pencapaian: inilah yang memenangkan seri, jadi ditampilkan agar
+          urutan podium bisa dijelaskan tanpa bertanya. */}
+      {row.terakhir && (
+        <span
+          className="flex items-center gap-1 text-[10px] leading-tight tabular-nums text-muted-foreground"
+          title={`Mencapai angka ini pada ${tanggalJakarta(row.terakhir)}, ${jamJakarta(row.terakhir)}`}
+        >
+          <Clock className="size-2.5 shrink-0" />
+          {jamJakarta(row.terakhir)}
+        </span>
+      )}
       {saya && (
         <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">
           Anda

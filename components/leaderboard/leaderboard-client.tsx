@@ -1,22 +1,37 @@
 'use client';
 
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Search, X } from 'lucide-react';
+import { Clock, Search, X } from 'lucide-react';
 import { useState } from 'react';
 import { Podium } from './podium';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { LeaderRow } from '@/lib/order/leaderboard';
 import { useRealtimeRefresh } from '@/lib/order/use-realtime-refresh';
-import { cn, inisial } from '@/lib/utils';
+import { cn, inisial, jamJakarta, tanggalJakarta } from '@/lib/utils';
 
-type MeRow = LeaderRow & { rank: number | null };
-type Data = { top: LeaderRow[]; me: MeRow | null };
-const KEY = ['leaderboard'] as const;
+type MeRow = {
+  customerId: string;
+  namaToko: string;
+  depot: string | null;
+  total: number;
+  rank: number | null;
+  terakhir: string | null;
+};
+
+const KUNCI_TOP = ['leaderboard', 'top'] as const;
+const KUNCI_TIM = ['leaderboard', 'tim'] as const;
+const KUNCI_ME = ['order', 'me'] as const;
+
+const ambil = async <T,>(url: string): Promise<T> => {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(url);
+  return r.json();
+};
 
 /**
- * Pencarian dikerjakan di klien: seluruh papan memang sudah ada di memori, jadi
- * menyaringnya lokal memberi hasil seketika tanpa request tambahan.
+ * Pencarian dikerjakan di klien: papan penuh memang sudah ada di memori sesi
+ * tim, jadi menyaringnya lokal memberi hasil seketika tanpa request tambahan.
  *
  * Tiap kata dicocokkan terpisah dan harus semuanya kena, sehingga "warna jakarta"
  * menemukan toko bernama WARNA yang depotnya Jakarta.
@@ -51,47 +66,73 @@ function KartuPosisi({ me }: { me: MeRow }) {
             {me.rank ? (me.depot ?? '') : 'Belum ada dus tercatat'}
           </p>
         </div>
-        <span className="shrink-0 text-lg font-bold tabular-nums">{me.total}</span>
+        <div className="shrink-0 text-right">
+          <p className="text-lg font-bold leading-tight tabular-nums">{me.total}</p>
+          {me.terakhir && (
+            <p className="flex items-center justify-end gap-1 text-[11px] leading-tight tabular-nums text-primary-foreground/80">
+              <Clock className="size-3 shrink-0" />
+              {jamJakarta(me.terakhir)}
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-export function LeaderboardClient() {
+/**
+ * Dua jalur pengambilan data, sengaja dipisah menurut peran:
+ *
+ * - Customer (ratusan orang) memanggil /api/order/leaderboard/top yang boleh
+ *   disimpan CDN Vercel, plus /api/order/me untuk posisinya sendiri. Beban
+ *   terberat karena itu ditahan di edge dan tidak sampai ke database.
+ * - Tim (segelintir orang) memanggil papan penuh yang tetap privat, karena
+ *   isinya memuat kode_sap dan seluruh peringkat yang dibutuhkan pencarian.
+ *
+ * Perannya datang dari server lewat prop, bukan ditebak dari bentuk payload:
+ * keduanya kini endpoint yang berbeda, jadi harus diketahui sebelum memanggil.
+ */
+export function LeaderboardClient({ tampilanCustomer }: { tampilanCustomer: boolean }) {
   const qc = useQueryClient();
-  const q = useQuery({
-    queryKey: KEY,
-    queryFn: async (): Promise<Data> => {
-      const r = await fetch('/api/order/leaderboard');
-      if (!r.ok) throw new Error('leaderboard');
-      return r.json();
-    },
-    // Realtime yang jadi jalur cepat; polling hanya cadangan saat koneksi putus.
+  const [cari, setCari] = useState('');
+
+  const top = useQuery({
+    queryKey: KUNCI_TOP,
+    enabled: tampilanCustomer,
+    queryFn: () => ambil<{ top: LeaderRow[] }>('/api/order/leaderboard/top'),
     refetchInterval: 30_000,
     placeholderData: keepPreviousData,
   });
-  useRealtimeRefresh(() => qc.invalidateQueries({ queryKey: KEY }));
 
-  const [cari, setCari] = useState('');
+  const me = useQuery({
+    queryKey: KUNCI_ME,
+    enabled: tampilanCustomer,
+    queryFn: () => ambil<MeRow>('/api/order/me'),
+    refetchInterval: 30_000,
+    placeholderData: keepPreviousData,
+  });
 
-  if (!q.data) return <Skeleton className="mx-auto h-96 max-w-md rounded-2xl" />;
-  const { top, me } = q.data;
+  const tim = useQuery({
+    queryKey: KUNCI_TIM,
+    enabled: !tampilanCustomer,
+    queryFn: () => ambil<{ top: LeaderRow[] }>('/api/order/leaderboard'),
+    refetchInterval: 30_000,
+    placeholderData: keepPreviousData,
+  });
 
-  /**
-   * me hanya terisi untuk sesi customer, jadi ini sekaligus penanda perannya.
-   *
-   * Customer melihat podium 1-3 + posisinya sendiri, tanpa daftar peringkat lain
-   * dan tanpa pencarian - melihat posisi toko lain memicu sentimen antar toko.
-   * Servernya memang sudah hanya mengirim 3 baris, jadi ini menyelaraskan
-   * tampilannya, bukan menjadi satu-satunya penjaga.
-   */
-  const tampilanCustomer = !!me;
+  useRealtimeRefresh(() => {
+    qc.invalidateQueries({ queryKey: ['leaderboard'] });
+    if (tampilanCustomer) qc.invalidateQueries({ queryKey: KUNCI_ME });
+  });
+
+  const baris = (tampilanCustomer ? top.data?.top : tim.data?.top) ?? null;
+  if (!baris) return <Skeleton className="mx-auto h-96 max-w-md rounded-2xl" />;
 
   const kata = cari.trim().toLowerCase().split(/\s+/).filter(Boolean);
   const mencari = kata.length > 0;
   // Saat mencari, podium disembunyikan dan SEMUA yang cocok masuk satu daftar -
   // menyaring podium hanya akan menyisakan kotak kosong.
-  const daftar = mencari ? top.filter((r) => cocok(r, kata)) : top.slice(3);
+  const daftar = mencari ? baris.filter((r) => cocok(r, kata)) : baris.slice(3);
 
   return (
     <main className="mx-auto max-w-md">
@@ -122,11 +163,11 @@ export function LeaderboardClient() {
       {mencari ? (
         <p className="mb-2 text-sm text-muted-foreground">{daftar.length} toko cocok</p>
       ) : (
-        <Podium top3={top.slice(0, 3)} meId={me?.customerId} />
+        <Podium top3={baris.slice(0, 3)} meId={me.data?.customerId} />
       )}
 
-      {tampilanCustomer && me ? (
-        <KartuPosisi me={me} />
+      {tampilanCustomer ? (
+        me.data && <KartuPosisi me={me.data} />
       ) : (
         <ul
           className={cn(
@@ -152,7 +193,18 @@ export function LeaderboardClient() {
                   </p>
                 )}
               </div>
-              <span className="shrink-0 text-sm font-bold tabular-nums">{row.total}</span>
+              <div className="shrink-0 text-right">
+                <p className="text-sm font-bold leading-tight tabular-nums">{row.total}</p>
+                {row.terakhir && (
+                  <p
+                    className="flex items-center justify-end gap-1 text-[11px] leading-tight tabular-nums text-muted-foreground"
+                    title={`Mencapai angka ini pada ${tanggalJakarta(row.terakhir)}, ${jamJakarta(row.terakhir)}`}
+                  >
+                    <Clock className="size-3 shrink-0" />
+                    {jamJakarta(row.terakhir)}
+                  </p>
+                )}
+              </div>
             </li>
           ))}
           {daftar.length === 0 && (

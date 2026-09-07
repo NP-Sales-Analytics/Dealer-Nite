@@ -37,10 +37,16 @@ export const papan = ttlCache(async () => {
     )
     select t.customer_id as "customerId", t.total,
            row_number() over (order by t.total desc, t.last_at asc)::int as rank,
+           -- Waktu inilah pemecah seri di ORDER BY di atas, jadi ikut dikirim
+           -- supaya papan bisa menjelaskan sendiri kenapa urutannya begitu.
+           t.last_at as "terakhir",
            c.nama_toko as "namaToko", c.kode_sap as "kodeSap",
            c.wilayah, c.region, c.depot
     from totals t
     join public.customers c on c.id = t.customer_id
     order by rank asc
   `)) as unknown as BarisPapan[];
-}, 5_000);
+  // 15 detik, bukan 5: setiap instance Vercel punya cache sendiri, jadi saat
+  // trafik melonjak dan banyak instance baru dinyalakan, TTL pendek justru
+  // melipatgandakan query. Papan tidak berubah secepat itu.
+}, 15_000);

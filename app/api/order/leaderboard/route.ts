@@ -40,18 +40,27 @@ export async function GET() {
           depot: r.depot,
           total: r.total,
           rank: r.rank,
+          // Bukan data sensitif, dan justru menjelaskan kenapa peringkatnya begitu.
+          terakhir: r.terakhir,
         }));
 
   let me = null;
   if (session.kind === 'customer') {
     // Diturunkan dari papan yang sama - tanpa query kedua, dan nomornya dijamin
     // identik dengan yang tampil di daftar.
-    const { total, rank } = cariPosisi(semua, session.id);
+    const { total, rank, terakhir } = cariPosisi(semua, session.id);
     // Toko tanpa dus tidak ada di papan, jadi identitasnya diambil dari cache
     // customer (60 detik). Tetap nol query di jalur panas.
     const info = semua.find((r) => r.customerId === session.id) ?? (await infoCustomer(session.id));
     if (info) {
-      me = { customerId: session.id, namaToko: info.namaToko, depot: info.depot, total, rank };
+      me = {
+        customerId: session.id,
+        namaToko: info.namaToko,
+        depot: info.depot,
+        total,
+        rank,
+        terakhir,
+      };
     }
   }
 

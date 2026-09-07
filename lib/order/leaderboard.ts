@@ -4,6 +4,8 @@ export type LeaderRow = {
   depot: string | null;
   total: number;
   rank: number;
+  /** Kapan toko ini terakhir mencapai angkanya - pemecah seri peringkat. */
+  terakhir: string | null;
   /**
    * Hanya dikirim ke sesi tim. kode_sap adalah kredensial login customer, jadi
    * papan peringkat tidak boleh membocorkannya antar toko - lihat pemangkasannya
@@ -24,11 +26,15 @@ export type LeaderRow = {
  * berperingkat.
  */
 export function cariPosisi(
-  papan: Pick<LeaderRow, 'customerId' | 'total' | 'rank'>[],
+  papan: Pick<LeaderRow, 'customerId' | 'total' | 'rank' | 'terakhir'>[],
   customerId: string,
-): { total: number; rank: number | null } {
+): { total: number; rank: number | null; terakhir: string | null } {
   const baris = papan.find((r) => r.customerId === customerId);
-  return { total: baris?.total ?? 0, rank: baris?.rank ?? null };
+  return {
+    total: baris?.total ?? 0,
+    rank: baris?.rank ?? null,
+    terakhir: baris?.terakhir ?? null,
+  };
 }
 
 /**
