@@ -16,7 +16,7 @@ const SERENTAK = Number(process.env.SERENTAK ?? 50);
 const AWAL = Number(process.env.AWAL ?? 10);
 
 type Target = {
-  staff: { id: string; cookie: string };
+  staff: { id: string; cookie: string }[];
   customers: { id: string; kodeSap: string; cookie: string }[];
 };
 

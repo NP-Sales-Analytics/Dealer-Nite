@@ -1,9 +1,9 @@
 import { writeFileSync } from 'node:fs';
-import { createHmac } from 'node:crypto';
+import { createHmac, randomBytes } from 'node:crypto';
 import { db, PREFIX_SAP, TANDA } from './loadtest-common';
 
 /**
- * Menyiapkan data dummy di database STAGING untuk uji beban.
+ * Menyiapkan data dummy untuk uji beban.
  *
  *   npm run loadtest:seed        -> 200 toko dummy
  *   npm run loadtest:seed 500    -> 500 toko dummy
@@ -14,6 +14,14 @@ import { db, PREFIX_SAP, TANDA } from './loadtest-common';
  * Semua baris ditandai LOADTEST dan bisa dibuang total lewat npm run loadtest:reset.
  */
 const JUMLAH = Number(process.argv[2] ?? 200);
+/**
+ * Banyak akun staff, bukan satu. Rate limiter dikunci per user
+ * (`submit:${user.id}`, `search:${user.id}` - 40 request / 10 detik di
+ * lib/rate-limit.ts), jadi 150 VU yang berbagi satu akun akan menabrak batas itu
+ * dan yang terukur cuma rate limiternya, bukan aplikasinya. Dua puluh akun juga
+ * lebih jujur: malam event memang ada belasan meja registrasi.
+ */
+const STAFF = Number(process.env.STAFF ?? 20);
 const WILAYAH = ['Indonesia Barat', 'Indonesia Timur'];
 const REGION = ['3A', '3B', '2C', '5A', '1P'];
 const DEPOT = ['1A Jakarta', '1D THK', '3E Malang', '4A Medan', '5O Serpong'];
@@ -51,17 +59,25 @@ async function main() {
       toko.push({ id: row.id, kodeSap });
     }
 
-    // Satu akun staff dummy untuk skenario search + check-in + staff order.
-    const [staff] = await sql<{ id: string }[]>`
-      insert into public.profiles (full_name, role, password_hash, allowed_pages)
-      values (${`${TANDA} STAFF`}, 'superadmin',
-              ${createHmac('sha256', secret).update(`${TANDA}-pass`).digest('hex')},
-              '{}')
-      returning id`;
+    // Akun staff dummy untuk skenario search + check-in + staff order.
+    //
+    // password_hash diisi ACAK, bukan hash dari kata yang bisa ditebak. Login
+    // aplikasi ini password-saja dan password_hash-lah pengenalnya (lihat
+    // app/(auth)/login/actions.ts), jadi hash yang deterministik sama artinya
+    // dengan memasang akun superadmin bersandi tetap di database yang diuji.
+    // Skrip ini tidak pernah butuh plaintext-nya - cookie dibuat langsung dari id.
+    const staff: { id: string }[] = [];
+    for (let i = 0; i < STAFF; i++) {
+      const [row] = await sql<{ id: string }[]>`
+        insert into public.profiles (full_name, role, password_hash, allowed_pages)
+        values (${`${TANDA} STAFF ${i}`}, 'superadmin', ${randomBytes(32).toString('hex')}, '{}')
+        returning id`;
+      staff.push(row);
+    }
 
     const target = {
       dibuat: new Date().toISOString(),
-      staff: { id: staff.id, cookie: cookieSesi('team', staff.id, secret) },
+      staff: staff.map((s) => ({ id: s.id, cookie: cookieSesi('team', s.id, secret) })),
       customers: toko.map((t) => ({
         id: t.id,
         kodeSap: t.kodeSap,
@@ -70,7 +86,7 @@ async function main() {
     };
     writeFileSync('load-tests/data/target.json', JSON.stringify(target, null, 2));
 
-    console.log(`${toko.length} toko dummy + 1 staff dummy dibuat.`);
+    console.log(`${toko.length} toko dummy + ${staff.length} staff dummy dibuat.`);
     console.log('load-tests/data/target.json ditulis (berisi cookie sesi siap pakai).');
   } finally {
     await sql.end();

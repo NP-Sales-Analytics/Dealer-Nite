@@ -30,17 +30,18 @@ async function main() {
       select id, kode_sap from public.customers order by created_at asc limit ${JUMLAH}`;
     if (customers.length === 0) throw new Error('Tidak ada customer di database ini.');
 
-    // Staf dipakai skenario tulis (order-adjust/checkin/search); untuk uji baca
-    // isinya boleh kosong, jadi tidak dipaksa ada.
-    const [staff] = await sql<{ id: string }[]>`
-      select id from public.profiles where role = 'superadmin' order by created_at asc limit 1`;
+    // Staf dipakai skenario tulis (checkin/search); untuk uji baca isinya boleh
+    // kosong, jadi tidak dipaksa ada. Bentuknya array supaya sebentuk dengan
+    // target.json yang ditulis loadtest-seed.
+    const staff = await sql<{ id: string }[]>`
+      select id from public.profiles where role = 'superadmin' order by created_at asc`;
 
     mkdirSync('load-tests/data', { recursive: true });
     writeFileSync(
       'load-tests/data/target.json',
       JSON.stringify(
         {
-          staff: staff ? { id: staff.id, cookie: cookie('team', staff.id, secret) } : null,
+          staff: staff.map((s) => ({ id: s.id, cookie: cookie('team', s.id, secret) })),
           customers: customers.map((c) => ({
             id: c.id,
             kodeSap: c.kode_sap,
@@ -51,7 +52,7 @@ async function main() {
         2,
       ),
     );
-    console.log(`target.json: ${customers.length} customer, staf ${staff ? 'ada' : 'TIDAK ADA'}`);
+    console.log(`target.json: ${customers.length} customer, ${staff.length} staf`);
   } finally {
     await sql.end();
   }

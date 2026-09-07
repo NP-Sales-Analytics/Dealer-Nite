@@ -56,3 +56,4 @@ cookies*.txt
 # Uji beban: kredensial staging + data target berisi cookie sesi.
 .env.loadtest
 load-tests/data/target.json
+load-tests/data/snapshot-*.json

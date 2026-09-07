@@ -1,7 +1,7 @@
 import { check, sleep } from 'k6';
 import http from 'k6/http';
 import { AMBANG, BASE_URL, tahap } from '../config.js';
-import { CUSTOMERS, sesi, STAFF } from '../utils/helpers.js';
+import { CUSTOMERS, sesi, staffVU } from '../utils/helpers.js';
 
 export const options = { stages: tahap(), thresholds: AMBANG };
 
@@ -13,7 +13,7 @@ const TOKO_REBUTAN = 0;
 const PELUANG_REBUTAN = 0.15;
 
 export default function () {
-  const staff = STAFF[0];
+  const staff = staffVU();
   const rebutan = Math.random() < PELUANG_REBUTAN;
   const toko = rebutan
     ? CUSTOMERS[TOKO_REBUTAN]

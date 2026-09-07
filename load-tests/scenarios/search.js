@@ -1,7 +1,7 @@
 import { check, sleep } from 'k6';
 import http from 'k6/http';
 import { AMBANG, BASE_URL, tahap } from '../config.js';
-import { acak, sesi, STAFF } from '../utils/helpers.js';
+import { acak, sesi, staffVU } from '../utils/helpers.js';
 
 export const options = { stages: tahap(), thresholds: AMBANG };
 
@@ -14,7 +14,7 @@ const KATA = ['toko', 'load', 'lt00', 'test', 'lt01', 'oko 1'];
  * dipanggil serentak.
  */
 export default function () {
-  const staff = STAFF[0];
+  const staff = staffVU();
   const q = acak(KATA);
   const res = http.get(
     `${BASE_URL}/api/customers/search?q=${encodeURIComponent(q)}`,

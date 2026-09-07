@@ -12,6 +12,8 @@
     "seed:orders": "tsx --env-file=.env.local scripts/seed-orders.ts",
     "sql": "tsx --env-file=.env.local scripts/run-sql.ts",
     "loadtest:seed": "tsx --env-file=.env.loadtest scripts/loadtest-seed.ts",
+    "loadtest:snapshot": "tsx --env-file=.env.loadtest scripts/loadtest-snapshot.ts",
+    "loadtest:target": "tsx --env-file=.env.loadtest scripts/loadtest-target.ts",
     "loadtest:verify": "tsx --env-file=.env.loadtest scripts/loadtest-verify.ts",
     "loadtest:reset": "tsx --env-file=.env.loadtest scripts/loadtest-reset.ts",
     "loadtest:race": "tsx --env-file=.env.loadtest scripts/loadtest-race.ts",
