@@ -46,7 +46,14 @@ export const papan = ttlCache(async () => {
     join public.customers c on c.id = t.customer_id
     order by rank asc
   `)) as unknown as BarisPapan[];
-  // 15 detik, bukan 5: setiap instance Vercel punya cache sendiri, jadi saat
-  // trafik melonjak dan banyak instance baru dinyalakan, TTL pendek justru
-  // melipatgandakan query. Papan tidak berubah secepat itu.
-}, 15_000);
+  // 2 detik. Sebelumnya 15, dengan alasan tiap instance Vercel punya cache
+  // sendiri sehingga TTL pendek melipatgandakan query saat banyak instance
+  // menyala. Alasan itu BERUBAH sejak fungsi pindah ke icn1, satu region dengan
+  // database: query agregat ini tidak lagi membayar RTT lintas-region.
+  //
+  // Dan sekarang ada alasan tandingan yang lebih kuat: papan inilah yang
+  // menentukan berapa lama perubahan sebuah toko terlihat di layar toko lain.
+  // TTL 15 detik berarti device lain bisa tertinggal belasan detik walau sinyal
+  // realtime-nya sudah sampai. Dedup in-flight ttlCache tetap menjaga tiap
+  // instance hanya melakukan SATU query per 2 detik, berapa pun pembacanya.
+}, 2_000);

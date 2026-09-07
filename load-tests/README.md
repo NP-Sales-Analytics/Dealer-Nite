@@ -130,8 +130,11 @@ Sesudah pindah ke icn1: round trip fungsi -> DB turun ke orde milidetik
 tunggal (satu region jaringan Vercel/AWS yang sama), dan bagian DB dari
 transaksi turun drastis. Konsekuensinya: /api/order/me (yang TIDAK di-cache
 CDN, selalu menyentuh fungsi) sedikit lebih jauh dari pengguna Indonesia
-dibanding Singapura - tapi /api/order/leaderboard/top TIDAK terpengaruh sama
-sekali, karena dilayani CDN edge Vercel yang terpisah dari region fungsi.
+dibanding Singapura - dan sejak podium ikut disajikan dari /api/order/me,
+seluruh jalur baca customer memang sampai ke fungsi, tidak ada lagi yang
+dibantu CDN. Itu disengaja: podium dan posisi pribadi harus berasal dari satu
+snapshot yang sama, dan cache CDN 15-45 detik justru yang dulu membuat keduanya
+menyebut angka berbeda di layar yang sama.
 
 Kalau nanti databasenya pindah region, region fungsi ini harus disesuaikan
 ulang - dan diukur ulang, bukan ditebak.

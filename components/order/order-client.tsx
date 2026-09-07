@@ -3,7 +3,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { OrderPanel } from './order-panel';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useRealtimeRefresh } from '@/lib/order/use-realtime-refresh';
+import { selangPolling, useRealtimeRefresh } from '@/lib/order/use-realtime-refresh';
 
 type Me = {
   namaToko: string;
@@ -21,6 +21,12 @@ const ME_KEY = ['order', 'me'] as const;
 
 export function OrderClient() {
   const qc = useQueryClient();
+
+  // Dipanggil lebih dulu supaya status koneksinya bisa menentukan laju polling.
+  const { tersambung } = useRealtimeRefresh(() =>
+    qc.invalidateQueries({ queryKey: ME_KEY }),
+  );
+
   const me = useQuery({
     queryKey: ME_KEY,
     queryFn: async (): Promise<Me> => {
@@ -28,11 +34,10 @@ export function OrderClient() {
       if (!r.ok) throw new Error('me');
       return r.json();
     },
-    // Realtime yang jadi jalur cepat; polling hanya cadangan saat koneksi putus.
-    refetchInterval: 30_000,
+    // Realtime yang jadi jalur cepat; polling murni cadangan - lambat saat
+    // koneksi sehat, dipercepat hanya kalau realtime benar-benar putus.
+    refetchInterval: selangPolling(tersambung),
   });
-
-  useRealtimeRefresh(() => qc.invalidateQueries({ queryKey: ME_KEY }));
 
   if (!me.data) return <Skeleton className="mx-auto h-80 w-full max-w-2xl rounded-2xl" />;
 

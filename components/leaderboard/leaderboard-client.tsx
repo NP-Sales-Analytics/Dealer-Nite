@@ -7,19 +7,20 @@ import { Podium } from './podium';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { LeaderRow } from '@/lib/order/leaderboard';
-import { useRealtimeRefresh } from '@/lib/order/use-realtime-refresh';
+import { selangPolling, useRealtimeRefresh } from '@/lib/order/use-realtime-refresh';
 import { cn, inisial, jamJakarta, tanggalJakarta } from '@/lib/utils';
 
-type MeRow = {
+/** Balasan /api/order/me: podium DAN posisi sendiri, dari satu snapshot papan. */
+type DataSaya = {
   customerId: string;
   namaToko: string;
   depot: string | null;
   total: number;
   rank: number | null;
   terakhir: string | null;
+  top: LeaderRow[];
 };
 
-const KUNCI_TOP = ['leaderboard', 'top'] as const;
 const KUNCI_TIM = ['leaderboard', 'tim'] as const;
 const KUNCI_ME = ['order', 'me'] as const;
 
@@ -45,7 +46,7 @@ function cocok(row: LeaderRow, kata: string[]) {
 }
 
 /** Kartu posisi toko sendiri. Untuk customer inilah satu-satunya info peringkat. */
-function KartuPosisi({ me }: { me: MeRow }) {
+function KartuPosisi({ me }: { me: DataSaya }) {
   return (
     <div className="mt-4 rounded-2xl bg-primary px-4 py-4 text-primary-foreground shadow-sm">
       <p className="text-[11px] font-semibold uppercase tracking-wide text-primary-foreground/70">
@@ -83,32 +84,34 @@ function KartuPosisi({ me }: { me: MeRow }) {
 /**
  * Dua jalur pengambilan data, sengaja dipisah menurut peran:
  *
- * - Customer (ratusan orang) memanggil /api/order/leaderboard/top yang boleh
- *   disimpan CDN Vercel, plus /api/order/me untuk posisinya sendiri. Beban
- *   terberat karena itu ditahan di edge dan tidak sampai ke database.
+ * - Customer (ratusan orang) memanggil SATU endpoint, /api/order/me, yang
+ *   membawa podium sekaligus posisinya sendiri. Satu request, satu snapshot.
+ *   Dulu keduanya datang dari dua endpoint dengan cache berbeda - podium boleh
+ *   disimpan CDN sampai 45 detik, posisi pribadi tidak - sehingga layar yang
+ *   sama bisa menyebut dua angka yang bertentangan untuk toko yang sama.
  * - Tim (segelintir orang) memanggil papan penuh yang tetap privat, karena
  *   isinya memuat kode_sap dan seluruh peringkat yang dibutuhkan pencarian.
  *
  * Perannya datang dari server lewat prop, bukan ditebak dari bentuk payload:
- * keduanya kini endpoint yang berbeda, jadi harus diketahui sebelum memanggil.
+ * keduanya endpoint yang berbeda, jadi harus diketahui sebelum memanggil.
  */
 export function LeaderboardClient({ tampilanCustomer }: { tampilanCustomer: boolean }) {
   const qc = useQueryClient();
   const [cari, setCari] = useState('');
 
-  const top = useQuery({
-    queryKey: KUNCI_TOP,
-    enabled: tampilanCustomer,
-    queryFn: () => ambil<{ top: LeaderRow[] }>('/api/order/leaderboard/top'),
-    refetchInterval: 30_000,
-    placeholderData: keepPreviousData,
+  // Dipanggil lebih dulu supaya status koneksinya bisa menentukan laju polling
+  // cadangan di bawah.
+  const { tersambung } = useRealtimeRefresh(() => {
+    qc.invalidateQueries({ queryKey: ['leaderboard'] });
+    if (tampilanCustomer) qc.invalidateQueries({ queryKey: KUNCI_ME });
   });
+  const refetchInterval = selangPolling(tersambung);
 
   const me = useQuery({
     queryKey: KUNCI_ME,
     enabled: tampilanCustomer,
-    queryFn: () => ambil<MeRow>('/api/order/me'),
-    refetchInterval: 30_000,
+    queryFn: () => ambil<DataSaya>('/api/order/me'),
+    refetchInterval,
     placeholderData: keepPreviousData,
   });
 
@@ -116,16 +119,11 @@ export function LeaderboardClient({ tampilanCustomer }: { tampilanCustomer: bool
     queryKey: KUNCI_TIM,
     enabled: !tampilanCustomer,
     queryFn: () => ambil<{ top: LeaderRow[] }>('/api/order/leaderboard'),
-    refetchInterval: 30_000,
+    refetchInterval,
     placeholderData: keepPreviousData,
   });
 
-  useRealtimeRefresh(() => {
-    qc.invalidateQueries({ queryKey: ['leaderboard'] });
-    if (tampilanCustomer) qc.invalidateQueries({ queryKey: KUNCI_ME });
-  });
-
-  const baris = (tampilanCustomer ? top.data?.top : tim.data?.top) ?? null;
+  const baris = (tampilanCustomer ? me.data?.top : tim.data?.top) ?? null;
   if (!baris) return <Skeleton className="mx-auto h-96 max-w-md rounded-2xl" />;
 
   const kata = cari.trim().toLowerCase().split(/\s+/).filter(Boolean);

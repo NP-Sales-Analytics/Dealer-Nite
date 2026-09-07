@@ -1,11 +1,5 @@
 Timestamp,WILAYAH,REGION,DEPOT,NAMA PIC RSM/ASM (yang ikut ke Jakarta),NAMA TOKO/PERUSAHAAN YANG DIUNDANG,KODE SAP TOKO/PERUSAHAAN YANG DIUNDANG,NAMA PEMILIK TOKO YANG DATANG,QTY
-14/08/2026 13:25:25,Indonesia Barat,3B,1V Purwokerto,Johni Afero, PT.PANTALI BERKAH SENTOSA,624628,,1
-14/08/2026 13:26:55,Indonesia Barat,3B,1V Purwokerto,Johni Afero,PT. KARMAN KARANGTURI MANDIRI,651910,,1
 14/08/2026 13:29:08,Indonesia Barat,3B,1V Purwokerto,Johni afero,PT. RAGIL  JAYA  SEJAHTERA,613040,,1
-14/08/2026 14:07:52,Indonesia Barat,3B,1V Purwokerto,johni afero,KENCANA TEKNIK,612666,,1
-14/08/2026 14:17:46,Indonesia Barat,3B,1V Purwokerto,johni afero,UTAMA,613731,,1
-14/08/2026 14:19:14,Indonesia Barat,3B,1V Purwokerto,johni afero,CV. KARUNIA ABADI,626373,,1
-14/08/2026 14:29:51,Indonesia Barat,3B,5N Kebumen,Johni Afero,CV. SUMBER BANGUNAN,622074,,1
 14/08/2026 14:48:54,Indonesia Timur,7,3T Madura,Yonathan,CV.WIJAYA CIPTA WARNA,643443,,1
 15/08/2026 8:04:47,Indonesia Timur,6,6C Banyuwangi,Edy Purwoadji,CV Aneka Warna Group,629039,,1
 15/08/2026 10:46:22,Indonesia Timur,9A,6A Bau Bau,Hery Suyanto,CV. Faro motor,663378,,1
@@ -135,6 +129,8 @@ Timestamp,WILAYAH,REGION,DEPOT,NAMA PIC RSM/ASM (yang ikut ke Jakarta),NAMA TOKO
 29/08/2026 6:55:21,Indonesia Barat,3A,1P Semarang,Exwin Subianto,CV.TASINDO DAYA,639842,Ko Jimmy,1
 31/08/2026 18:21:04,Indonesia Barat,3B,1V Purwokerto,Johny afero,PT. PANTALI BERKAH SENTOSA,624628,Tjong siung kuong,1
 31/08/2026 18:35:03,Indonesia Barat,3B,1V Purwokerto,Johny Afero,CV. ANEKA PUTRA,650259,KO David,1
-01/09/2026 14:21:48,Indonesia Barat,3A,1Y Pati,Exwin Subianto,Cv. Guna Sentosa,612521,Gunawan,1
-,,,,,,,,
-,,,,,,,,166
+1/9/2026 14:21,Indonesia Barat,3A,1Y Pati,Exwin Subianto,Cv. Guna Sentosa,612521,Gunawan,1
+2/9/2026 13:52,Indonesia Timur,6,3C Kupang,Edy Purwoadji,CV sanjaya prima perkasa,659670,Richie Wijaya,
+2/9/2026 21:18,Indonesia Barat,3B,1V Purwokerto,Johny afero,PT. KARMAN KARANGTURI MANDIRI ,651910,Ko adit,1
+2/9/2026 21:20,Indonesia Barat,3B,5N Kebumen,Johny afero ,Cv. Sumber bangunan,622074,Ko roy,1
+3/9/2026 11:43,Indonesia Barat,3B,1V Purwokerto,Johny afero ,Cv.putra mandiri barokah,646352,PAK H. AZID,
