@@ -80,3 +80,16 @@ npm run loadtest:reset    # bersihkan data dummy
 
 Menembak `localhost` hanya mengukur kapasitas laptop, bukan Vercel. Untuk
 menyimpulkan "aman di 150 user", sasarannya harus preview Vercel.
+
+## Region fungsi
+
+`vercel.json` mengunci fungsi ke `sin1` (Singapura). Bawaan Vercel adalah
+`iad1` (Washington DC), dan itu terbaca jelas di header `x-vercel-id:
+sin1::iad1` - permintaan mendarat di edge Singapura lalu diseberangkan ke
+Amerika. Padahal penggunanya di Indonesia dan databasenya di Seoul
+(`aws-0-ap-northeast-2`), jadi bawaan itu menyeberangi Pasifik dua kali:
+sekali untuk pengguna, sekali lagi tiap kali cache meleset dan fungsi
+menembak database.
+
+Terukur sebagai lantai 260 ms pada `/api/order/me` - tidak ada satu pun
+request yang bisa lebih cepat dari itu, sebagus apa pun cachenya.
