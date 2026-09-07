@@ -37,11 +37,22 @@ const cacheProfil = ttlCache(async (userId: string) => {
 }, 60_000);
 export const lupakanProfil = (userId?: string) => cacheProfil.clear(userId);
 
-// Sama untuk identitas customer. Data toko praktis tidak berubah saat event,
-// jadi 60 detik aman - dan ini yang membuat /api/order/me tidak perlu menyentuh
-// DB sama sekali di jalur panas.
-const cacheCustomer = ttlCache(async (id: string) => {
-  const [c] = await db
+/**
+ * Identitas SELURUH toko dalam satu peta, bukan satu entri per toko.
+ *
+ * Versi per-id sebelumnya terlihat hemat, tapi di serverless justru sebaliknya:
+ * cache hidup per instance, jadi 136 toko yang tersebar ke puluhan instance
+ * berarti hampir setiap request /api/order/me tetap menembak DB. Uji beban 150
+ * VU membuktikannya - p95 1,57 detik padahal jalur ini mengaku "nol query".
+ * Satu query memuat semuanya sekali per instance per 60 detik, dan sisanya
+ * dilayani dari memori.
+ *
+ * ponytail: memuat seluruh tabel, jadi bergantung pada jumlah toko tetap kecil
+ * (ratusan). Kalau nanti puluhan ribu, kembalikan ke per-id dengan cache
+ * bersama (Redis), bukan per-instance.
+ */
+const cacheCustomer = ttlCache(async () => {
+  const rows = await db
     .select({
       id: customers.id,
       namaToko: customers.namaToko,
@@ -51,15 +62,20 @@ const cacheCustomer = ttlCache(async (id: string) => {
       region: customers.region,
       dusAwal: customers.dusAwal,
     })
-    .from(customers)
-    .where(eq(customers.id, id))
-    .limit(1);
-  return c ?? null;
+    .from(customers);
+  return new Map(rows.map((c) => [c.id, c]));
 }, 60_000);
-export const lupakanCustomer = (id?: string) => cacheCustomer.clear(id);
+
+/**
+ * Membuang peta identitas seluruhnya - tidak ada lagi pembuangan per toko.
+ * Karena itu pemanggilnya harus benar-benar hemat: cukup saat master toko
+ * berubah atau saat dus_awal baru pertama kali ditetapkan, bukan tiap
+ * penambahan order.
+ */
+export const lupakanCustomer = () => cacheCustomer.clear();
 
 /** Identitas toko dari cache 60 detik. Dipakai route order untuk hindari query. */
-export const infoCustomer = (id: string) => cacheCustomer.get(id);
+export const infoCustomer = async (id: string) => (await cacheCustomer.get()).get(id) ?? null;
 
 // cache() men-dedup per request: layout (app) memanggilnya untuk sidebar dan tiap
 // halaman memanggilnya lagi lewat requireHalaman/requireRole.
@@ -82,7 +98,7 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
 
   // Customer: identitas dari tabel customers, akses = preset role 'customer'
   // (HALAMAN_BAWAAN), cakupan data terkunci ke kode_sap-nya (terapkanScope).
-  const c = await cacheCustomer.get(session.id);
+  const c = await infoCustomer(session.id);
   if (!c) return null;
   return {
     id: c.id,

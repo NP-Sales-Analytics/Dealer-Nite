@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
       await tx.update(customers).set({ dusAwal: awalBaru }).where(eq(customers.id, targetId));
     }
 
-    return { tolakan: null, total: totalBaru, dusAwal: toko.dusAwal ?? awalBaru };
+    return { tolakan: null, total: totalBaru, dusAwal: toko.dusAwal ?? awalBaru, awalBaru };
   });
 
   if (hasil.tolakan === 'NOT_FOUND') {
@@ -101,8 +101,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // dus_awal ikut di-cache bersama identitas toko; buang supaya lantai barunya terbaca.
-  if (hasil.dusAwal !== null) lupakanCustomer(targetId);
+  // dus_awal ikut di-cache bersama identitas toko; buang supaya lantai barunya
+  // terbaca. Hanya saat baru DITETAPKAN - dulu ini ikut jalan di setiap
+  // penambahan, dan sejak cache identitas jadi satu peta untuk semua toko,
+  // pembuangan sesering itu berarti memuat ulang seluruh tabel tiap order.
+  if (hasil.awalBaru !== null) lupakanCustomer();
 
   return NextResponse.json({ total: hasil.total, dusAwal: hasil.dusAwal });
 }

@@ -92,7 +92,7 @@ export async function PATCH(request: NextRequest, { params }: Ctx) {
 
   if (!hasil) return NextResponse.json({ code: 'NOT_FOUND' }, { status: 404 });
 
-  segarkanOrder(id);
+  segarkanOrder();
   return NextResponse.json({ status: 'updated', total: hasil.total });
 }
 
@@ -112,6 +112,6 @@ export async function DELETE(_request: NextRequest, { params }: Ctx) {
     .returning({ id: customers.id });
   if (!dihapus) return NextResponse.json({ code: 'NOT_FOUND' }, { status: 404 });
 
-  segarkanOrder(id);
+  segarkanOrder();
   return NextResponse.json({ status: 'deleted' });
 }

@@ -48,6 +48,6 @@ export async function POST(_request: NextRequest, { params }: Ctx) {
 
   if (!hasil) return NextResponse.json({ code: 'NOT_FOUND' }, { status: 404 });
 
-  segarkanOrder(id);
+  segarkanOrder();
   return NextResponse.json({ status: 'reset', dibuang: hasil.dibuang });
 }

@@ -34,7 +34,12 @@ export default function () {
     },
     'kode SAP tidak bocor': (r) => !r.body.includes('kodeSap'),
     'wilayah/region tidak bocor': (r) => !r.body.includes('wilayah') && !r.body.includes('region'),
-    'boleh di-cache CDN': (r) => (r.headers['Cache-Control'] || '').includes('s-maxage'),
+    // Vercel MENELAN s-maxage: dipakai untuk cache edge-nya sendiri, lalu yang
+    // dikirim ke pembaca cuma `public` + `Age`. Jadi buktinya bukan headernya,
+    // melainkan X-Vercel-Cache yang berbunyi HIT/STALE.
+    'dilayani CDN': (r) =>
+      /HIT|STALE/.test(r.headers['X-Vercel-Cache'] || '') ||
+      (r.headers['Cache-Control'] || '').includes('s-maxage'),
   });
 
   sleep(Math.random() * 3 + 2);
