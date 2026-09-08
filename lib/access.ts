@@ -41,8 +41,10 @@ export const HALAMAN_BAWAAN: Record<Role, string[]> = {
   // disembunyikan di UI dan ditolak di route mutasinya.
   marketing: ['/dashboard', '/kehadiran', '/leaderboard', '/order/detail'],
   rsm: ['/dashboard', '/kehadiran', '/leaderboard', '/order/detail'],
-  // Customer hanya modul Order: papan ranking + halaman order miliknya sendiri.
-  customer: ['/leaderboard', '/order'],
+  // Customer cukup SATU halaman. Papan peringkat dan penambahan order sudah
+  // menyatu di /leaderboard, jadi tidak ada lagi yang perlu dicari lewat menu -
+  // dan menu samping pun tinggal satu entri.
+  customer: ['/leaderboard'],
 };
 
 /** Halaman efektif sebuah akun: pilihan tersimpan, atau preset bila belum diatur. */
