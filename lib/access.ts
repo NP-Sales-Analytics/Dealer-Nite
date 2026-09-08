@@ -16,7 +16,7 @@ export const HALAMAN: { href: string; label: string }[] = [
   { href: '/dashboard', label: 'Dashboard Kehadiran' },
   { href: '/reservation', label: 'Pencatatan Kehadiran' },
   { href: '/kehadiran', label: 'Detail Toko Hadir' },
-  { href: '/leaderboard', label: 'Leaderboard Top Spender' },
+  { href: '/leaderboard', label: 'Leaderboard Top Order' },
   { href: '/order', label: 'Tambah Order' },
   { href: '/order/detail', label: 'Detail Order' },
   { href: '/admin/users', label: 'User Management' },

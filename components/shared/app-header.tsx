@@ -29,7 +29,7 @@ const JUDUL: { awalan: string; judul: string; keterangan: string }[] = [
   },
   {
     awalan: '/leaderboard',
-    judul: 'Leaderboard Top Spender',
+    judul: 'Leaderboard Top Order',
     keterangan: 'Peringkat toko berdasarkan jumlah dus. Seri dimenangkan yang lebih dulu mencapainya.',
   },
   {

@@ -130,7 +130,7 @@ export function EditOrderDialog({
             <QtyStepper id="o-dus" value={dus} onChange={setDus} ariaLabel="Jumlah dus" />
             <p className="text-xs leading-relaxed text-muted-foreground">
               {selisih === 0
-                ? `Tercatat sekarang ${row.total} dus. Isi dengan total keseluruhan, bukan tambahannya.`
+                ? `Tercatat sekarang ${row.total} dus. Isi dengan total keseluruhan, bukan tambahan.`
                 : `Perubahan: ${selisih > 0 ? '+' : ''}${selisih} dus dari ${row.total}.`}
             </p>
             {row.dusAwal !== null && (

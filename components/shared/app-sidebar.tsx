@@ -36,7 +36,7 @@ const GRUP: { label: string; links: NavLink[] }[] = [
   {
     label: 'Order',
     links: [
-      { href: '/leaderboard', label: 'Leaderboard Top Spender', icon: Trophy },
+      { href: '/leaderboard', label: 'Leaderboard Top Order', icon: Trophy },
       { href: '/order', label: 'Tambah Order', icon: PlusCircle },
       { href: '/order/detail', label: 'Detail Order', icon: ClipboardList },
     ],

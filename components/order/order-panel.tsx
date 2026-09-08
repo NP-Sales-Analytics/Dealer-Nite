@@ -170,8 +170,8 @@ export function OrderPanel({
               Total keseluruhan pengambilan dus
             </Label>
             <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-              Isi dengan <span className="font-semibold text-foreground">jumlah keseluruhan dus</span>,
-              bukan tambahannya.
+              Isi dengan <span className="font-semibold text-foreground">total keseluruhan dus</span>,
+              bukan tambahan.
             </p>
           </div>
           {sisa !== null && (
