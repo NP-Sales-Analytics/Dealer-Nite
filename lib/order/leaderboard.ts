@@ -45,19 +45,29 @@ export function cariPosisi(
 export const TOP_N = 500;
 
 /**
- * Tiga besar untuk podium customer.
+ * Berapa baris papan yang boleh dilihat sesi customer.
+ *
+ * Lima, bukan seluruhnya: podium tiga besar plus dua baris di bawahnya. Papan
+ * penuh sengaja tidak dikirim - melihat peringkat seluruh toko memicu sentimen
+ * antar toko, sementara yang benar-benar berarti bagi sebuah toko hanya siapa
+ * yang di puncak dan posisinya sendiri (dikirim terpisah lewat cariPosisi).
+ */
+export const TOP_CUSTOMER = 5;
+
+/**
+ * Baris papan yang boleh sampai ke sesi customer.
  *
  * Daftar-putih, bukan daftar-hitam: kolom baru di papan tidak akan ikut terkirim
  * kecuali sengaja ditambahkan di sini. Yang dijaga terutama kode_sap - ia ADALAH
  * kredensial login customer (app/(auth)/login/actions.ts), jadi satu orang cukup
- * memanennya dari podium untuk masuk sebagai toko lain.
+ * memanennya dari papan untuk masuk sebagai toko lain.
  *
- * Dipakai /api/order/me, yang menyajikan podium dan posisi pribadi dari SATU
+ * Dipakai /api/order/me, yang menyajikan papan dan posisi pribadi dari SATU
  * array papan yang sama - itulah yang membuat keduanya mustahil menyebut angka
  * yang berbeda.
  */
-export function podium(papan: LeaderRow[]): LeaderRow[] {
-  return papan.slice(0, 3).map((r) => ({
+export function papanCustomer(papan: LeaderRow[]): LeaderRow[] {
+  return papan.slice(0, TOP_CUSTOMER).map((r) => ({
     customerId: r.customerId,
     namaToko: r.namaToko,
     depot: r.depot,

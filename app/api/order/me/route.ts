@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { infoCustomer } from '@/lib/auth';
-import { cariPosisi, podium } from '@/lib/order/leaderboard';
+import { cariPosisi, papanCustomer } from '@/lib/order/leaderboard';
 import { papan } from '@/lib/order/papan';
 import { getCustomerId } from '@/lib/session';
 import { bacaTenggat } from '@/lib/settings';
@@ -55,7 +55,7 @@ export async function GET() {
       dusAwal: info.dusAwal,
       tenggat: await bacaTenggat(),
       // Dari array yang sama dengan cariPosisi di atas - lihat komentar fungsi.
-      top: podium(semua),
+      top: papanCustomer(semua),
     },
     { headers: CACHE },
   );

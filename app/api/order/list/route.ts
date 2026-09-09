@@ -2,7 +2,7 @@ import { sql } from 'drizzle-orm';
 import { NextResponse, type NextRequest } from 'next/server';
 import { requireRoleApi } from '@/lib/auth';
 import { cacheDashboard } from '@/lib/dashboard/cache';
-import { readFilter, terapkanScope } from '@/lib/dashboard/filters';
+import { cocokSalahSatu, readFilter, terapkanScope } from '@/lib/dashboard/filters';
 import { db } from '@/lib/db';
 
 const PAGE_SIZE = 20;
@@ -31,8 +31,8 @@ export type OrderListResponse = {
 
 type Kunci = {
   wilayah: string | null;
-  region: string | null;
-  depot: string | null;
+  region: string[];
+  depot: string[];
   q: string | null;
   kodeSap: string | null;
   page: number;
@@ -53,10 +53,9 @@ const load = cacheDashboard(async (key: string) => {
   // nomor halaman tidak pernah berbeda dari isinya.
   const kondisi = sql`
     (${wilayah}::text is null or c.wilayah = ${wilayah}::text)
-    and (${region}::text is null or c.region = ${region}::text)
+    and ${cocokSalahSatu(sql`c.region`, region)}
     and (${kodeSap}::text is null or c.kode_sap = ${kodeSap}::text)
-    and (${depot}::text is null
-      or coalesce(nullif(trim(c.depot), ''), '(Tanpa Depot)') = ${depot}::text)
+    and ${cocokSalahSatu(sql`coalesce(nullif(trim(c.depot), ''), '(Tanpa Depot)')`, depot)}
     and (${q}::text is null
       or c.nama_toko ilike '%' || ${q}::text || '%'
       or c.kode_sap ilike '%' || ${q}::text || '%')

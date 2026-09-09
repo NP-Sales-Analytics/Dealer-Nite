@@ -5,7 +5,9 @@ import { useEffect, useState } from 'react';
 import { DetailOrderTable } from './detail-order-table';
 import type { FilterOptions } from '@/app/api/dashboard/filters/route';
 import type { OrderListResponse } from '@/app/api/order/list/route';
-import { FilterBar, FILTER_KOSONG, type FilterState } from '@/components/dashboard/filter-bar';
+import {
+  adaFilterAktif, FilterBar, FILTER_KOSONG, paramFilter, type FilterState,
+} from '@/components/dashboard/filter-bar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDebounce } from '@/lib/use-debounce';
 
@@ -16,11 +18,7 @@ const fetcher = <T,>(url: string) => async (): Promise<T> => {
 };
 
 const buildQuery = (f: FilterState, page: number, urut: 'asc' | 'desc') => {
-  const p = new URLSearchParams();
-  if (f.wilayah !== 'semua') p.set('wilayah', f.wilayah);
-  if (f.region !== 'semua') p.set('region', f.region);
-  if (f.depot !== 'semua') p.set('depot', f.depot);
-  if (f.q) p.set('q', f.q);
+  const p = paramFilter(f);
   p.set('page', String(page));
   p.set('sort', urut);
   return p.toString();
@@ -55,8 +53,7 @@ export function DetailOrderClient({ bisaUbah }: { bisaUbah: boolean }) {
   });
 
   const depots = options.data?.depots.map((d) => d.depot) ?? [];
-  const adaFilter =
-    filter.wilayah !== 'semua' || filter.region !== 'semua' || filter.depot !== 'semua' || q !== '';
+  const adaFilter = adaFilterAktif({ ...filter, q });
 
   return (
     <div className="space-y-4 sm:space-y-6">

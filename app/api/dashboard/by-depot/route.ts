@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { requireRoleApi } from '@/lib/auth';
 import { cacheDashboard } from '@/lib/dashboard/cache';
 import { sortDepots, type DepotRow } from '@/lib/dashboard/compute';
-import { bacaKunci, filterKey, readFilter, terapkanScope } from '@/lib/dashboard/filters';
+import { bacaKunci, cocokSalahSatu, filterKey, readFilter, terapkanScope } from '@/lib/dashboard/filters';
 import { db } from '@/lib/db';
 
 // FULL OUTER JOIN supaya depot manual-entry yang tidak ada di master data
@@ -25,8 +25,8 @@ const load = cacheDashboard(async (key: string) => {
              mode() within group (order by region) as region
       from public.customers
       where (${w}::text is null or wilayah = ${w}::text)
-        and (${r}::text is null or region = ${r}::text)
-        and (${d}::text is null or depot = ${d}::text)
+        and ${cocokSalahSatu(sql`region`, r)}
+        and ${cocokSalahSatu(sql`depot`, d)}
         and (${k}::text is null or kode_sap = ${k}::text)
       group by 1
     ),
@@ -40,8 +40,8 @@ const load = cacheDashboard(async (key: string) => {
       from public.reservations r
       left join public.customers c on c.id = r.customer_id
       where (${w}::text is null or c.wilayah = ${w}::text)
-        and (${r}::text is null or c.region = ${r}::text)
-        and (${d}::text is null or coalesce(r.depot_override, c.depot, r.manual_depot) = ${d}::text)
+        and ${cocokSalahSatu(sql`c.region`, r)}
+        and ${cocokSalahSatu(sql`coalesce(r.depot_override, c.depot, r.manual_depot)`, d)}
         and (${k}::text is null or c.kode_sap = ${k}::text)
       group by 1
     )

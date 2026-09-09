@@ -4,7 +4,7 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { CapacityPieChart } from './capacity-pie-chart';
 import { DepotBarChart } from './depot-bar-chart';
-import { FilterBar, FILTER_KOSONG, type FilterState } from './filter-bar';
+import { FilterBar, FILTER_KOSONG, paramFilter, type FilterState } from './filter-bar';
 import { KpiCards } from './kpi-cards';
 import type { FilterOptions } from '@/app/api/dashboard/filters/route';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -20,11 +20,7 @@ const fetcher = <T,>(url: string) => async (): Promise<T> => {
 };
 
 const buildQuery = (f: FilterState) => {
-  const p = new URLSearchParams();
-  if (f.wilayah !== 'semua') p.set('wilayah', f.wilayah);
-  if (f.region !== 'semua') p.set('region', f.region);
-  if (f.depot !== 'semua') p.set('depot', f.depot);
-  const s = p.toString();
+  const s = paramFilter(f).toString();
   return s ? `?${s}` : '';
 };
 

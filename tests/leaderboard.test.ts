@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cariPosisi, podium } from '@/lib/order/leaderboard';
+import { cariPosisi, papanCustomer, TOP_CUSTOMER } from '@/lib/order/leaderboard';
 
 // Papan sudah bernomor final dari row_number() di SQL, termasuk pemecah seri
 // berdasarkan waktu: b dan c sama-sama 100 dus, tapi b lebih dulu mencapainya
@@ -53,35 +53,39 @@ const papanLengkap = [
   { customerId: 'd', namaToko: 'D', depot: '1D', total: 50, rank: 4, terakhir: '2026-09-06T20:03:00Z', kodeSap: '444', wilayah: 'Timur', region: '7' },
 ];
 
-describe('podium', () => {
-  it('hanya tiga besar, peringkat 4 ke bawah tidak ikut', () => {
-    const hasil = podium(papanLengkap);
-    expect(hasil).toHaveLength(3);
-    expect(hasil.map((r) => r.customerId)).toEqual(['a', 'b', 'c']);
+describe('papanCustomer', () => {
+  it('dipotong di TOP_CUSTOMER, sisanya tidak ikut', () => {
+    const panjang = Array.from({ length: 12 }, (_, i) => ({
+      ...papanLengkap[0],
+      customerId: `x${i}`,
+      rank: i + 1,
+    }));
+    expect(papanCustomer(panjang)).toHaveLength(TOP_CUSTOMER);
+    expect(papanCustomer(papanLengkap).map((r) => r.customerId)).toEqual(['a', 'b', 'c', 'd']);
   });
 
   // kode_sap ADALAH kredensial login customer: satu orang cukup memanennya dari
   // podium untuk masuk sebagai toko lain.
   it('tidak pernah membocorkan kode SAP, wilayah, atau region', () => {
-    for (const baris of podium(papanLengkap)) {
+    for (const baris of papanCustomer(papanLengkap)) {
       expect(baris).not.toHaveProperty('kodeSap');
       expect(baris).not.toHaveProperty('wilayah');
       expect(baris).not.toHaveProperty('region');
     }
-    expect(JSON.stringify(podium(papanLengkap))).not.toContain('111');
+    expect(JSON.stringify(papanCustomer(papanLengkap))).not.toContain('111');
   });
 
   it('daftar-putih: kolom baru di papan tidak ikut terkirim tanpa sengaja', () => {
     const denganKolomBaru = [{ ...papanLengkap[0], catatanInternal: 'RAHASIA' }];
-    expect(JSON.stringify(podium(denganKolomBaru))).not.toContain('RAHASIA');
+    expect(JSON.stringify(papanCustomer(denganKolomBaru))).not.toContain('RAHASIA');
   });
 
   it('papan kosong tetap aman, bukan error', () => {
-    expect(podium([])).toEqual([]);
+    expect(papanCustomer([])).toEqual([]);
   });
 
   it('meneruskan angka apa adanya - podium dan kartu posisi wajib sepakat', () => {
-    const [juara] = podium(papanLengkap);
+    const [juara] = papanCustomer(papanLengkap);
     const posisi = cariPosisi(papanLengkap, 'a');
     expect(juara.total).toBe(posisi.total);
     expect(juara.rank).toBe(posisi.rank);

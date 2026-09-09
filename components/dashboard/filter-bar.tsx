@@ -4,12 +4,39 @@ import { Search, X } from 'lucide-react';
 import { useMemo } from 'react';
 import type { FilterOptions } from '@/app/api/dashboard/filters/route';
 import { Button } from '@/components/ui/button';
+import { PilihBanyak } from '@/components/ui/combobox';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 
-export type FilterState = { wilayah: string; region: string; depot: string; q: string };
-export const FILTER_KOSONG: FilterState = { wilayah: 'semua', region: 'semua', depot: 'semua', q: '' };
+/**
+ * Region dan depot bisa dipilih lebih dari satu; daftar KOSONG berarti semua.
+ *
+ * Wilayah sengaja tetap tunggal - pilihannya cuma dua, dan memilih keduanya
+ * sama saja dengan tidak menyaring sama sekali.
+ */
+export type FilterState = { wilayah: string; region: string[]; depot: string[]; q: string };
+export const FILTER_KOSONG: FilterState = { wilayah: 'semua', region: [], depot: [], q: '' };
+
+/**
+ * Menuliskan filter ke query string - dipakai bersama ketiga halaman.
+ *
+ * Sengaja satu tempat: penggabungan koma di sini harus cocok persis dengan
+ * pemisahannya di lib/dashboard/filters.ts. Kalau tiap halaman menuliskannya
+ * sendiri, satu yang keliru menghasilkan halaman yang menyaring diam-diam
+ * dengan cara berbeda dari dua lainnya.
+ */
+export function paramFilter(f: FilterState, p = new URLSearchParams()) {
+  if (f.wilayah !== 'semua') p.set('wilayah', f.wilayah);
+  if (f.region.length > 0) p.set('region', f.region.join(','));
+  if (f.depot.length > 0) p.set('depot', f.depot.join(','));
+  if (f.q.trim()) p.set('q', f.q.trim());
+  return p;
+}
+
+/** Apakah ada penyaring yang sedang aktif - untuk pesan "tidak ada yang cocok". */
+export const adaFilterAktif = (f: FilterState) =>
+  f.wilayah !== 'semua' || f.region.length > 0 || f.depot.length > 0 || f.q.trim() !== '';
 
 export function FilterBar({
   value, options, onChange, withSearch = false, searchPlaceholder = 'Cari nama toko atau kode SAP...',
@@ -35,20 +62,34 @@ export function FilterBar({
     // sisi server, jadi yang masih kosong memang benar-benar tidak diketahui dan
     // tidak boleh ikut muncul saat sebuah region dipilih.
     if (value.wilayah !== 'semua') semua = semua.filter((d) => d.wilayah === value.wilayah);
-    if (value.region !== 'semua') semua = semua.filter((d) => d.region === value.region);
+    if (value.region.length > 0) {
+      semua = semua.filter((d) => d.region && value.region.includes(d.region));
+    }
     return semua;
   }, [options, value.wilayah, value.region]);
 
-  const aktif =
-    value.wilayah !== 'semua' || value.region !== 'semua'
-    || value.depot !== 'semua' || value.q.trim() !== '';
+  const aktif = adaFilterAktif(value);
 
   // Tingkat di bawah selalu ikut direset supaya tidak tertinggal kombinasi
   // yang mustahil (misal Region 3B di dalam Indonesia Timur).
   const setWilayah = (wilayah: string) =>
-    onChange({ ...value, wilayah, region: 'semua', depot: 'semua' });
-  const setRegion = (region: string) =>
-    onChange({ ...value, region, depot: 'semua' });
+    onChange({ ...value, wilayah, region: [], depot: [] });
+
+  /**
+   * Depot yang dipilih ikut disaring saat regionnya dilepas.
+   *
+   * Tanpa ini, melepas Region 3A meninggalkan depot 3A yang tetap terpilih tapi
+   * hilang dari daftar - hasilnya tersaring oleh sesuatu yang tidak lagi
+   * terlihat di layar, dan itu jenis kebingungan yang paling sulit ditelusuri.
+   */
+  const setRegion = (region: string[]) => {
+    const bolehTampil = new Set(
+      (options?.depots ?? [])
+        .filter((d) => region.length === 0 || (d.region && region.includes(d.region)))
+        .map((d) => d.depot),
+    );
+    onChange({ ...value, region, depot: value.depot.filter((d) => bolehTampil.has(d)) });
+  };
 
   return (
     <div className="mb-4 rounded-2xl border border-border bg-card p-3 shadow-xs sm:mb-6 sm:p-4">
@@ -93,33 +134,28 @@ export function FilterBar({
             </SelectContent>
           </Select>
 
-          <Select value={value.region} onValueChange={(v) => v && setRegion(v)}>
-            <SelectTrigger className="h-11 min-w-0 flex-1 data-[size=default]:h-11 sm:w-44 sm:flex-none">
-              <SelectValue>
-                {value.region === 'semua' ? 'Semua Region' : `Region ${value.region}`}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="semua">Semua Region</SelectItem>
-              {regionTampil.map((r) => (
-                <SelectItem key={r.region} value={r.region}>Region {r.region}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <PilihBanyak
+            items={regionTampil.map((r) => r.region)}
+            value={value.region}
+            onChange={setRegion}
+            labelSemua="Semua Region"
+            satuan="Region"
+            format={(r) => `Region ${r}`}
+            cariPlaceholder="Cari region..."
+            kosong="Region tidak ditemukan."
+            className="min-w-0 flex-1 sm:w-44 sm:flex-none"
+          />
 
-          <Select value={value.depot} onValueChange={(v) => v && onChange({ ...value, depot: v })}>
-            <SelectTrigger className="h-11 min-w-0 flex-1 data-[size=default]:h-11 sm:w-52 sm:flex-none">
-              <SelectValue>
-                {value.depot === 'semua' ? 'Semua Depot' : value.depot}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="semua">Semua Depot</SelectItem>
-              {depotTampil.map((d) => (
-                <SelectItem key={d.depot} value={d.depot}>{d.depot}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <PilihBanyak
+            items={depotTampil.map((d) => d.depot)}
+            value={value.depot}
+            onChange={(depot) => onChange({ ...value, depot })}
+            labelSemua="Semua Depot"
+            satuan="Depot"
+            cariPlaceholder="Cari depot..."
+            kosong="Depot tidak ditemukan."
+            className="min-w-0 flex-1 sm:w-52 sm:flex-none"
+          />
 
           {aktif && (
             <Button

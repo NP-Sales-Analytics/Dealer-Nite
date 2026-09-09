@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { requireRoleApi } from '@/lib/auth';
 import { cacheDashboard } from '@/lib/dashboard/cache';
 import { attendanceRate } from '@/lib/dashboard/compute';
-import { bacaKunci, filterKey, readFilter, terapkanScope } from '@/lib/dashboard/filters';
+import { bacaKunci, cocokSalahSatu, filterKey, readFilter, terapkanScope } from '@/lib/dashboard/filters';
 import { db } from '@/lib/db';
 
 const load = cacheDashboard(async (key: string) => {
@@ -19,8 +19,8 @@ const load = cacheDashboard(async (key: string) => {
     with cust as (
       select * from public.customers
       where (${w}::text is null or wilayah = ${w}::text)
-        and (${r}::text is null or region = ${r}::text)
-        and (${d}::text is null or depot = ${d}::text)
+        and ${cocokSalahSatu(sql`region`, r)}
+        and ${cocokSalahSatu(sql`depot`, d)}
         and (${k}::text is null or kode_sap = ${k}::text)
     ),
     res as (
@@ -33,8 +33,8 @@ const load = cacheDashboard(async (key: string) => {
     res_terfilter as (
       select * from res
       where (${w}::text is null or wilayah = ${w}::text)
-        and (${r}::text is null or region = ${r}::text)
-        and (${d}::text is null or depot_efektif = ${d}::text)
+        and ${cocokSalahSatu(sql`region`, r)}
+        and ${cocokSalahSatu(sql`depot_efektif`, d)}
         and (${k}::text is null or kode_sap = ${k}::text)
     )
     select

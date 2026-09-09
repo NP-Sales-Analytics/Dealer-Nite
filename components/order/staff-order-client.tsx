@@ -47,8 +47,7 @@ export function StaffOrderClient() {
           dusAwal={info.data.dusAwal}
           tenggat={info.data.tenggat}
           customerId={sel.id}
-          onBatal={() => setSel(null)}
-          labelBatal="Ganti toko"
+          onGantiToko={() => setSel(null)}
         />
       )}
     </div>

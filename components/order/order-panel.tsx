@@ -1,16 +1,15 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState, type ReactNode } from 'react';
-import { toast } from 'sonner';
+import { Repeat2 } from 'lucide-react';
+import { type ReactNode } from 'react';
+import { BagianJumlahDus, labelSimpan, useFormJumlahDus } from './bagian-jumlah-dus';
 import { RiwayatOrder } from './riwayat-order';
-import { QtyStepper } from '@/components/reservation/qty-stepper';
 import { InitialAvatar } from '@/components/shared/initial-avatar';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { PESAN_TOLAKAN, type Tolakan } from '@/lib/order/aturan';
-import { formatSisa, useSisaWaktu } from '@/lib/order/use-sisa-waktu';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 export type OrderTarget = {
   namaToko: string;
@@ -27,7 +26,7 @@ const Row = ({ label, value }: { label: string; value: ReactNode }) => (
   </div>
 );
 
-/** Nilai yang perlu menonjol (dus terakhir, pengambilan pertama, ranking). */
+/** Nilai yang perlu menonjol (dus terakhir, ranking). */
 const Chip = ({ children, className }: { children: ReactNode; className?: string }) => (
   <span
     className={cn(
@@ -47,15 +46,21 @@ const GAYA_RANK: Record<number, string> = {
 };
 
 /**
- * Kartu detail toko + stepper jumlah dus, sepola dengan Pencatatan Kehadiran.
+ * Pencatatan order oleh STAF atas nama sebuah toko.
  *
- * Stepper mengubah angka SECARA LOKAL saja; ledger baru ditulis saat "Simpan
- * Order" ditekan, dan yang dikirim adalah selisihnya terhadap catatan terakhir.
- * Jadi menekan + berkali-kali tidak menghasilkan banyak baris di ledger.
+ * Bagian penyesuaian dusnya memakai komponen yang sama persis dengan layar
+ * customer (BagianJumlahDus) - judul, kalimat penjelas, kotak status, sampai
+ * tulisan tombol simpannya. Admin sering membimbing customer lewat telepon;
+ * kalau dua layar itu berbeda kata, yang dibacakan tidak cocok dengan yang
+ * dilihat di seberang.
  *
- * Dua batasan ikut ditampilkan: lantai pengambilan pertama dan tenggat waktu.
- * Keduanya tetap ditegakkan di /api/order/adjust - yang di sini hanya penjelasan
- * supaya orang tidak terlanjur mengetik angka yang pasti ditolak.
+ * Yang tetap khas staf hanyalah kartu identitas toko di atas - saat mencatat
+ * atas nama orang lain, memastikan tokonya benar adalah langkah yang tidak
+ * boleh dilewati - dan tombol "Ganti toko" yang menempel pada kartu itu.
+ *
+ * Stepper mengubah angka SECARA LOKAL saja; ledger baru ditulis saat Simpan
+ * ditekan, dan yang dikirim adalah selisihnya terhadap catatan terakhir. Jadi
+ * menekan + berkali-kali tidak menghasilkan banyak baris di ledger.
  */
 export function OrderPanel({
   target,
@@ -64,50 +69,37 @@ export function OrderPanel({
   dusAwal,
   tenggat,
   customerId,
-  onBatal,
-  labelBatal = 'Batal',
+  onGantiToko,
 }: {
   target: OrderTarget;
   total: number;
   rank: number | null;
-  /** Pengambilan pertama yang tercatat = lantai permanen. null = belum pernah. */
   dusAwal: number | null;
   tenggat: string | null;
-  /** Diisi hanya untuk jalur staff; kosong = order milik sendiri (customer). */
+  /** Diisi hanya untuk jalur staff; kosong = order milik sendiri. */
   customerId?: string;
-  onBatal: () => void;
-  labelBatal?: string;
+  onGantiToko: () => void;
 }) {
   const qc = useQueryClient();
-  // Sumber kebenaran untuk selisih. Hanya berubah setelah simpan berhasil.
-  const [tercatat, setTercatat] = useState(total);
-  const [qty, setQty] = useState(String(total));
-
-  const sisa = useSisaWaktu(tenggat);
-  const terkunci = sisa !== null && sisa <= 0;
-
-  const lantai = dusAwal ?? 0;
-  const n = Number(qty);
-  const valid = qty !== '' && Number.isInteger(n) && n >= 0;
-  const selisih = valid ? n - tercatat : 0;
-  const diBawahLantai = valid && dusAwal !== null && n < dusAwal;
+  const f = useFormJumlahDus({ total, dusAwal, tenggat });
 
   const simpan = useMutation({
     mutationFn: async () => {
       const r = await fetch('/api/order/adjust', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(customerId ? { qtyChange: selisih, customerId } : { qtyChange: selisih }),
+        body: JSON.stringify(
+          customerId ? { qtyChange: f.selisih, customerId } : { qtyChange: f.selisih },
+        ),
       });
       const data = await r.json();
       if (!r.ok) throw Object.assign(new Error(data.code ?? 'error'), { data });
       return data as { total: number };
     },
     onSuccess: (data) => {
-      setTercatat(data.total);
-      setQty(String(data.total));
       toast.success(`${target.namaToko}: ${data.total} dus tercatat.`);
-      // Segarkan total/ranking di panel ini dan papan Top Spender.
+      // Segarkan total/ranking di panel ini dan papan peringkat. Total baru
+      // me-remount panel ini lewat key di StaffOrderClient.
       qc.invalidateQueries({ queryKey: ['order'] });
       qc.invalidateQueries({ queryKey: ['order-history'] });
       qc.invalidateQueries({ queryKey: ['leaderboard'] });
@@ -127,6 +119,19 @@ export function OrderPanel({
             <h2 className="text-lg font-semibold leading-snug">{target.namaToko}</h2>
             <p className="text-sm text-muted-foreground">{target.kodeSap}</p>
           </div>
+          {/* Menempel pada identitas toko, bukan di sebelah tombol Simpan:
+              di sana ia terbaca seperti "batalkan order", padahal artinya
+              "toko yang saya pilih salah". */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="shrink-0"
+            onClick={onGantiToko}
+            disabled={simpan.isPending}
+          >
+            <Repeat2 className="size-4" />
+            Ganti toko
+          </Button>
         </div>
 
         <div className="divide-y divide-border border-t border-border">
@@ -135,19 +140,9 @@ export function OrderPanel({
           <Row
             label="Dus Terakhir"
             value={
-              <Chip className={tercatat > 0 ? 'bg-primary/10 text-primary' : 'bg-secondary text-muted-foreground'}>
-                {tercatat} dus
+              <Chip className={total > 0 ? 'bg-primary/10 text-primary' : 'bg-secondary text-muted-foreground'}>
+                {total} dus
               </Chip>
-            }
-          />
-          <Row
-            label="Pengambilan Pertama"
-            value={
-              dusAwal === null ? (
-                <span className="text-muted-foreground">Belum ada</span>
-              ) : (
-                <Chip className="bg-secondary text-foreground">{dusAwal} dus</Chip>
-              )
             }
           />
           <Row
@@ -163,120 +158,27 @@ export function OrderPanel({
         </div>
       </div>
 
-      <div className="space-y-3 rounded-2xl border border-border bg-card p-4 shadow-xs">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <Label htmlFor="qty-dus" className="text-base">
-              Total keseluruhan pengambilan dus
-            </Label>
-            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-              Isi dengan <span className="font-semibold text-foreground">total keseluruhan dus</span>,
-              bukan tambahan.
-            </p>
-          </div>
-          {sisa !== null && (
-            <span
-              className={cn(
-                'shrink-0 rounded-full px-2.5 py-1 text-xs font-bold tabular-nums',
-                terkunci ? 'bg-destructive/10 text-destructive' : 'bg-amber-100 text-amber-900',
-              )}
-              title="Batas waktu penambahan order"
-            >
-              {terkunci ? 'Waktu habis' : `Sisa ${formatSisa(sisa)}`}
-            </span>
-          )}
-        </div>
-
-        <QtyStepper
-          id="qty-dus"
-          value={qty}
-          onChange={setQty}
-          min={lantai}
-          ariaLabel="Total keseluruhan pengambilan dus"
-        />
-
-        {/* Ringkasan dibuat menonjol dan berbentuk hitungan sebelum -> perubahan
-            -> sesudah. Angka di kotak adalah TOTAL, bukan penambahan, dan banyak
-            customer berusia lanjut - salah baca di sini berarti salah catat. */}
-        {terkunci ? (
-          <p className="rounded-xl border-2 border-destructive/30 bg-destructive/5 px-3.5 py-3 text-sm font-medium text-destructive">
-            Waktu penambahan sudah habis. Hubungi panitia bila ada yang perlu dikoreksi.
-          </p>
-        ) : !valid ? (
-          <p className="rounded-xl bg-secondary/60 px-3.5 py-3 text-sm text-muted-foreground">
-            Isi dulu jumlah totalnya.
-          </p>
-        ) : diBawahLantai ? (
-          <p className="rounded-xl border-2 border-destructive/30 bg-destructive/5 px-3.5 py-3 text-sm font-medium text-destructive">
-            Tidak boleh kurang dari pengambilan pertama ({dusAwal} dus).
-          </p>
-        ) : selisih === 0 ? (
-          <p className="rounded-xl bg-secondary/60 px-3.5 py-3 text-sm text-muted-foreground">
-            Angkanya masih sama dengan catatan terakhir.
-          </p>
-        ) : (
-          <div aria-live="polite" className="rounded-xl border-2 border-amber-300 bg-amber-50 p-3.5">
-            <p className="flex items-center gap-2 text-sm font-bold text-amber-900">
-              <span className="size-2.5 shrink-0 rounded-full bg-amber-500" aria-hidden />
-              Belum tersimpan
-            </p>
-
-            <div className="mt-3 flex items-stretch gap-2 text-center">
-              <div className="flex-1">
-                <p className="text-[11px] leading-tight text-amber-900/70">Dus terakhir</p>
-                <p className="text-2xl font-bold tabular-nums text-amber-900/60">{tercatat}</p>
-              </div>
-              <div className="flex-1 border-x border-amber-200">
-                <p className="text-[11px] leading-tight text-amber-900/70">Perubahan</p>
-                <p
-                  className={cn(
-                    'text-2xl font-bold tabular-nums',
-                    selisih > 0 ? 'text-emerald-700' : 'text-red-700',
-                  )}
-                >
-                  {selisih > 0 ? '+' : ''}
-                  {selisih}
-                </p>
-              </div>
-              <div className="flex-1">
-                <p className="text-[11px] leading-tight text-amber-900/70">Jadi</p>
-                <p className="text-2xl font-bold tabular-nums text-amber-900">{n}</p>
-              </div>
-            </div>
-
-            <p className="mt-3 text-xs leading-relaxed text-amber-900/80">
-              Tekan <span className="font-semibold">Simpan</span> di bawah supaya tercatat.
-            </p>
-          </div>
-        )}
+      <div className="rounded-2xl border border-border bg-card p-4 shadow-xs">
+        <BagianJumlahDus f={f} />
       </div>
 
       {/* Aksi menempel di bawah layar supaya selalu terjangkau jempol,
           dan tetap aman dari home indicator iOS. */}
-      <div className="sticky bottom-0 -mx-4 flex gap-3 border-t border-border bg-background/95 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur supports-[backdrop-filter]:bg-background/80 md:static md:mx-0 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
+      <div className="sticky bottom-0 -mx-4 flex gap-3 border-t border-border bg-background/95 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur supports-[backdrop-filter]:bg-background/80 md:-mx-6 md:px-6">
         <Button
           variant="outline"
-          className="h-12 flex-1 text-base md:flex-none md:px-6"
-          onClick={() => {
-            setQty(String(tercatat));
-            onBatal();
-          }}
-          disabled={simpan.isPending}
+          className="h-12 flex-1 text-base"
+          onClick={f.reset}
+          disabled={f.selisih === 0 || simpan.isPending}
         >
-          {labelBatal}
+          Reset
         </Button>
         <Button
-          className="h-12 flex-[2] text-base md:flex-none md:px-8"
+          className="h-12 flex-[2] text-base font-semibold"
           onClick={() => simpan.mutate()}
-          disabled={!valid || selisih === 0 || diBawahLantai || terkunci || simpan.isPending}
+          disabled={!f.bisaSimpan || simpan.isPending}
         >
-          {simpan.isPending
-            ? 'Menyimpan...'
-            : terkunci
-              ? 'Waktu Habis'
-              : selisih === 0
-                ? 'Simpan Order'
-                : `Simpan ${selisih > 0 ? '+' : ''}${selisih} dus`}
+          {labelSimpan(f, simpan.isPending)}
         </Button>
       </div>
 

@@ -1,10 +1,18 @@
+import { sql, type SQL } from 'drizzle-orm';
 import type { NextRequest } from 'next/server';
 import type { Role } from '@/lib/auth';
 
 export type DashboardFilter = {
   wilayah: string | null;
-  region: string | null;
-  depot: string | null;
+  /**
+   * Bisa lebih dari satu. Daftar KOSONG berarti "semua", bukan "tidak ada" -
+   * penyaring yang tidak dipakai harus meloloskan segalanya.
+   *
+   * Wilayah sengaja tetap tunggal: pilihannya cuma dua, dan memilih keduanya
+   * sama saja dengan tidak menyaring.
+   */
+  region: string[];
+  depot: string[];
   q: string | null;
   /**
    * Pembatas per-toko. TIDAK dibaca dari query string - hanya dipasang oleh
@@ -19,16 +27,48 @@ const bersih = (v: string | null) => {
   return s.length > 0 && s !== 'semua' ? s : null;
 };
 
+/**
+ * Daftar dipisah koma di query string.
+ *
+ * Nama depot memang bisa mengandung spasi ("1A Jakarta") tapi tidak pernah
+ * mengandung koma - sudah dipastikan terhadap Hierarchy Depot.csv - jadi koma
+ * aman jadi pemisah tanpa perlu pengkodean tambahan.
+ */
+const bersihDaftar = (v: string | null) => {
+  const s = (v ?? '').trim();
+  if (!s || s === 'semua') return [];
+  return [...new Set(s.split(',').map((x) => x.trim()).filter(Boolean))];
+};
+
 export function readFilter(request: NextRequest): DashboardFilter {
   const p = request.nextUrl.searchParams;
   return {
     wilayah: bersih(p.get('wilayah')),
-    region: bersih(p.get('region')),
-    depot: bersih(p.get('depot')),
+    region: bersihDaftar(p.get('region')),
+    depot: bersihDaftar(p.get('depot')),
     q: bersih(p.get('q')),
     kodeSap: null,
   };
 }
+
+/**
+ * Kondisi SQL untuk penyaring berdaftar: lolos semua bila daftarnya kosong.
+ *
+ * Dipakai bersama supaya keenam route memakai aturan yang sama persis - kalau
+ * satu route menuliskannya sendiri lalu keliru, yang bocor adalah data di luar
+ * cakupan, dan itu tidak terlihat sampai ada yang mengeceknya.
+ */
+export const cocokSalahSatu = (kolom: SQL, pilihan: string[]): SQL =>
+  // Daftar kosong = tidak menyaring. Dikembalikan sebagai `true` alih-alih
+  // pemeriksaan cardinality, supaya tidak ada parameter array kosong yang perlu
+  // dikirim sama sekali.
+  pilihan.length === 0
+    ? sql`true`
+    // sql.param, BUKAN interpolasi biasa: drizzle merentangkan array JS menjadi
+    // daftar berkoma "(p1, p2)" untuk keperluan IN (...), dan bentuk itu bukan
+    // array yang bisa dipakai `= any(...)`. sql.param mengikatnya sebagai SATU
+    // nilai, sehingga postgres.js mengirimnya sebagai array Postgres sungguhan.
+    : sql`${kolom} = any(${sql.param(pilihan)}::text[])`;
 
 /**
  * Memaksakan cakupan data milik akun ke atas filter yang diminta.
@@ -46,7 +86,9 @@ export function terapkanScope(
   user: { role: Role; dataScope: string | null },
 ): DashboardFilter {
   if (!user.dataScope) return f;
-  if (user.role === 'rsm') return { ...f, region: user.dataScope };
+  // Menimpa seluruh daftar, bukan menambah: RSM tetap terkunci di satu region
+  // walau query string-nya menyodorkan lima region sekaligus.
+  if (user.role === 'rsm') return { ...f, region: [user.dataScope] };
   if (user.role === 'customer') return { ...f, kodeSap: user.dataScope };
   return f;
 }
@@ -56,15 +98,17 @@ export function terapkanScope(
  * Urutannya wilayah > region > depot, sama dengan hierarki datanya.
  */
 export const filterKey = (f: DashboardFilter) =>
-  `${f.wilayah ?? ''}|${f.region ?? ''}|${f.depot ?? ''}|${f.q ?? ''}|${f.kodeSap ?? ''}`;
+  // Daftar diurutkan supaya ["3A","3B"] dan ["3B","3A"] berbagi satu entri cache.
+  `${f.wilayah ?? ''}|${[...f.region].sort().join(',')}|${[...f.depot].sort().join(',')}|${f.q ?? ''}|${f.kodeSap ?? ''}`;
 
 /** Kebalikan filterKey, dipakai di dalam fungsi yang di-cache. */
 export function bacaKunci(key: string): DashboardFilter {
   const [wilayah, region, depot, q, kodeSap] = key.split('|');
+  const daftar = (v: string) => (v ? v.split(',').filter(Boolean) : []);
   return {
     wilayah: wilayah || null,
-    region: region || null,
-    depot: depot || null,
+    region: daftar(region),
+    depot: daftar(depot),
     q: q || null,
     kodeSap: kodeSap || null,
   };

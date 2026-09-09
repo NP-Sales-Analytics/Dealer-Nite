@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import type { FilterOptions } from '@/app/api/dashboard/filters/route';
 import { requireRoleApi } from '@/lib/auth';
 import { cacheDashboard } from '@/lib/dashboard/cache';
-import { bacaKunci, filterKey, readFilter, terapkanScope } from '@/lib/dashboard/filters';
+import { bacaKunci, cocokSalahSatu, filterKey, readFilter, terapkanScope } from '@/lib/dashboard/filters';
 import { lengkapiInduk } from '@/lib/dashboard/hierarchy';
 import { db } from '@/lib/db';
 
@@ -24,7 +24,7 @@ const load = cacheDashboard(async (key: string) => {
       nullif(trim(c.region), '')  as region,
       nullif(trim(c.wilayah), '') as wilayah
     from public.customers c
-    where (${r}::text is null or c.region = ${r}::text)
+    where ${cocokSalahSatu(sql`c.region`, r)}
       and (${k}::text is null or c.kode_sap = ${k}::text)
     order by depot
   `)) as unknown as { depot: string; region: string | null; wilayah: string | null }[];

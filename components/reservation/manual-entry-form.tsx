@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { QtyStepper } from './qty-stepper';
 import { Button } from '@/components/ui/button';
+import { PilihSatu } from '@/components/ui/combobox';
 import { Dialog, DialogClose, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,7 +18,7 @@ export function ManualEntryForm({
   const [qty, setQty] = useState('1');
   const [submitting, setSubmitting] = useState(false);
 
-  const valid = nama.trim().length >= 2 && depot.trim().length >= 1
+  const valid = nama.trim().length >= 2 && depot !== ''
     && qty !== '' && Number.isInteger(Number(qty)) && Number(qty) >= 0;
 
   async function submit() {
@@ -29,7 +30,7 @@ export function ManualEntryForm({
         body: JSON.stringify({
           isManualEntry: true,
           manualNamaCustomer: nama.trim(),
-          manualDepot: depot.trim(),
+          manualDepot: depot,
           qtyHadir: Number(qty),
         }),
       });
@@ -86,18 +87,21 @@ export function ManualEntryForm({
 
           <div className="space-y-2">
             <Label htmlFor="m-depot">Depot</Label>
-            {/* datalist native: autocomplete 35 depot tanpa library combobox */}
-            <Input
-              className="h-11"
+            {/* Dropdown, BUKAN ketikan bebas. Depot yang diketik sendiri sangat
+                mudah meleset satu huruf atau beda penulisan, dan begitu tersimpan
+                ia jadi nilai baru yang tidak pernah cocok dengan filter mana pun
+                - salahnya baru ketahuan saat rekap, ketika sudah terlambat
+                diperbaiki. Daftarnya panjang (97 depot), jadi ada pencarian di
+                dalamnya. */}
+            <PilihSatu
               id="m-depot"
-              list="depot-list"
-              placeholder="Ketik atau pilih depot"
+              items={depots}
               value={depot}
-              onChange={(e) => setDepot(e.target.value)}
+              onChange={setDepot}
+              placeholder="Pilih depot"
+              cariPlaceholder="Cari depot..."
+              kosong="Depot tidak ditemukan."
             />
-            <datalist id="depot-list">
-              {depots.map((d) => <option key={d} value={d} />)}
-            </datalist>
           </div>
 
           <div className="space-y-2">

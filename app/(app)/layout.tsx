@@ -28,7 +28,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             header sidebar. Di HP ia menggantikan wordmark Nippon: nama halaman
             lebih berguna daripada merek yang sudah terlihat di drawer. */}
         <AppHeader />
-        <div className="min-w-0 flex-1 p-4 md:p-6">{children}</div>
+        {/* flex flex-col: halaman yang punya bar aksi menempel butuh tinggi
+            yang bisa diisi penuh, supaya barnya jatuh ke dasar layar walau
+            isinya pendek. Halaman lain tidak terpengaruh - anak tunggal di
+            kolom fleks tetap mengalir seperti biasa. */}
+        <div className="flex min-w-0 flex-1 flex-col p-4 md:p-6">{children}</div>
       </SidebarInset>
     </SidebarProvider>
     </TooltipProvider>

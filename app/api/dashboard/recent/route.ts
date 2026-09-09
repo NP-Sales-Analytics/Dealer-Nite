@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { requireRoleApi } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { cacheDashboard } from '@/lib/dashboard/cache';
-import { readFilter, terapkanScope } from '@/lib/dashboard/filters';
+import { cocokSalahSatu, readFilter, terapkanScope } from '@/lib/dashboard/filters';
 
 const PAGE_SIZE = 20;
 
@@ -13,7 +13,7 @@ const PAGE_SIZE = 20;
 // sehingga admin yang baru mengedit langsung melihat hasilnya.
 const load = cacheDashboard(async (key: string) => {
   const { wilayah, region, depot, q, kodeSap, page, sort } = JSON.parse(key) as {
-    wilayah: string | null; region: string | null; depot: string | null;
+    wilayah: string | null; region: string[]; depot: string[];
     q: string | null; kodeSap: string | null; page: number; sort: 'asc' | 'desc';
   };
   const naik = sort === 'asc';
@@ -23,9 +23,9 @@ const load = cacheDashboard(async (key: string) => {
   // nomor halaman tidak pernah berbeda dari isinya.
   const kondisi = sql`
     (${wilayah}::text is null or c.wilayah = ${wilayah}::text)
-    and (${region}::text is null or c.region = ${region}::text)
+    and ${cocokSalahSatu(sql`c.region`, region)}
     and (${kodeSap}::text is null or c.kode_sap = ${kodeSap}::text)
-    and (${depot}::text is null or coalesce(r.depot_override, c.depot, r.manual_depot) = ${depot}::text)
+    and ${cocokSalahSatu(sql`coalesce(r.depot_override, c.depot, r.manual_depot)`, depot)}
     and (
       ${q}::text is null
       or coalesce(c.nama_toko, r.manual_nama_customer) ilike '%' || ${q}::text || '%'

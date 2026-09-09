@@ -68,3 +68,15 @@ export function lengkapiInduk(
     wilayah: wilayah ?? induk?.wilayah ?? null,
   };
 }
+
+/**
+ * Seluruh nama depot resmi, urut abjad.
+ *
+ * Dipakai sebagai isi dropdown Tamu Manual. Sebelumnya daftar itu diturunkan
+ * dari depot yang kebetulan sudah ada di tabel customers, sehingga depot yang
+ * belum punya satu pun toko tidak bisa dipilih sama sekali - padahal tamu
+ * manual justru sering datang dari depot semacam itu.
+ */
+export function semuaDepot(): string[] {
+  return [...hierarkiDepot().keys()].sort((a, b) => a.localeCompare(b, 'id'));
+}
