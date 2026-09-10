@@ -17,13 +17,19 @@ import * as schema from './schema';
 // banyak koneksi sisi-app ke sedikit koneksi backend, jadi menaikkannya aman
 // selama tidak melampaui pool sisi Supavisor sendiri.
 //
-// ponytail: 10 dipilih dari uji coba, bukan angka pasti dari dashboard Supabase
+// max:10 cukup untuk 150 VU tapi mulai terasa lagi di 200-250 VU: uji beban
+// murni-tulis 250 VU (toko dummy diperbanyak dulu supaya tidak ada VU yang
+// terpaksa berbagi toko - itu sumber lonjakan yang berbeda, sudah dipisahkan
+// dari temuan ini) tetap menunjukkan p95 615ms, sedikit di atas ambang 500ms,
+// dengan pola yang sama: nol error, hanya mengantre.
+//
+// ponytail: 20 dipilih dari uji coba, bukan angka pasti dari dashboard Supabase
 // (tidak bisa dicek dari sini). Kalau produksi mulai menunjukkan error koneksi
 // ("too many clients"/"MaxClientsInSessionMode") saat banyak instance Vercel
 // aktif bersamaan, turunkan lagi - itu tandanya batas Supavisor sudah tercapai.
 const client = postgres(process.env.DATABASE_URL!, {
   prepare: false,
-  max: 10,
+  max: 20,
   idle_timeout: 20,
   connect_timeout: 10,
   // Saat DB jenuh, lebih baik gagal bersih dan MELEPAS koneksi daripada

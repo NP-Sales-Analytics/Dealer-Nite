@@ -33,9 +33,10 @@ export default function () {
       }
     },
     // Pembatasan ini harus tetap berlaku saat sistem sibuk, bukan cuma saat santai.
-    'podium maksimal 3 baris': (r) => {
+    // Podium 3 + daftar lanjutan 2 baris (TOP_CUSTOMER di leaderboard.ts).
+    'papan customer maksimal 5 baris': (r) => {
       try {
-        return r.json('top').length <= 3;
+        return r.json('top').length <= 5;
       } catch {
         return false;
       }
