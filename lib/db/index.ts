@@ -17,11 +17,14 @@ import * as schema from './schema';
 // banyak koneksi sisi-app ke sedikit koneksi backend, jadi menaikkannya aman
 // selama tidak melampaui pool sisi Supavisor sendiri.
 //
-// max:10 cukup untuk 150 VU tapi mulai terasa lagi di 200-250 VU: uji beban
-// murni-tulis 250 VU (toko dummy diperbanyak dulu supaya tidak ada VU yang
-// terpaksa berbagi toko - itu sumber lonjakan yang berbeda, sudah dipisahkan
-// dari temuan ini) tetap menunjukkan p95 615ms, sedikit di atas ambang 500ms,
-// dengan pola yang sama: nol error, hanya mengantre.
+// KOREKSI: pool dinaikkan lagi ke 20 saat uji beban 250 VU menunjukkan p95
+// 615ms, dengan dugaan penyebabnya sama seperti kenaikan 3->10 dulu. Dugaan itu
+// SALAH - instrumentasi Server-Timing membuktikannya: transaksi lengkap (lock +
+// select + insert + update) hanya makan ~43ms rata-rata bahkan di bawah 60
+// request bersamaan. Pool bukan lagi titik sempitnya; penyebab sesungguhnya
+// ada di lib/rate-limit.ts (Redis Upstash di region berbeda, bukan Postgres).
+// 20 tetap dipertahankan - tidak salah, hanya tidak relevan untuk temuan itu -
+// karena menaikkannya tidak berbahaya dan memberi headroom untuk skenario lain.
 //
 // ponytail: 20 dipilih dari uji coba, bukan angka pasti dari dashboard Supabase
 // (tidak bisa dicek dari sini). Kalau produksi mulai menunjukkan error koneksi

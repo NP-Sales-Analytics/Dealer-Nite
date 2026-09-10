@@ -14,28 +14,8 @@ import { orderAdjustSchema } from '@/lib/validations/order';
 // tapi dikunci ke region-nya lewat bolehUbahOrder di bawah.
 const STAFF_ORDER_ROLES = ['superadmin', 'admin_rsvp', 'rsm'] as const;
 
-/**
- * DIAGNOSTIK SEMENTARA - dibuang lagi setelah root cause ketemu.
- * Pool koneksi dinaikkan 10->20 hanya memangkas p95 615ms -> 592ms (~4%),
- * jauh dari perbaikan 27x saat pool dinaikkan 3->10 dulu. Itu tandanya pool
- * BUKAN penyebab utama kali ini - daripada menebak lagi, ukur langsung.
- */
-function jam() {
-  const t = process.hrtime.bigint();
-  let awal = t;
-  return (label: string) => {
-    const sekarang = process.hrtime.bigint();
-    const ms = Number(sekarang - awal) / 1e6;
-    awal = sekarang;
-    return `${label};dur=${ms.toFixed(1)}`;
-  };
-}
-
 export async function POST(request: NextRequest) {
-  const tick = jam();
-  const timing: string[] = [];
   const session = await getSession();
-  timing.push(tick('session'));
   if (!session) return NextResponse.json({ error: 'Belum login' }, { status: 401 });
 
   const parsed = orderAdjustSchema.safeParse(await request.json());
@@ -70,24 +50,16 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  timing.push(tick('otorisasi'));
-
   const { ok } = await rateLimit(`order-adjust:${session.kind}:${session.id}`);
-  timing.push(tick('rate-limit'));
   if (!ok) return NextResponse.json({ error: 'Terlalu banyak permintaan' }, { status: 429 });
 
   const tenggat = await bacaTenggat();
-  timing.push(tick('tenggat'));
 
   // Transaksi + advisory lock per-toko men-serialkan baca-cek-tulis satu toko, jadi
   // dua penambahan hampir bersamaan tidak bisa sama-sama lolos cek.
   // ponytail: advisory lock per-toko. Naikkan ke trigger/constraint kalau kelak perlu.
-  const tickTx = jam();
-  const timingTx: string[] = [];
   const hasil = await db.transaction(async (tx) => {
-    timingTx.push(tickTx('tx-mulai'));
     await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${targetId}, 0))`);
-    timingTx.push(tickTx('lock'));
 
     // Total dan dus_awal DIGABUNG jadi satu round trip, bukan dua select
     // terpisah. Database ada di region lain dari fungsinya (Seoul vs Singapura),
@@ -104,7 +76,6 @@ export async function POST(request: NextRequest) {
       where c.id = ${targetId}
       group by c.id, c.dus_awal
     `)) as unknown as { dusAwal: number | null; total: number }[];
-    timingTx.push(tickTx('select-gabungan'));
     if (!toko) return { tolakan: 'NOT_FOUND' as const, total: 0 };
 
     const totalBaru = toko.total + qtyChange;
@@ -120,18 +91,15 @@ export async function POST(request: NextRequest) {
     if (tolakan) return { tolakan, total: toko.total };
 
     await tx.insert(orderAdjustments).values({ customerId: targetId, qtyChange, recordedBy });
-    timingTx.push(tickTx('insert'));
 
     // Pengambilan pertama yang tercatat menjadi lantai permanen.
     const awalBaru = toko.dusAwal === null && totalBaru > 0 ? totalBaru : null;
     if (awalBaru !== null) {
       await tx.update(customers).set({ dusAwal: awalBaru }).where(eq(customers.id, targetId));
-      timingTx.push(tickTx('update-dus-awal'));
     }
 
     return { tolakan: null, total: totalBaru, dusAwal: toko.dusAwal ?? awalBaru, awalBaru };
   });
-  timing.push(tick('transaksi-total'), ...timingTx);
 
   if (hasil.tolakan === 'NOT_FOUND') {
     return NextResponse.json({ code: 'NOT_FOUND', error: 'Toko tidak ditemukan' }, { status: 404 });
@@ -150,8 +118,5 @@ export async function POST(request: NextRequest) {
   // pembuangan sesering itu berarti memuat ulang seluruh tabel tiap order.
   if (hasil.awalBaru !== null) lupakanCustomer();
 
-  return NextResponse.json(
-    { total: hasil.total, dusAwal: hasil.dusAwal },
-    { headers: { 'Server-Timing': timing.join(', ') } },
-  );
+  return NextResponse.json({ total: hasil.total, dusAwal: hasil.dusAwal });
 }
