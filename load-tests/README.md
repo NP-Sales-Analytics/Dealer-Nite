@@ -1,6 +1,6 @@
 # Uji Beban & Stress Test
 
-Membuktikan aplikasi aman dipakai 150+ orang bersamaan di malam event, dan
+Membuktikan aplikasi aman dipakai 200 orang bersamaan di malam event, dan
 menemukan bug konkurensi di Modul Order **sebelum** event.
 
 ## Aturan keras
@@ -15,7 +15,7 @@ bisa dihilangkan:
 
 - selama tes berjalan, papan Top Spender dan dashboard menampilkan toko dummy
   bernama `LOADTEST TOKO n` ke siapa pun yang membuka situs;
-- beban 150-200 VU bisa memperlambat pengguna sungguhan yang sedang online.
+- beban 200-250 VU bisa memperlambat pengguna sungguhan yang sedang online.
 
 Karena itu: jalankan di jam sepi, beritahu tim lebih dulu, dan **verifikasi
 pembersihannya** - jangan hanya dijalankan lalu dipercaya.
@@ -60,7 +60,7 @@ Semua data dummy ditandai `LOADTEST` (`kode_sap` berawalan `LT`), sehingga
 BASE_URL=<preview> npm run loadtest:race
 ```
 
-Lalu profil beban bertahap (30 -> 150 -> 200 VU):
+Lalu profil beban bertahap (50 -> 200 ditahan -> spike 250 VU):
 
 ```
 k6 run -e BASE_URL=<preview> load-tests/scenarios/leaderboard-read.js
@@ -100,11 +100,11 @@ menembak database berisi data nyata:
 
 ## Kriteria lulus
 
-- `http_req_duration` p95 < 500ms, p99 < 1000ms pada 150 VU
+- `http_req_duration` p95 < 500ms, p99 < 1000ms pada 200 VU
 - `http_req_failed` < 1%
 - `checks` > 99%
 - `loadtest:verify` LULUS
-- Server tidak mati saat spike 200 VU
+- Server tidak mati saat spike 250 VU
 
 ## Catatan
 

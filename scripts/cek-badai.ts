@@ -19,7 +19,7 @@ import { db } from './loadtest-common';
  *   KLIEN=180 ORDER=10 ... (batas koneksi: naikkan KLIEN sampai SUBSCRIBED gagal)
  */
 const BASE = process.env.BASE_URL ?? 'https://pylox.bi-nipponpaint.com';
-const KLIEN = Number(process.env.KLIEN ?? 150);
+const KLIEN = Number(process.env.KLIEN ?? 200);
 const ORDER = Number(process.env.ORDER ?? 8);
 /**
  * ORDER=0 menjadikan proses ini PENDENGAR saja - tidak memicu order sendiri.
