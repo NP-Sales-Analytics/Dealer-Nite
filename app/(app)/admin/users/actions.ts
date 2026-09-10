@@ -19,6 +19,18 @@ function bacaHalaman(formData: FormData): string[] {
   return formData.getAll('pages').map(String).filter((h) => HREF_SAH.includes(h));
 }
 
+/**
+ * Izin unduh dibaca dari centang, dan HANYA berlaku untuk peran tim.
+ *
+ * Customer tidak punya halaman rekap sama sekali, jadi menyimpan izin unduh
+ * untuk mereka cuma menyisakan nilai yang tidak pernah dipakai tapi terlihat
+ * seperti berarti - jenis data yang nanti dipercaya orang saat mengaudit.
+ */
+function bacaBolehUnduh(formData: FormData, role: Role): boolean {
+  if (role === 'customer') return false;
+  return formData.get('bolehUnduh') === 'on';
+}
+
 /** Cakupan data hanya disimpan untuk role yang memang dibatasi. */
 function bacaScope(formData: FormData, role: Role): string | null {
   if (!butuhScope(role)) return null;
@@ -57,6 +69,7 @@ export async function createUser(_prev: string | null, formData: FormData): Prom
     passwordHash,
     allowedPages: bacaHalaman(formData),
     dataScope: bacaScope(formData, role),
+    bolehUnduh: bacaBolehUnduh(formData, role),
   });
 
   revalidatePath('/admin/users');
@@ -89,6 +102,7 @@ export async function updateUser(_prev: string | null, formData: FormData): Prom
     role: Role;
     allowedPages: string[];
     dataScope: string | null;
+    bolehUnduh: boolean;
     passwordHash?: string;
   } = {
     email: email || null,
@@ -96,6 +110,7 @@ export async function updateUser(_prev: string | null, formData: FormData): Prom
     role,
     allowedPages: bacaHalaman(formData),
     dataScope: bacaScope(formData, role),
+    bolehUnduh: bacaBolehUnduh(formData, role),
   };
 
   if (password !== '') {

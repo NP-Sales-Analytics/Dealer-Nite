@@ -85,6 +85,33 @@ export function DetailOrderDialog({
             <Baris label="Wilayah / Region" nilai={`${row.wilayah ?? '-'} / ${row.region ?? '-'}`} />
           </Seksi>
 
+          {/* Kehadiran ditaruh SEBELUM Order: "toko ini sudah datang belum?"
+              adalah pertanyaan pertama saat merekap, dan jawabannya menentukan
+              apakah angka ordernya masuk akal untuk dipersoalkan. */}
+          <Seksi judul="Kehadiran">
+            {row.qtyHadir === null ? (
+              <p className="rounded-xl border border-border bg-secondary/30 px-3.5 py-3 text-sm text-muted-foreground">
+                Belum tercatat hadir.
+              </p>
+            ) : (
+              <>
+                <Baris label="Jumlah hadir" nilai={`${row.qtyHadir} pax`} />
+                <Baris
+                  label="Jumlah diundang"
+                  nilai={row.qtyUndangan === null ? null : `${row.qtyUndangan} pax`}
+                />
+                <Baris
+                  label="Jam check-in"
+                  nilai={row.checkedInAt ? jamJakarta(row.checkedInAt) : null}
+                />
+                <Baris
+                  label="Tanggal"
+                  nilai={row.checkedInAt ? tanggalJakarta(row.checkedInAt) : null}
+                />
+              </>
+            )}
+          </Seksi>
+
           <Seksi judul="Order">
             <Baris label="Dus terakhir" nilai={`${row.total} dus`} />
             <Baris

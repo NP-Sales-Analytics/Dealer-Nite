@@ -13,7 +13,10 @@ export default async function KehadiranPage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl">
-      <AttendanceClient bisaUbah={bisaUbah} />
+      {/* Izin unduh diputuskan di server dan dikirim sebagai prop. Route
+          ekspornya tetap memeriksa sendiri - ini hanya menyembunyikan tombol
+          yang pasti ditolak, bukan pengamanannya. */}
+      <AttendanceClient bisaUbah={bisaUbah} bisaUnduh={user.bolehUnduh} />
     </div>
   );
 }

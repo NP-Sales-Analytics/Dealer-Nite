@@ -13,7 +13,7 @@ const PAGE_SIZE = 20;
 // sehingga admin yang baru mengedit langsung melihat hasilnya.
 const load = cacheDashboard(async (key: string) => {
   const { wilayah, region, depot, q, kodeSap, page, sort } = JSON.parse(key) as {
-    wilayah: string | null; region: string[]; depot: string[];
+    wilayah: string[]; region: string[]; depot: string[];
     q: string | null; kodeSap: string | null; page: number; sort: 'asc' | 'desc';
   };
   const naik = sort === 'asc';
@@ -22,7 +22,7 @@ const load = cacheDashboard(async (key: string) => {
   // Satu definisi kondisi dipakai untuk data maupun hitungan total, supaya
   // nomor halaman tidak pernah berbeda dari isinya.
   const kondisi = sql`
-    (${wilayah}::text is null or c.wilayah = ${wilayah}::text)
+    ${cocokSalahSatu(sql`c.wilayah`, wilayah)}
     and ${cocokSalahSatu(sql`c.region`, region)}
     and (${kodeSap}::text is null or c.kode_sap = ${kodeSap}::text)
     and ${cocokSalahSatu(sql`coalesce(r.depot_override, c.depot, r.manual_depot)`, depot)}

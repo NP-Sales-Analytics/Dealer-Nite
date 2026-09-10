@@ -15,9 +15,12 @@ import { cn } from '@/lib/utils';
  * pun, dan baru ketahuan saat rekap.
  */
 
+// bg-card (putih), BUKAN bg-background (#f9fafb). Latar abu pada kontrol yang
+// bisa diklik terbaca seperti tombol mati - dan filter yang terlihat mati akan
+// dilewati orang begitu saja.
 const GAYA_PEMICU =
-  'flex h-11 items-center justify-between gap-2 rounded-xl border border-border bg-background px-3.5 text-sm ' +
-  'select-none hover:bg-secondary/50 data-[popup-open]:bg-secondary/50 ' +
+  'flex h-11 items-center justify-between gap-2 rounded-xl border border-border bg-card px-3.5 text-sm ' +
+  'select-none transition-colors hover:border-ring/60 data-[popup-open]:border-ring ' +
   'focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:outline-none';
 
 const GAYA_POPUP =
@@ -158,7 +161,7 @@ export function PilihBanyak({
     >
       <Combobox.Trigger
         aria-label={labelSemua}
-        className={cn(GAYA_PEMICU, value.length > 0 && 'border-primary/40 bg-primary/5', className)}
+        className={cn(GAYA_PEMICU, value.length > 0 && 'border-primary font-medium', className)}
       >
         <span className={cn('truncate', value.length === 0 && 'text-muted-foreground')}>
           {ringkas}

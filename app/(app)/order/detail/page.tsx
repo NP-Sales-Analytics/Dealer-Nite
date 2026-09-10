@@ -11,7 +11,7 @@ export default async function DetailOrderPage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl">
-      <DetailOrderClient bisaUbah={bisaUbah} />
+      <DetailOrderClient bisaUbah={bisaUbah} bisaUnduh={user.bolehUnduh} />
     </div>
   );
 }

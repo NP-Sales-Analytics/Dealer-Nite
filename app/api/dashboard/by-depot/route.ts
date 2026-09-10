@@ -24,7 +24,7 @@ const load = cacheDashboard(async (key: string) => {
              -- paling sering muncul supaya labelnya stabil.
              mode() within group (order by region) as region
       from public.customers
-      where (${w}::text is null or wilayah = ${w}::text)
+      where ${cocokSalahSatu(sql`wilayah`, w)}
         and ${cocokSalahSatu(sql`region`, r)}
         and ${cocokSalahSatu(sql`depot`, d)}
         and (${k}::text is null or kode_sap = ${k}::text)
@@ -39,7 +39,7 @@ const load = cacheDashboard(async (key: string) => {
              count(*) filter (where r.customer_id is not null)::int as toko
       from public.reservations r
       left join public.customers c on c.id = r.customer_id
-      where (${w}::text is null or c.wilayah = ${w}::text)
+      where ${cocokSalahSatu(sql`c.wilayah`, w)}
         and ${cocokSalahSatu(sql`c.region`, r)}
         and ${cocokSalahSatu(sql`coalesce(r.depot_override, c.depot, r.manual_depot)`, d)}
         and (${k}::text is null or c.kode_sap = ${k}::text)

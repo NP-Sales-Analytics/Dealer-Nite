@@ -16,6 +16,8 @@ export type SessionUser = {
   role: Role;
   allowedPages: string[];
   dataScope: string | null;
+  /** Izin mengunduh Excel. Lihat 0009_boleh_unduh.sql. */
+  bolehUnduh: boolean;
 };
 
 export const HOME_BY_ROLE: Record<Role, string> = {
@@ -93,6 +95,7 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
       role: profile.role as Role,
       allowedPages: profile.allowedPages ?? [],
       dataScope: profile.dataScope,
+      bolehUnduh: profile.bolehUnduh,
     };
   }
 
@@ -107,6 +110,8 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
     role: 'customer',
     allowedPages: [],
     dataScope: c.kodeSap,
+    // Customer tidak punya halaman rekap, jadi tidak ada yang bisa diunduh.
+    bolehUnduh: false,
   };
 });
 

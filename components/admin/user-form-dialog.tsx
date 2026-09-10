@@ -23,6 +23,7 @@ export type UserRow = {
   role: Role;
   allowedPages: string[];
   dataScope: string | null;
+  bolehUnduh: boolean;
 };
 
 /**
@@ -211,6 +212,31 @@ export function UserFormDialog({
               Role <span className="font-medium text-foreground">{ROLE_LABEL[role]}</span> melihat
               seluruh data, jadi tidak ada cakupan data yang perlu diisi.
             </p>
+          )}
+
+          {/* Customer tidak punya halaman rekap sama sekali, jadi izin ini tidak
+              berarti apa-apa untuk mereka - disembunyikan alih-alih ditampilkan
+              lalu diabaikan diam-diam di server. */}
+          {role !== 'customer' && (
+            <div className="space-y-2">
+              <Label>Izin Unduh Data</Label>
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-background px-3.5 py-3 transition-colors hover:bg-secondary/40">
+                <input
+                  type="checkbox"
+                  name="bolehUnduh"
+                  defaultChecked={row?.bolehUnduh ?? false}
+                  className="mt-0.5 size-4 shrink-0 accent-primary"
+                />
+                <span className="min-w-0 flex-1 text-sm">
+                  Boleh mengunduh Excel
+                  <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
+                    Rekap Kehadiran dan Detail Order. Terpisah dari izin membuka
+                    halamannya: berkas yang sudah terunduh bisa dikirim ke mana saja
+                    dan tidak bisa ditarik kembali.
+                  </span>
+                </span>
+              </label>
+            </div>
           )}
         </form>
 

@@ -101,6 +101,12 @@ export async function GET(request: NextRequest) {
   const user = await requireRoleApi(['superadmin', 'admin_rsvp', 'marketing', 'rsm']);
   if (user instanceof NextResponse) return user;
 
+  // Gerbang KEDUA, terpisah dari izin membuka halamannya. Bisa melihat rekap di
+  // layar tidak otomatis berarti boleh membawanya pulang sebagai berkas.
+  if (!user.bolehUnduh) {
+    return NextResponse.json({ error: 'Tidak punya izin mengunduh data' }, { status: 403 });
+  }
+
   const { wilayah, region, depot, q, kodeSap } = terapkanScope(readFilter(request), user);
   const naik = request.nextUrl.searchParams.get('sort') === 'asc';
 
@@ -120,7 +126,7 @@ export async function GET(request: NextRequest) {
     from public.reservations r
     left join public.customers c on c.id = r.customer_id
     left join public.profiles p on p.id = r.checked_in_by
-    where (${wilayah}::text is null or c.wilayah = ${wilayah}::text)
+    where ${cocokSalahSatu(sql`c.wilayah`, wilayah)}
       and ${cocokSalahSatu(sql`c.region`, region)}
       and (${kodeSap}::text is null or c.kode_sap = ${kodeSap}::text)
       and ${cocokSalahSatu(sql`coalesce(r.depot_override, c.depot, r.manual_depot)`, depot)}

@@ -19,6 +19,16 @@ export type OrderRow = {
   dusAwal: number | null;
   terakhir: string | null;
   jumlahAdjustment: number;
+  /**
+   * Kehadiran toko ini. null berarti belum tercatat hadir sama sekali.
+   *
+   * Ikut di daftar order karena keduanya memang dilihat berbarengan saat rekap:
+   * "toko ini sudah datang belum?" adalah pertanyaan pertama sebelum ordernya
+   * dipersoalkan. Satu LEFT JOIN, tanpa request kedua.
+   */
+  qtyHadir: number | null;
+  qtyUndangan: number | null;
+  checkedInAt: string | null;
 };
 
 export type OrderListResponse = {
@@ -30,7 +40,7 @@ export type OrderListResponse = {
 };
 
 type Kunci = {
-  wilayah: string | null;
+  wilayah: string[];
   region: string[];
   depot: string[];
   q: string | null;
@@ -52,7 +62,7 @@ const load = cacheDashboard(async (key: string) => {
   // Satu fragmen kondisi dipakai bersama query baris dan query hitung, supaya
   // nomor halaman tidak pernah berbeda dari isinya.
   const kondisi = sql`
-    (${wilayah}::text is null or c.wilayah = ${wilayah}::text)
+    ${cocokSalahSatu(sql`c.wilayah`, wilayah)}
     and ${cocokSalahSatu(sql`c.region`, region)}
     and (${kodeSap}::text is null or c.kode_sap = ${kodeSap}::text)
     and ${cocokSalahSatu(sql`coalesce(nullif(trim(c.depot), ''), '(Tanpa Depot)')`, depot)}
@@ -78,9 +88,15 @@ const load = cacheDashboard(async (key: string) => {
            c.dus_awal      as "dusAwal",
            coalesce(a.total, 0)::int as total,
            a.last_at       as "terakhir",
-           coalesce(a.jml, 0)::int   as "jumlahAdjustment"
+           coalesce(a.jml, 0)::int   as "jumlahAdjustment",
+           r.qty_hadir::int          as "qtyHadir",
+           c.qty_undangan::int       as "qtyUndangan",
+           r.checked_in_at           as "checkedInAt"
     from public.customers c
     left join agg a on a.customer_id = c.id
+    -- Satu toko = paling banyak satu baris kehadiran; dijaga partial unique
+    -- index reservations_customer_unique, jadi join ini tidak menggandakan baris.
+    left join public.reservations r on r.customer_id = c.id
     where ${kondisi}
     order by a.last_at ${naik ? sql`asc nulls last` : sql`desc nulls last`}, c.nama_toko asc
     limit ${PAGE_SIZE} offset ${offset}

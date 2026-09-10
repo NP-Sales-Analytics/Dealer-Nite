@@ -296,12 +296,17 @@ export function CustomerBoard() {
           showCloseButton={false}
           className="mx-auto grid max-h-[85svh] grid-rows-[auto_minmax(0,1fr)] gap-0 rounded-t-2xl p-0 sm:max-w-md"
         >
+          {/* Bentuknya disamakan dengan panel Tambah Order: judul tebal di
+              atas, identitas toko sebagai baris kedua. Dua panel yang muncul
+              dari tempat yang sama sebaiknya juga terbaca dengan cara yang
+              sama - kalau susunannya berbeda, orang harus membaca ulang untuk
+              tahu sedang berada di mana. */}
           <header className="flex items-start justify-between gap-3 px-5 pt-5 pb-3">
             <div className="min-w-0">
-              <SheetTitle className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Riwayat Penambahan
-              </SheetTitle>
-              <p className="mt-0.5 break-words text-lg font-bold leading-snug">{data.namaToko}</p>
+              <SheetTitle className="text-xl font-bold leading-snug">Riwayat Order</SheetTitle>
+              <p className="mt-0.5 break-words text-[13px] leading-snug text-muted-foreground">
+                {[data.namaToko, data.depot].filter(Boolean).join(' · ')}
+              </p>
             </div>
             <TombolTutup onClose={() => setPanel(null)} />
           </header>

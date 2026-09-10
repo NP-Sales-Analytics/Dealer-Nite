@@ -1,13 +1,17 @@
 'use client';
 
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { DetailOrderTable } from './detail-order-table';
+import { MasterCustomerDialog } from './master-customer-dialog';
 import type { FilterOptions } from '@/app/api/dashboard/filters/route';
 import type { OrderListResponse } from '@/app/api/order/list/route';
 import {
   adaFilterAktif, FilterBar, FILTER_KOSONG, paramFilter, type FilterState,
 } from '@/components/dashboard/filter-bar';
+import { TombolUnduh } from '@/components/shared/tombol-unduh';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDebounce } from '@/lib/use-debounce';
 
@@ -24,7 +28,13 @@ const buildQuery = (f: FilterState, page: number, urut: 'asc' | 'desc') => {
   return p.toString();
 };
 
-export function DetailOrderClient({ bisaUbah }: { bisaUbah: boolean }) {
+export function DetailOrderClient({
+  bisaUbah,
+  bisaUnduh,
+}: {
+  bisaUbah: boolean;
+  bisaUnduh: boolean;
+}) {
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<FilterState>(FILTER_KOSONG);
   const [page, setPage] = useState(1);
@@ -52,11 +62,41 @@ export function DetailOrderClient({ bisaUbah }: { bisaUbah: boolean }) {
     placeholderData: keepPreviousData,
   });
 
+  const [tambah, setTambah] = useState(false);
   const depots = options.data?.depots.map((d) => d.depot) ?? [];
   const adaFilter = adaFilterAktif({ ...filter, q });
+  const jumlah = data.data?.total ?? 0;
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      {/* Urutannya sengaja: ringkasan + aksi utama di paling atas, penyaring di
+          bawahnya, baru tabelnya. Aksi yang paling sering dicari tidak perlu
+          dilewati dulu oleh sebaris filter. */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-muted-foreground">
+          <span className="font-semibold text-foreground tabular-nums">{jumlah}</span> toko terdaftar
+        </p>
+        {/* Kedua aksi disamakan tingginya - dua tombol berdampingan dengan
+            ukuran berbeda terbaca seperti yang satu lebih penting dari yang
+            lain, padahal keduanya sama-sama aksi utama. */}
+        <div className="flex items-center gap-2.5">
+          {bisaUnduh && (
+            <TombolUnduh
+              url={`/api/order/export?${buildQuery(filterEfektif, 1, urut)}`}
+              namaBawaan="Detail-Order-Pylox.xlsx"
+              jumlah={jumlah}
+              className="h-11 gap-2"
+            />
+          )}
+          {bisaUbah && (
+            <Button className="h-11 gap-2" onClick={() => setTambah(true)}>
+              <Plus className="size-4" />
+              Tambah Master Data
+            </Button>
+          )}
+        </div>
+      </div>
+
       <FilterBar
         value={filter}
         options={options.data}
@@ -87,6 +127,12 @@ export function DetailOrderClient({ bisaUbah }: { bisaUbah: boolean }) {
           onChanged={() => queryClient.invalidateQueries({ queryKey: ['order-list'] })}
         />
       )}
+
+      <MasterCustomerDialog
+        open={tambah}
+        onOpenChange={setTambah}
+        onSaved={() => queryClient.invalidateQueries({ queryKey: ['order-list'] })}
+      />
     </div>
   );
 }

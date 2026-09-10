@@ -2,8 +2,10 @@
 
 import { Check, CircleAlert } from 'lucide-react';
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { QtyStepper } from '@/components/reservation/qty-stepper';
 import { Label } from '@/components/ui/label';
+import { MAKS_SEKALI, PESAN_TOLAKAN } from '@/lib/order/aturan';
 import { formatSisa, useSisaWaktu } from '@/lib/order/use-sisa-waktu';
 import { cn } from '@/lib/utils';
 
@@ -37,6 +39,13 @@ export function useFormJumlahDus({
   const valid = qty !== '' && Number.isInteger(n) && n >= 0;
   const selisih = valid ? n - total : 0;
   const diBawahLantai = valid && dusAwal !== null && n < dusAwal;
+  const sekaliKebanyakan = valid && Math.abs(selisih) > MAKS_SEKALI;
+
+  // Batas stepper dihitung dari total yang TERCATAT, bukan angka mutlak: yang
+  // dibatasi adalah lompatan sekali simpan. Toko bertotal 45.000 tetap bisa
+  // naik ke 55.000, cuma tidak dalam satu kali tekan Simpan.
+  const batasBawah = Math.max(dusAwal ?? 0, total - MAKS_SEKALI);
+  const batasAtas = total + MAKS_SEKALI;
 
   return {
     qty,
@@ -49,7 +58,11 @@ export function useFormJumlahDus({
     sisa,
     terkunci,
     diBawahLantai,
-    bisaSimpan: valid && selisih !== 0 && !diBawahLantai && !terkunci,
+    sekaliKebanyakan,
+    batasBawah,
+    batasAtas,
+    bisaSimpan:
+      valid && selisih !== 0 && !diBawahLantai && !terkunci && !sekaliKebanyakan,
     /** Kembalikan ke angka yang sudah tercatat, tanpa menyentuh apa pun di server. */
     reset: () => setQty(String(total)),
   };
@@ -105,6 +118,24 @@ function Status({ f }: { f: FormJumlahDus }) {
       <p className="rounded-xl bg-secondary/60 px-3.5 py-3 text-sm text-muted-foreground">
         Isi dulu jumlah totalnya.
       </p>
+    );
+  }
+
+  if (f.sekaliKebanyakan) {
+    return (
+      <div className="rounded-xl border-2 border-destructive/30 bg-destructive/5 px-3.5 py-3">
+        <p className="flex items-center gap-2 text-sm font-bold text-destructive">
+          <CircleAlert className="size-4 shrink-0" />
+          Terlalu banyak untuk sekali simpan
+        </p>
+        <p className="mt-1 text-sm leading-relaxed text-destructive/90">
+          Sekali simpan maksimal{' '}
+          <span className="font-semibold tabular-nums">
+            {MAKS_SEKALI.toLocaleString('id-ID')} dus
+          </span>
+          . Totalnya sendiri boleh berapa pun - simpan bertahap saja, lalu tambah lagi.
+        </p>
+      </div>
     );
   }
 
@@ -167,12 +198,11 @@ export function BagianJumlahDus({ f, id = 'qty-dus' }: { f: FormJumlahDus; id?: 
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <Label htmlFor={id} className="text-base font-semibold leading-snug">
-            Total keseluruhan pengambilan
+            Total Keseluruhan Order
           </Label>
           <p className="mt-0.5 text-[13px] leading-relaxed text-muted-foreground">
             Isi dengan{' '}
-            <span className="font-semibold text-foreground">jumlah keseluruhan dus</span>, bukan
-            tambahan.
+            <span className="font-semibold text-foreground">jumlah keseluruhan pengambilan dus</span>
           </p>
         </div>
         <ChipSisa f={f} />
@@ -194,8 +224,18 @@ export function BagianJumlahDus({ f, id = 'qty-dus' }: { f: FormJumlahDus; id?: 
         id={id}
         value={f.qty}
         onChange={f.setQty}
-        min={f.dusAwal ?? 0}
-        ariaLabel="Total keseluruhan pengambilan dus"
+        min={f.batasBawah}
+        max={f.batasAtas}
+        ariaLabel="Total keseluruhan order"
+        onBatas={(arah) =>
+          toast.info(
+            arah === 'atas'
+              ? PESAN_TOLAKAN.SEKALI_TERLALU_BANYAK
+              : f.dusAwal !== null && f.batasBawah === f.dusAwal
+                ? PESAN_TOLAKAN.DI_BAWAH_AWAL
+                : PESAN_TOLAKAN.SEKALI_TERLALU_BANYAK,
+          )
+        }
       />
 
       <div aria-live="polite">

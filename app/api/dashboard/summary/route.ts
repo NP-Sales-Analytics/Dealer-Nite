@@ -18,7 +18,7 @@ const load = cacheDashboard(async (key: string) => {
   const rows = (await db.execute(sql`
     with cust as (
       select * from public.customers
-      where (${w}::text is null or wilayah = ${w}::text)
+      where ${cocokSalahSatu(sql`wilayah`, w)}
         and ${cocokSalahSatu(sql`region`, r)}
         and ${cocokSalahSatu(sql`depot`, d)}
         and (${k}::text is null or kode_sap = ${k}::text)
@@ -32,7 +32,7 @@ const load = cacheDashboard(async (key: string) => {
     ),
     res_terfilter as (
       select * from res
-      where (${w}::text is null or wilayah = ${w}::text)
+      where ${cocokSalahSatu(sql`wilayah`, w)}
         and ${cocokSalahSatu(sql`region`, r)}
         and ${cocokSalahSatu(sql`depot_efektif`, d)}
         and (${k}::text is null or kode_sap = ${k}::text)

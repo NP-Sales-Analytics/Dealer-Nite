@@ -79,7 +79,15 @@ export async function POST(request: NextRequest) {
     if (!toko) return { tolakan: 'NOT_FOUND' as const, total: 0 };
 
     const totalBaru = toko.total + qtyChange;
-    const tolakan = periksaPenambahan({ totalBaru, dusAwal: toko.dusAwal, tenggat });
+    // selisih ikut diperiksa: inilah jalur penambahan, tempat salah ketik satu
+    // nol paling mungkin terjadi. Koreksi absolut admin lewat Detail Order tidak
+    // melewati sini, jadi otoritasnya tidak ikut terbatasi.
+    const tolakan = periksaPenambahan({
+      totalBaru,
+      dusAwal: toko.dusAwal,
+      tenggat,
+      selisih: qtyChange,
+    });
     if (tolakan) return { tolakan, total: toko.total };
 
     await tx.insert(orderAdjustments).values({ customerId: targetId, qtyChange, recordedBy });

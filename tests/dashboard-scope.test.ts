@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { bacaKunci, filterKey, terapkanScope, type DashboardFilter } from '@/lib/dashboard/filters';
 
 const KOSONG: DashboardFilter = {
-  wilayah: null, region: [], depot: [], q: null, kodeSap: null,
+  wilayah: [], region: [], depot: [], q: null, kodeSap: null,
 };
 
 describe('terapkanScope', () => {
@@ -67,7 +67,7 @@ describe('filterKey memisahkan cache antar cakupan', () => {
 describe('bacaKunci', () => {
   it('mengembalikan filter yang sama seperti sebelum diserialisasi', () => {
     const f: DashboardFilter = {
-      wilayah: 'Indonesia Barat',
+      wilayah: ['Indonesia Barat', 'Indonesia Timur'],
       region: ['3A', '3B'],
       depot: ['1V Purwokerto', '5N Kebumen'],
       q: 'toko',

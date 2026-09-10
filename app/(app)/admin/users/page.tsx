@@ -16,6 +16,7 @@ export default async function UsersPage() {
       fullName: profiles.fullName,
       role: profiles.role,
       allowedPages: profiles.allowedPages,
+      bolehUnduh: profiles.bolehUnduh,
       dataScope: profiles.dataScope,
     })
     .from(profiles)

@@ -1,15 +1,13 @@
 'use client';
 
-import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { DetailOrderDialog } from './detail-order-dialog';
 import { EditOrderDialog } from './edit-order-dialog';
 import { HapusCustomerDialog } from './hapus-customer-dialog';
-import { MasterCustomerDialog } from './master-customer-dialog';
 import { ResetOrderDialog } from './reset-order-dialog';
 import type { OrderRow } from '@/app/api/order/list/route';
 import { InitialAvatar } from '@/components/shared/initial-avatar';
-import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn, jamJakarta } from '@/lib/utils';
 
@@ -23,6 +21,26 @@ function PillDus({ total }: { total: number }) {
       )}
     >
       {total} dus
+    </span>
+  );
+}
+
+/**
+ * Sudah hadir atau belum. Warnanya sengaja ketiga - biru untuk dus, hijau untuk
+ * waktu, abu/ungu untuk kehadiran - supaya tiga kolom status itu bisa dipindai
+ * sekilas tanpa membaca judul kolomnya.
+ */
+function PillHadir({ qtyHadir }: { qtyHadir: number | null }) {
+  const hadir = qtyHadir !== null;
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold',
+        hadir ? 'bg-violet-100 text-violet-800' : 'bg-secondary text-muted-foreground',
+      )}
+      title={hadir ? `${qtyHadir} orang tercatat hadir` : undefined}
+    >
+      {hadir ? 'Sudah Hadir' : 'Belum Hadir'}
     </span>
   );
 }
@@ -75,20 +93,10 @@ export function DetailOrderTable({
   const [edit, setEdit] = useState<OrderRow | null>(null);
   const [hapus, setHapus] = useState<OrderRow | null>(null);
   const [reset, setReset] = useState<OrderRow | null>(null);
-  const [tambah, setTambah] = useState(false);
   const mulai = (page - 1) * pageSize;
 
   return (
     <>
-      <div className="mb-4 flex items-center justify-between gap-3 sm:mb-6">
-        <p className="text-sm text-muted-foreground">{total} toko terdaftar</p>
-        {bisaUbah && (
-          <Button className="h-11 gap-2" onClick={() => setTambah(true)}>
-            <Plus className="size-4" />
-            Tambah Master Data
-          </Button>
-        )}
-      </div>
 
       {rows.length === 0 ? (
         <div className="rounded-2xl border border-border bg-card p-10 text-center shadow-xs">
@@ -101,11 +109,12 @@ export function DetailOrderTable({
       ) : (
         <div className="min-w-0 rounded-2xl border border-border bg-card shadow-xs">
           <div className="overflow-x-auto">
-            <Table className="min-w-[46rem]">
+            <Table className="min-w-[54rem]">
               <TableHeader>
                 <TableRow>
                   <TableHead className="py-4 pl-5">Depot</TableHead>
                   <TableHead className="py-4">Nama Customer</TableHead>
+                  <TableHead className="py-4 text-center">Kehadiran</TableHead>
                   <TableHead className="py-4 text-center">Jumlah Dus</TableHead>
                   <TableHead className="py-4 text-center">
                     <button
@@ -151,6 +160,9 @@ export function DetailOrderTable({
                           <p className="text-xs text-muted-foreground">{r.kodeSap}</p>
                         </div>
                       </div>
+                    </TableCell>
+                    <TableCell className="py-4 text-center">
+                      <PillHadir qtyHadir={r.qtyHadir} />
                     </TableCell>
                     <TableCell className="py-4 text-center">
                       <PillDus total={r.total} />
@@ -264,7 +276,6 @@ export function DetailOrderTable({
         onDeleted={onChanged}
       />
 
-      <MasterCustomerDialog open={tambah} onOpenChange={setTambah} onSaved={onChanged} />
     </>
   );
 }

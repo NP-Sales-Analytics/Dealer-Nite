@@ -5,18 +5,16 @@ import { useMemo } from 'react';
 import type { FilterOptions } from '@/app/api/dashboard/filters/route';
 import { Button } from '@/components/ui/button';
 import { PilihBanyak } from '@/components/ui/combobox';
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
 
 /**
- * Region dan depot bisa dipilih lebih dari satu; daftar KOSONG berarti semua.
+ * Ketiganya bisa dipilih lebih dari satu; daftar KOSONG berarti semua.
  *
- * Wilayah sengaja tetap tunggal - pilihannya cuma dua, dan memilih keduanya
- * sama saja dengan tidak menyaring sama sekali.
+ * Penyaring yang tidak dipakai harus meloloskan segalanya - itulah kenapa
+ * "kosong" dan "semua" sengaja diwakili nilai yang sama, bukan sentinel
+ * terpisah yang harus diingat di tiap pemanggil.
  */
-export type FilterState = { wilayah: string; region: string[]; depot: string[]; q: string };
-export const FILTER_KOSONG: FilterState = { wilayah: 'semua', region: [], depot: [], q: '' };
+export type FilterState = { wilayah: string[]; region: string[]; depot: string[]; q: string };
+export const FILTER_KOSONG: FilterState = { wilayah: [], region: [], depot: [], q: '' };
 
 /**
  * Menuliskan filter ke query string - dipakai bersama ketiga halaman.
@@ -27,7 +25,7 @@ export const FILTER_KOSONG: FilterState = { wilayah: 'semua', region: [], depot:
  * dengan cara berbeda dari dua lainnya.
  */
 export function paramFilter(f: FilterState, p = new URLSearchParams()) {
-  if (f.wilayah !== 'semua') p.set('wilayah', f.wilayah);
+  if (f.wilayah.length > 0) p.set('wilayah', f.wilayah.join(','));
   if (f.region.length > 0) p.set('region', f.region.join(','));
   if (f.depot.length > 0) p.set('depot', f.depot.join(','));
   if (f.q.trim()) p.set('q', f.q.trim());
@@ -36,7 +34,19 @@ export function paramFilter(f: FilterState, p = new URLSearchParams()) {
 
 /** Apakah ada penyaring yang sedang aktif - untuk pesan "tidak ada yang cocok". */
 export const adaFilterAktif = (f: FilterState) =>
-  f.wilayah !== 'semua' || f.region.length > 0 || f.depot.length > 0 || f.q.trim() !== '';
+  f.wilayah.length > 0 || f.region.length > 0 || f.depot.length > 0 || f.q.trim() !== '';
+
+type Tingkat = 'wilayah' | 'region' | 'depot';
+type Simpul = { wilayah: string | null; region: string | null; depot: string };
+
+const unik = (v: (string | null)[]) =>
+  [...new Set(v.filter((x): x is string => !!x))].sort((a, b) => a.localeCompare(b, 'id'));
+
+/** Sebuah simpul hierarki lolos bila cocok dengan SEMUA pilihan yang diberikan. */
+const cocok = (s: Simpul, w: string[], r: string[], d: string[]) =>
+  (w.length === 0 || (!!s.wilayah && w.includes(s.wilayah)))
+  && (r.length === 0 || (!!s.region && r.includes(s.region)))
+  && (d.length === 0 || d.includes(s.depot));
 
 export function FilterBar({
   value, options, onChange, withSearch = false, searchPlaceholder = 'Cari nama toko atau kode SAP...',
@@ -47,50 +57,73 @@ export function FilterBar({
   withSearch?: boolean;
   searchPlaceholder?: string;
 }) {
-  // Bertingkat mengikuti hierarki data: wilayah > region > depot. Memilih
-  // tingkat atas mempersempit tingkat di bawahnya, karena kombinasi di luar
-  // cabang yang dipilih dijamin menghasilkan nol baris.
-  const regionTampil = useMemo(() => {
-    const semua = options?.regions ?? [];
-    if (value.wilayah === 'semua') return semua;
-    return semua.filter((r) => r.wilayah === value.wilayah);
-  }, [options, value.wilayah]);
+  // Satu daftar simpul wilayah>region>depot jadi sumber ketiga dropdown. Dari
+  // sini penyempitannya bisa berjalan dua arah, bukan cuma menurun.
+  const simpul = useMemo<Simpul[]>(() => options?.depots ?? [], [options]);
 
-  const depotTampil = useMemo(() => {
-    let semua = options?.depots ?? [];
-    // Tanpa toleransi null: region tiap depot sudah dilengkapi dari hierarki di
-    // sisi server, jadi yang masih kosong memang benar-benar tidak diketahui dan
-    // tidak boleh ikut muncul saat sebuah region dipilih.
-    if (value.wilayah !== 'semua') semua = semua.filter((d) => d.wilayah === value.wilayah);
-    if (value.region.length > 0) {
-      semua = semua.filter((d) => d.region && value.region.includes(d.region));
+  /**
+   * Isi sebuah dropdown: nilai yang masih mungkin menurut pilihan di DUA tingkat
+   * lainnya.
+   *
+   * Tingkat itu sendiri dikecualikan dari penyaringan - kalau ikut disaring oleh
+   * pilihannya sendiri, yang sudah terpilih akan jadi satu-satunya yang tampil
+   * dan mustahil dilepas lagi.
+   */
+  const isi = (tingkat: Tingkat) =>
+    unik(
+      simpul
+        .filter((s) =>
+          cocok(
+            s,
+            tingkat === 'wilayah' ? [] : value.wilayah,
+            tingkat === 'region' ? [] : value.region,
+            tingkat === 'depot' ? [] : value.depot,
+          ),
+        )
+        .map((s) => s[tingkat]),
+    );
+
+  const wilayahTampil = useMemo(() => isi('wilayah'), [simpul, value.region, value.depot]); // eslint-disable-line react-hooks/exhaustive-deps
+  const regionTampil = useMemo(() => isi('region'), [simpul, value.wilayah, value.depot]); // eslint-disable-line react-hooks/exhaustive-deps
+  const depotTampil = useMemo(() => isi('depot'), [simpul, value.wilayah, value.region]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /**
+   * Menerapkan perubahan satu tingkat, lalu membuang pilihan di tingkat lain
+   * yang jadi mustahil.
+   *
+   * Inilah sisi "dari bawah ke atas" yang diminta: memilih depot 1A Jakarta
+   * ikut menggugurkan Indonesia Timur kalau kebetulan sedang terpilih. Tanpa
+   * pembersihan itu, kombinasinya menghasilkan nol baris dan orang mencari-cari
+   * penyebabnya di daftar yang isinya justru sudah benar.
+   */
+  const ubah = (tingkat: Tingkat, dipilih: string[]) => {
+    const next: FilterState = { ...value, [tingkat]: dipilih };
+    for (const lain of ['wilayah', 'region', 'depot'] as Tingkat[]) {
+      if (lain === tingkat || next[lain].length === 0) continue;
+      const sah = new Set(
+        simpul
+          .filter((s) =>
+            cocok(
+              s,
+              lain === 'wilayah' ? [] : next.wilayah,
+              lain === 'region' ? [] : next.region,
+              lain === 'depot' ? [] : next.depot,
+            ),
+          )
+          .map((s) => s[lain]),
+      );
+      next[lain] = next[lain].filter((v) => sah.has(v));
     }
-    return semua;
-  }, [options, value.wilayah, value.region]);
+    onChange(next);
+  };
 
   const aktif = adaFilterAktif(value);
 
-  // Tingkat di bawah selalu ikut direset supaya tidak tertinggal kombinasi
-  // yang mustahil (misal Region 3B di dalam Indonesia Timur).
-  const setWilayah = (wilayah: string) =>
-    onChange({ ...value, wilayah, region: [], depot: [] });
-
-  /**
-   * Depot yang dipilih ikut disaring saat regionnya dilepas.
-   *
-   * Tanpa ini, melepas Region 3A meninggalkan depot 3A yang tetap terpilih tapi
-   * hilang dari daftar - hasilnya tersaring oleh sesuatu yang tidak lagi
-   * terlihat di layar, dan itu jenis kebingungan yang paling sulit ditelusuri.
-   */
-  const setRegion = (region: string[]) => {
-    const bolehTampil = new Set(
-      (options?.depots ?? [])
-        .filter((d) => region.length === 0 || (d.region && region.includes(d.region)))
-        .map((d) => d.depot),
-    );
-    onChange({ ...value, region, depot: value.depot.filter((d) => bolehTampil.has(d)) });
-  };
-
+  // Margin bawah dipegang komponen ini sendiri, dan itu memang cukup: di
+  // Tailwind v4 `space-y-*` juga memakai margin-bottom dan dibungkus `:where()`
+  // yang spesifisitasnya nol, jadi keduanya saling menimpa dengan nilai yang
+  // sama - tidak pernah menjumlah. Menimpanya dengan mb-0 dari luar justru
+  // menghapus jaraknya sama sekali.
   return (
     <div className="mb-4 rounded-2xl border border-border bg-card p-3 shadow-xs sm:mb-6 sm:p-4">
       <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center">
@@ -103,7 +136,7 @@ export function FilterBar({
               placeholder={searchPlaceholder}
               aria-label="Cari toko"
               autoComplete="off"
-              className="h-11 w-full rounded-xl border border-border bg-background pl-10 pr-10 text-sm placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:outline-none"
+              className="h-11 w-full rounded-xl border border-border bg-card pl-10 pr-10 text-sm placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:outline-none"
             />
             {value.q && (
               <button
@@ -120,25 +153,22 @@ export function FilterBar({
 
         {/* Tiga dropdown membungkus di HP, sebaris di layar lebar. */}
         <div className="flex flex-wrap gap-2.5">
-          <Select value={value.wilayah} onValueChange={(v) => v && setWilayah(v)}>
-            <SelectTrigger className="h-11 min-w-0 flex-1 data-[size=default]:h-11 sm:w-48 sm:flex-none">
-              <SelectValue>
-                {value.wilayah === 'semua' ? 'Semua Wilayah' : value.wilayah}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="semua">Semua Wilayah</SelectItem>
-              {(options?.wilayahs ?? []).map((w) => (
-                <SelectItem key={w} value={w}>{w}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <PilihBanyak
+            items={wilayahTampil}
+            value={value.wilayah}
+            onChange={(v) => ubah('wilayah', v)}
+            labelSemua="Wilayah"
+            satuan="Wilayah"
+            cariPlaceholder="Cari wilayah..."
+            kosong="Wilayah tidak ditemukan."
+            className="min-w-0 flex-1 sm:w-48 sm:flex-none"
+          />
 
           <PilihBanyak
-            items={regionTampil.map((r) => r.region)}
+            items={regionTampil}
             value={value.region}
-            onChange={setRegion}
-            labelSemua="Semua Region"
+            onChange={(v) => ubah('region', v)}
+            labelSemua="Region"
             satuan="Region"
             format={(r) => `Region ${r}`}
             cariPlaceholder="Cari region..."
@@ -147,10 +177,10 @@ export function FilterBar({
           />
 
           <PilihBanyak
-            items={depotTampil.map((d) => d.depot)}
+            items={depotTampil}
             value={value.depot}
-            onChange={(depot) => onChange({ ...value, depot })}
-            labelSemua="Semua Depot"
+            onChange={(v) => ubah('depot', v)}
+            labelSemua="Depot"
             satuan="Depot"
             cariPlaceholder="Cari depot..."
             kosong="Depot tidak ditemukan."

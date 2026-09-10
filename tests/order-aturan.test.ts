@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { periksaPenambahan } from '@/lib/order/aturan';
+import { periksaPenambahan, MAKS_SEKALI } from '@/lib/order/aturan';
 
 const T0 = Date.parse('2026-09-05T12:00:00+07:00');
 const dasar = { totalBaru: 150, dusAwal: 120, tenggat: null, sekarang: T0 };
@@ -42,5 +42,35 @@ describe('periksaPenambahan', () => {
 
   it('tepat pada detik tenggat sudah dianggap habis', () => {
     expect(periksaPenambahan({ ...dasar, tenggat: new Date(T0).toISOString() })).toBe('TENGGAT_HABIS');
+  });
+});
+
+// Batas SEKALI simpan, bukan batas total. Total boleh berapa pun - inilah
+// pembeda yang paling gampang salah dipahami saat kode ini disentuh lagi.
+describe('MAKS_SEKALI', () => {
+  const dasar = { dusAwal: null, tenggat: null };
+
+  it('menolak lompatan di atas batas sekali simpan', () => {
+    expect(periksaPenambahan({ ...dasar, totalBaru: 10_001, selisih: 10_001 }))
+      .toBe('SEKALI_TERLALU_BANYAK');
+  });
+
+  it('tepat di batas masih boleh', () => {
+    expect(periksaPenambahan({ ...dasar, totalBaru: MAKS_SEKALI, selisih: MAKS_SEKALI }))
+      .toBeNull();
+  });
+
+  it('TOTAL besar tetap boleh selama lompatannya kecil', () => {
+    // 50.000 dus bukan masalah; yang dijaga cuma cara sampainya.
+    expect(periksaPenambahan({ ...dasar, totalBaru: 50_000, selisih: 500 })).toBeNull();
+  });
+
+  it('pengurangan besar ikut ditolak - salah ketik bisa dua arah', () => {
+    expect(periksaPenambahan({ ...dasar, totalBaru: 5_000, selisih: -20_000 }))
+      .toBe('SEKALI_TERLALU_BANYAK');
+  });
+
+  it('tanpa selisih, batas ini tidak berlaku - koreksi admin bebas', () => {
+    expect(periksaPenambahan({ ...dasar, totalBaru: 999_999 })).toBeNull();
   });
 });

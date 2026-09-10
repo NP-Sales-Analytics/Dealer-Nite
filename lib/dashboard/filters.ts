@@ -3,14 +3,11 @@ import type { NextRequest } from 'next/server';
 import type { Role } from '@/lib/auth';
 
 export type DashboardFilter = {
-  wilayah: string | null;
   /**
-   * Bisa lebih dari satu. Daftar KOSONG berarti "semua", bukan "tidak ada" -
-   * penyaring yang tidak dipakai harus meloloskan segalanya.
-   *
-   * Wilayah sengaja tetap tunggal: pilihannya cuma dua, dan memilih keduanya
-   * sama saja dengan tidak menyaring.
+   * Ketiganya bisa lebih dari satu. Daftar KOSONG berarti "semua", bukan
+   * "tidak ada" - penyaring yang tidak dipakai harus meloloskan segalanya.
    */
+  wilayah: string[];
   region: string[];
   depot: string[];
   q: string | null;
@@ -43,7 +40,7 @@ const bersihDaftar = (v: string | null) => {
 export function readFilter(request: NextRequest): DashboardFilter {
   const p = request.nextUrl.searchParams;
   return {
-    wilayah: bersih(p.get('wilayah')),
+    wilayah: bersihDaftar(p.get('wilayah')),
     region: bersihDaftar(p.get('region')),
     depot: bersihDaftar(p.get('depot')),
     q: bersih(p.get('q')),
@@ -99,14 +96,14 @@ export function terapkanScope(
  */
 export const filterKey = (f: DashboardFilter) =>
   // Daftar diurutkan supaya ["3A","3B"] dan ["3B","3A"] berbagi satu entri cache.
-  `${f.wilayah ?? ''}|${[...f.region].sort().join(',')}|${[...f.depot].sort().join(',')}|${f.q ?? ''}|${f.kodeSap ?? ''}`;
+  `${[...f.wilayah].sort().join(',')}|${[...f.region].sort().join(',')}|${[...f.depot].sort().join(',')}|${f.q ?? ''}|${f.kodeSap ?? ''}`;
 
 /** Kebalikan filterKey, dipakai di dalam fungsi yang di-cache. */
 export function bacaKunci(key: string): DashboardFilter {
   const [wilayah, region, depot, q, kodeSap] = key.split('|');
   const daftar = (v: string) => (v ? v.split(',').filter(Boolean) : []);
   return {
-    wilayah: wilayah || null,
+    wilayah: daftar(wilayah),
     region: daftar(region),
     depot: daftar(depot),
     q: q || null,
