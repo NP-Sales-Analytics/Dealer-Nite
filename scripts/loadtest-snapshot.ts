@@ -1,104 +1,105 @@
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { db, PREFIX_SAP, TANDA } from './loadtest-common';
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync } from 'node:fs';
+import {
+  ACTIVE_RUN_FILE,
+  DATA_DIR,
+  type ActiveRun,
+  bacaActiveRun,
+  buatRunId,
+  db,
+  pastikanRunId,
+  tulisActiveRun,
+  tulisJson,
+} from './loadtest-common';
 
-/**
- * Bukti bahwa uji beban tidak meninggalkan jejak.
- *
- *   npm run loadtest:snapshot             -> simpan keadaan awal
- *   npm run loadtest:snapshot -- --banding -> bandingkan dengan keadaan awal
- *
- * Dijalankan sebelum seed dan sesudah reset. Yang diperiksa bukan cuma "data
- * dummy sudah hilang", tapi juga "baris yang bukan dummy masih persis sama" -
- * karena yang paling berbahaya dari uji beban di database berisi data nyata
- * bukan sisa yang tertinggal, melainkan baris asli yang ikut berubah.
- *
- * Tabelnya kecil (ratusan baris), jadi menyimpan seluruh isinya murah.
- */
 const TABEL = ['customers', 'profiles', 'reservations', 'order_adjustments', 'app_settings'] as const;
 type Tabel = (typeof TABEL)[number];
 type Baris = Record<string, unknown>;
-type Isi = Record<Tabel, Baris[]>;
+type Ringkasan = Record<Tabel, { count: number; hashes: string[] }>;
+type Snapshot = { version: 2; runId: string; dibuat: string; tables: Ringkasan };
 
-const DIR = 'load-tests/data';
-
-/** Baris buatan uji beban, dikenali dari penandanya - sama seperti loadtest-reset. */
-function dummy(tabel: Tabel, b: Baris) {
-  if (tabel === 'customers') return String(b.kode_sap ?? '').startsWith(PREFIX_SAP);
-  if (tabel === 'profiles') return String(b.full_name ?? '').startsWith(TANDA);
-  // reservations & order_adjustments tidak punya penanda sendiri; keduanya ikut
-  // terhapus lewat cascade saat toko dummy dibuang, jadi yang tersisa memang
-  // harus cocok dengan snapshot awal.
-  return false;
+function hashBaris(row: Baris) {
+  const stabil = Object.fromEntries(Object.entries(row).sort(([a], [b]) => a.localeCompare(b)));
+  return createHash('sha256').update(JSON.stringify(stabil)).digest('hex');
 }
 
-/** Kunci stabil untuk membandingkan baris tanpa bergantung urutan query. */
-const kunci = (b: Baris) => JSON.stringify(b, Object.keys(b).sort());
-
-async function baca(sql: ReturnType<typeof db>): Promise<Isi> {
-  const isi = {} as Isi;
-  for (const t of TABEL) {
-    isi[t] = (await sql`select * from public.${sql(t)}`) as unknown as Baris[];
+async function ringkas(sql: ReturnType<typeof db>): Promise<Ringkasan> {
+  const hasil = {} as Ringkasan;
+  for (const table of TABEL) {
+    const rows = (await sql`select * from public.${sql(table)}`) as unknown as Baris[];
+    hasil[table] = { count: rows.length, hashes: rows.map(hashBaris).sort() };
   }
-  return isi;
-}
-
-function snapshotTerakhir(): { nama: string; isi: Isi } {
-  const berkas = readdirSync(DIR)
-    .filter((f) => f.startsWith('snapshot-') && f.endsWith('.json'))
-    .sort();
-  const nama = berkas.at(-1);
-  if (!nama) throw new Error(`Tidak ada snapshot di ${DIR}. Jalankan tanpa --banding dulu.`);
-  return { nama, isi: JSON.parse(readFileSync(`${DIR}/${nama}`, 'utf8')) as Isi };
+  return hasil;
 }
 
 async function main() {
   const banding = process.argv.includes('--banding');
-  const sql = db(1);
-  try {
-    const sekarang = await baca(sql);
 
-    if (!banding) {
-      const nama = `snapshot-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
-      writeFileSync(`${DIR}/${nama}`, JSON.stringify(sekarang, null, 2));
-      console.log(`Snapshot disimpan: ${DIR}/${nama}`);
-      for (const t of TABEL) {
-        const n = sekarang[t].length;
-        const d = sekarang[t].filter((b) => dummy(t, b)).length;
-        console.log(`  ${t.padEnd(18)} ${String(n).padStart(6)} baris${d ? `  (${d} DUMMY sudah ada!)` : ''}`);
+  if (banding) {
+    const active = bacaActiveRun();
+    if (active.status !== 'cleaned') {
+      throw new Error(`Banding akhir hanya boleh setelah cleanup; status saat ini ${active.status}.`);
+    }
+    const sql = db(1, active.runId);
+    try {
+      if (!existsSync(active.snapshotFile)) throw new Error(`Snapshot hilang: ${active.snapshotFile}`);
+      const awal = JSON.parse(readFileSync(active.snapshotFile, 'utf8')) as Snapshot;
+      const sekarang = await ringkas(sql);
+      let lulus = true;
+
+      console.log(`Run ${active.runId}; membandingkan dengan ${active.snapshotFile}\n`);
+      for (const table of TABEL) {
+        const a = awal.tables[table];
+        const b = sekarang[table];
+        const sama = a.count === b.count && JSON.stringify(a.hashes) === JSON.stringify(b.hashes);
+        if (!sama) lulus = false;
+        console.log(
+          `  [${sama ? 'LULUS' : 'GAGAL'}] ${table.padEnd(18)} awal=${a.count} sekarang=${b.count}`,
+        );
       }
+      console.log(`\nHASIL: ${lulus ? 'BERSIH - data non-test identik' : 'BELUM BERSIH'}`);
+      process.exitCode = lulus ? 0 : 1;
       return;
+    } finally {
+      await sql.end();
     }
+  }
 
-    const { nama, isi: awal } = snapshotTerakhir();
-    console.log(`Dibandingkan dengan: ${nama}\n`);
-    let lulus = true;
-
-    for (const t of TABEL) {
-      const sisaDummy = sekarang[t].filter((b) => dummy(t, b));
-      // Yang dibandingkan adalah baris NON-dummy: dummy di snapshot awal (kalau
-      // ada) memang tidak diharapkan kembali.
-      const dulu = new Set(awal[t].filter((b) => !dummy(t, b)).map(kunci));
-      const kini = new Set(sekarang[t].filter((b) => !dummy(t, b)).map(kunci));
-      const hilang = [...dulu].filter((k) => !kini.has(k));
-      const baru = [...kini].filter((k) => !dulu.has(k));
-
-      const masalah = sisaDummy.length > 0 || hilang.length > 0 || baru.length > 0;
-      if (masalah) lulus = false;
-      console.log(`  [${masalah ? 'GAGAL' : 'LULUS'}] ${t}`);
-      if (sisaDummy.length) console.log(`          ${sisaDummy.length} baris dummy MASIH ADA`);
-      if (hilang.length) console.log(`          ${hilang.length} baris asli HILANG`);
-      if (baru.length) console.log(`          ${baru.length} baris asing BERTAMBAH`);
-      for (const k of [...hilang, ...baru].slice(0, 3)) console.log(`          ${k.slice(0, 160)}`);
+  if (existsSync(ACTIVE_RUN_FILE)) {
+    const lama = bacaActiveRun();
+    if (lama.status !== 'cleaned') {
+      throw new Error(`Run ${lama.runId} masih berstatus ${lama.status}; cleanup dulu sebelum run baru.`);
     }
+  }
 
-    console.log(`\n  HASIL: ${lulus ? 'BERSIH - database kembali seperti sebelum uji beban' : 'BELUM BERSIH'}`);
-    process.exitCode = lulus ? 0 : 1;
+  const runId = pastikanRunId(process.env.LOADTEST_RUN_ID ?? buatRunId());
+  const snapshotFile = `${DATA_DIR}/snapshot-hash-${runId}.json`;
+  const sql = db(1, runId);
+  try {
+    const snapshot: Snapshot = {
+      version: 2,
+      runId,
+      dibuat: new Date().toISOString(),
+      tables: await ringkas(sql),
+    };
+    tulisJson(snapshotFile, snapshot);
+    const active: ActiveRun = {
+      version: 2,
+      runId,
+      dibuat: snapshot.dibuat,
+      status: 'snapshotted',
+      snapshotFile,
+    };
+    tulisActiveRun(active);
+    console.log(`Run ID: ${runId}`);
+    console.log(`Snapshot hash: ${snapshotFile}`);
+    for (const table of TABEL) console.log(`  ${table.padEnd(18)} ${snapshot.tables[table].count} baris`);
   } finally {
     await sql.end();
   }
 }
 
-main().catch((e) => {
-  console.error(e instanceof Error ? e.message : e);
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message : error);
   process.exit(1);
 });

@@ -1,9 +1,14 @@
 import { createHmac } from 'node:crypto';
-import { mkdirSync, writeFileSync } from 'node:fs';
-import { db } from './loadtest-common';
+import {
+  READONLY_TARGET_FILE,
+  type ReadOnlyTarget,
+  db,
+  tulisJson,
+} from './loadtest-common';
 
 /**
- * Menyiapkan load-tests/data/target.json untuk skenario BACA saja.
+ * Menyiapkan target-readonly.json terpisah untuk skenario BACA saja. Manifest
+ * seeded tidak pernah ditimpa, sehingga cleanup run aktif tetap dapat bekerja.
  *
  * Hanya SELECT - tidak ada satu pun baris yang ditulis, jadi aman dijalankan ke
  * produksi untuk mengukur jalur baca leaderboard. Cookie ditandatangani lokal
@@ -36,23 +41,21 @@ async function main() {
     const staff = await sql<{ id: string }[]>`
       select id from public.profiles where role = 'superadmin' order by created_at asc`;
 
-    mkdirSync('load-tests/data', { recursive: true });
-    writeFileSync(
-      'load-tests/data/target.json',
-      JSON.stringify(
-        {
-          staff: staff.map((s) => ({ id: s.id, cookie: cookie('team', s.id, secret) })),
-          customers: customers.map((c) => ({
-            id: c.id,
-            kodeSap: c.kode_sap,
-            cookie: cookie('customer', c.id, secret),
-          })),
-        },
-        null,
-        2,
-      ),
+    const target: ReadOnlyTarget = {
+      version: 2,
+      mode: 'read-only',
+      dibuat: new Date().toISOString(),
+      staff: staff.map((s) => ({ id: s.id, cookie: cookie('team', s.id, secret) })),
+      customers: customers.map((c) => ({
+        id: c.id,
+        kodeSap: c.kode_sap,
+        cookie: cookie('customer', c.id, secret),
+      })),
+    };
+    tulisJson(READONLY_TARGET_FILE, target);
+    console.log(
+      `${READONLY_TARGET_FILE}: ${customers.length} customer, ${staff.length} staf (read-only)`,
     );
-    console.log(`target.json: ${customers.length} customer, ${staff.length} staf`);
   } finally {
     await sql.end();
   }

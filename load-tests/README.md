@@ -1,140 +1,137 @@
-# Uji Beban & Stress Test
+# Audit dan Load Test Produksi — Batas 200 Pengguna
 
-Membuktikan aplikasi aman dipakai 200 orang bersamaan di malam event, dan
-menemukan bug konkurensi di Modul Order **sebelum** event.
+Target resmi adalah **200 pengguna bersamaan**. Proyek Supabase Free memiliki
+batas 200 koneksi Realtime dan 100 channel join/detik, jadi alat ini tidak akan
+membuka lebih dari 200 koneksi dan membatasi join menjadi maksimal 10/detik.
 
-## Aturan keras
+## Gerbang keselamatan
 
-Sasaran uji beban **seharusnya** database staging. `scripts/loadtest-common.ts`
-menolak jalan kalau `DATABASE_URL` menunjuk project produksi - pengaman itu
-ditegakkan kode, bukan sekadar diingat.
+Tidak boleh ada traffic produksi sebelum dashboard Connected Clients dan
+database Supabase, serta log/observability Vercel, dapat dipantau. Semua tool
+yang mengirim HTTP/WebSocket ke domain produksi menolak berjalan kecuali empat
+konfirmasi ini lengkap dan run ID-nya sama:
 
-Menembak produksi hanya boleh sebagai keputusan sadar pemilik data, dengan
-mengisi `IZINKAN_PRODUKSI=1` di `.env.loadtest`. Konsekuensinya nyata dan tidak
-bisa dihilangkan:
+```dotenv
+IZINKAN_PRODUKSI=1
+KONFIRMASI_RUN_PRODUKSI=LOADTEST_YYYYMMDDTHHMMSSZ_A1B2C3
+OBSERVABILITY_SIAP=1
+TIM_SUDAH_DIBERI_TAHU=1
+```
 
-- selama tes berjalan, papan Top Spender dan dashboard menampilkan toko dummy
-  bernama `LOADTEST TOKO n` ke siapa pun yang membuka situs;
-- beban 200-250 VU bisa memperlambat pengguna sungguhan yang sedang online.
+Setiap run memakai marker unik dan manifest berisi UUID persis semua customer
+dan staf dummy. Cleanup tidak memakai `LIKE 'LT%'`; semua target divalidasi
+terhadap manifest sebelum transaksi `DELETE`. Snapshot hanya menyimpan jumlah
+baris dan SHA-256 tiap baris—tidak menyimpan password hash, Kode SAP, atau data
+bisnis mentah.
 
-Karena itu: jalankan di jam sepi, beritahu tim lebih dulu, dan **verifikasi
-pembersihannya** - jangan hanya dijalankan lalu dipercaya.
+## Persiapan dan preview
 
-Semua data dummy ditandai `LOADTEST` (`kode_sap` berawalan `LT`), sehingga
-`npm run loadtest:reset` bisa membuangnya sampai bersih.
+1. Salin `.env.loadtest.example` menjadi `.env.loadtest`, lalu isi konfigurasi.
+2. Jalankan lint, tes, type-check, build, dan pemeriksaan secret.
+3. Deploy Vercel Preview dengan konfigurasi produksi, lalu lakukan smoke test
+   read-only dan periksa log fungsi. Promosikan build yang sama ke produksi.
+4. Buat run ID dan salin nilainya ke `LOADTEST_RUN_ID` serta
+   `KONFIRMASI_RUN_PRODUKSI`:
 
-## Persiapan
-
-1. Salin `.env.loadtest.example` jadi `.env.loadtest`, isi `DATABASE_URL`,
-   `AUTH_SECRET` (harus sama dengan server yang diuji), dan `BASE_URL`.
-2. Kalau sasarannya staging: terapkan seluruh migrasi ke sana lebih dulu.
+   ```powershell
+   npm run loadtest:new-run
    ```
-   for f in supabase/migrations/*.sql; do DATABASE_URL="<staging>" npm run sql "$f"; done
-   ```
-3. Rekam keadaan awal - ini yang nanti membuktikan tidak ada jejak tertinggal:
-   ```
+
+5. Pastikan tim sudah diberi tahu, monitoring terbuka, dan aktivitas bisnis
+   telah sepi minimal 10 menit. Preflight juga menolak marker lama dan tenggat
+   order yang telah lewat:
+
+   ```powershell
+   npm run loadtest:preflight
    npm run loadtest:snapshot
+   npm run loadtest:seed
    ```
-4. Seed data dummy:
-   ```
-   npm run loadtest:seed        # 200 toko + 20 staff
-   npm run loadtest:seed 500    # atau lebih
-   ```
-   Ini menulis `load-tests/data/target.json` berisi cookie sesi siap pakai -
-   k6 tidak login, karena login aplikasi ini server action, bukan endpoint.
 
-   Akun staff dibuat **banyak** dan bersandi **acak**. Banyak, karena rate
-   limiter dikunci per user (40 request / 10 detik): satu akun untuk 150 VU
-   hanya akan mengukur rate limiternya. Acak, karena login aplikasi ini
-   password-saja dan `password_hash` adalah pengenalnya - hash yang bisa ditebak
-   sama artinya dengan memasang akun superadmin bersandi tetap di database.
+`loadtest:seed` membuat 200 customer dan 20 staf dummy. Manifest dan cookie ada
+di `load-tests/data/target.json` yang diabaikan Git. Untuk pengujian baca lokal
+atau staging tanpa seed, `npm run loadtest:target` menulis file terpisah
+`target-readonly.json`; gunakan `TARGET_FILE=../data/target-readonly.json`.
 
-   Untuk uji **baca** saja, tidak perlu seed: `npm run loadtest:target` menyusun
-   `target.json` dari toko yang sudah ada, murni `select`, tanpa menulis apa pun.
+## Urutan pengujian
 
-## Menjalankan
+Baseline harus lulus sebelum beban dinaikkan:
 
-**Uji konkurensi lebih dulu** - ini yang paling menentukan, dan tidak butuh k6:
-
-```
-BASE_URL=<preview> npm run loadtest:race
+```powershell
+npm run loadtest:k6 -- leaderboard-read --baseline
+npm run loadtest:k6 -- staff-mixed --baseline
 ```
 
-Lalu profil beban bertahap (50 -> 200 ditahan -> spike 250 VU):
+Profil k6 utama bergerak melalui 25, 50, 100, 150, 180, dan 200 VU:
 
-```
-k6 run -e BASE_URL=<preview> load-tests/scenarios/leaderboard-read.js
-k6 run -e BASE_URL=<preview> load-tests/scenarios/order-adjust.js
-k6 run -e BASE_URL=<preview> load-tests/scenarios/search.js
-k6 run -e BASE_URL=<preview> load-tests/scenarios/checkin.js
+```powershell
+npm run loadtest:k6 -- leaderboard-read
+npm run loadtest:k6 -- order-adjust
 ```
 
-Tambahkan `-e SINGKAT=1` untuk profil pendek (~80 detik) saat memeriksa cepat.
+Profil realistis dijalankan di dua terminal pada saat yang sama. Terminal
+pertama membuka 180 koneksi customer bertahap; terminal kedua menjalankan 20
+staf yang mencari dan check-in:
 
-Skenario terberat dijalankan **bersamaan** untuk meniru kondisi nyata:
-
-```
-k6 run -e BASE_URL=<preview> load-tests/scenarios/order-adjust.js &
-k6 run -e BASE_URL=<preview> load-tests/scenarios/leaderboard-read.js
-```
-
-## Setelah selesai
-
-```
-npm run loadtest:verify              # WAJIB - kebenaran data, bukan kecepatan
-npm run loadtest:reset               # bersihkan data dummy
-npm run loadtest:snapshot -- --banding   # BUKTIKAN bersih
+```powershell
+$env:KLIEN='180'; npm run cek:badai
 ```
 
-`loadtest:verify` memeriksa tiga hal yang menentukan lulus/tidaknya:
-1. tidak ada toko bertotal minus (bukti tidak ada race condition),
-2. tidak ada total di bawah pengambilan pertama,
-3. tidak ada kehadiran ganda untuk toko yang sama.
+```powershell
+$env:STAFF_VUS='20'; $env:DURATION='7m'; npm run loadtest:k6 -- staff-mixed
+```
 
-`loadtest:snapshot -- --banding` memeriksa dua hal yang menentukan aman/tidaknya
-menembak database berisi data nyata:
-1. tidak ada baris dummy tersisa,
-2. baris yang **bukan** dummy masih persis sama dengan sebelum tes - inilah yang
-   paling berbahaya kalau terlewat, karena sisa yang tertinggal masih kelihatan,
-   sedangkan baris asli yang ikut berubah tidak.
+Profil batas kuota membuka tepat 200 koneksi tanpa traffic staf atau order:
 
-## Kriteria lulus
+```powershell
+$env:KLIEN='200'; $env:ORDER='0'; npm run cek:badai
+```
 
-- `http_req_duration` p95 < 500ms, p99 < 1000ms pada 200 VU
-- `http_req_failed` < 1%
-- `checks` > 99%
-- `loadtest:verify` LULUS
-- Server tidak mati saat spike 250 VU
+Uji integritas dan interaksi dilakukan setelah profil utama:
 
-## Catatan
+```powershell
+npm run loadtest:race
+npm run loadtest:burst
+npm run loadtest:double-click
+npm run loadtest:verify
+```
 
-Menembak `localhost` hanya mengukur kapasitas laptop, bukan Vercel. Untuk
-menyimpulkan "aman di 150 user", sasarannya harus preview Vercel.
+`loadtest:burst` memakai customer dummy berbeda untuk burst 10, 25, dan 50.
+`loadtest:double-click` memastikan dua klik sinkron hanya mengirim satu POST dan
+menambah tepat satu baris ledger. Endpoint tidak dinyatakan idempoten karena
+belum memiliki kontrak idempotency key.
 
-## Region fungsi
+## Stop condition dan cleanup
 
-`vercel.json` mengunci fungsi ke `icn1` (Seoul) - SAMA dengan region database
-(`aws-0-ap-northeast-2`). Ini pilihan sadar sesudah mengukur, bukan bawaan:
+Hentikan kenaikan beban jika ada 402, `too_many_connections`,
+`too_many_joins`, kegagalan integritas, subscription tidak lengkap, error
+5xx/429 di atas 1%, p95 di atas 2 detik selama 60 detik, atau CPU/koneksi DB di
+atas 80% selama dua menit. CPU dan koneksi harus diawasi dari dashboard selama
+tes; runner lokal tidak boleh menebak metrik server yang tidak dimilikinya.
 
-Sempat dicoba `sin1` (Singapura) lebih dulu dengan alasan "sesudah cache
-diperbaiki, sebagian besar baca sudah tidak menyentuh DB, jadi kedekatan ke
-pengguna lebih penting". Itu benar untuk jalur BACA - tapi uji jalur TULIS
-membuka bahwa alasannya tidak berlaku untuk jalur TULIS: setiap penulisan
-order tetap wajib menyentuh database, dan diagnostik Server-Timing
-membuktikan tiap round trip fungsi -> DB memakan ~140ms saat keduanya beda
-region (Singapura -> Seoul). Satu transaksi order-adjust melakukan 4 round
-trip (lock, select gabungan, insert, commit) = ~570ms HANYA untuk bagian DB,
-sebelum dihitung antrean pool sama sekali.
+Cleanup wajib dijalankan dalam blok operasional `finally`, bahkan jika tes
+gagal:
 
-Sesudah pindah ke icn1: round trip fungsi -> DB turun ke orde milidetik
-tunggal (satu region jaringan Vercel/AWS yang sama), dan bagian DB dari
-transaksi turun drastis. Konsekuensinya: /api/order/me (yang TIDAK di-cache
-CDN, selalu menyentuh fungsi) sedikit lebih jauh dari pengguna Indonesia
-dibanding Singapura - dan sejak podium ikut disajikan dari /api/order/me,
-seluruh jalur baca customer memang sampai ke fungsi, tidak ada lagi yang
-dibantu CDN. Itu disengaja: podium dan posisi pribadi harus berasal dari satu
-snapshot yang sama, dan cache CDN 15-45 detik justru yang dulu membuat keduanya
-menyebut angka berbeda di layar yang sama.
+```powershell
+npm run loadtest:reset
+npm run loadtest:snapshot -- --banding
+```
 
-Kalau nanti databasenya pindah region, region fungsi ini harus disesuaikan
-ulang - dan diukur ulang, bukan ditebak.
+Reset menampilkan jumlah child/parent, memvalidasi marker + UUID, menghapus
+dalam transaksi dengan urutan FK aman, dan membuktikan seluruh ID run tersisa
+nol. Perbandingan snapshot membuktikan semua data non-test identik dengan awal.
+
+## Kriteria keputusan
+
+- HTTP: p95 `<500 ms`, p99 `<1.000 ms`, error `<1%`, tanpa 402/5xx.
+- Realtime: 200/200 `SUBSCRIBED`, delivery `>=99,9%`, tidak ada koneksi ganda,
+  dan semua channel hilang setelah disconnect.
+- Database: tidak ada order hilang, total salah/minus, check-in ganda, atau
+  perubahan record produksi.
+
+Kesimpulan laporan hanya boleh salah satu:
+
+- `READY FOR 200 CONCURRENT USERS — NO REALTIME HEADROOM ON FREE PLAN`
+- `NOT READY FOR 200 CONCURRENT USERS`
+
+Tidak ada stress Realtime di atas 200. Target lebih tinggi memerlukan upgrade
+paket atau memindahkan sebagian customer ke polling.

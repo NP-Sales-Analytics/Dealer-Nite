@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { History, Plus, X } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Podium } from './podium';
 import {
@@ -131,6 +131,7 @@ function KartuPosisi({ me }: { me: DataSaya }) {
 function IsiTambahOrder({ me, onTutup }: { me: DataSaya; onTutup: () => void }) {
   const qc = useQueryClient();
   const f = useFormJumlahDus({ total: me.total, dusAwal: me.dusAwal, tenggat: me.tenggat });
+  const sedangMengirim = useRef(false);
 
   const simpan = useMutation({
     mutationFn: async () => {
@@ -156,7 +157,18 @@ function IsiTambahOrder({ me, onTutup }: { me: DataSaya; onTutup: () => void }) 
       const code = (err as { data?: { code?: string } })?.data?.code as Tolakan | undefined;
       toast.error(code && code in PESAN_TOLAKAN ? PESAN_TOLAKAN[code] : 'Gagal menyimpan. Coba lagi.');
     },
+    onSettled: () => {
+      sedangMengirim.current = false;
+    },
   });
+
+  const kirim = () => {
+    // Ref berubah sinkron pada event pertama, sebelum atribut disabled sempat
+    // dirender. Dua click event dalam satu frame tetap hanya mengirim sekali.
+    if (sedangMengirim.current || !f.bisaSimpan) return;
+    sedangMengirim.current = true;
+    simpan.mutate();
+  };
 
   return (
     <>
@@ -185,7 +197,7 @@ function IsiTambahOrder({ me, onTutup }: { me: DataSaya; onTutup: () => void }) 
         </Button>
         <Button
           className="h-12 flex-[2] text-base font-semibold"
-          onClick={() => simpan.mutate()}
+          onClick={kirim}
           disabled={!f.bisaSimpan || simpan.isPending}
         >
           {labelSimpan(f, simpan.isPending)}

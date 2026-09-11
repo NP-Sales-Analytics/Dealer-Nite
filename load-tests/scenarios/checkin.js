@@ -1,9 +1,22 @@
 import { check, sleep } from 'k6';
 import http from 'k6/http';
 import { AMBANG, BASE_URL, tahap } from '../config.js';
-import { CUSTOMERS, sesi, staffVU } from '../utils/helpers.js';
+import {
+  CUSTOMERS,
+  pastikanTargetSeeded,
+  pastikanTrafficDiizinkan,
+  sesi,
+  staffVU,
+} from '../utils/helpers.js';
+import { catatStatus } from '../utils/metrics.js';
 
 export const options = { stages: tahap(), thresholds: AMBANG };
+pastikanTargetSeeded();
+pastikanTrafficDiizinkan(BASE_URL);
+
+// 409 adalah hasil bisnis yang memang diharapkan ketika dua meja merebut toko
+// yang sama; jangan masukkan respons ini ke http_req_failed.
+http.setResponseCallback(http.expectedStatuses(200, 201, 409));
 
 // Satu toko sengaja dijadikan sasaran bersama: meniru dua admin yang salah
 // paham dan mencatat toko yang sama. Yang diuji bukan pesan peringatannya di
@@ -32,6 +45,7 @@ export default function () {
     }),
     sesi(staff.cookie),
   );
+  catatStatus(res);
 
   check(res, {
     'tidak error server': (r) => r.status < 500,

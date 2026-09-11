@@ -2,10 +2,32 @@ import { SharedArray } from 'k6/data';
 
 // SharedArray: datanya di-parse sekali dan dipakai bersama semua VU. Tanpa ini,
 // 200 VU masing-masing menyalin daftar toko ke memorinya sendiri.
-const berkas = () => JSON.parse(open('../data/target.json'));
+const TARGET = JSON.parse(open(__ENV.TARGET_FILE || '../data/target.json'));
 
-export const CUSTOMERS = new SharedArray('customers', () => berkas().customers);
-export const STAFF = new SharedArray('staff', () => berkas().staff ?? []);
+export const CUSTOMERS = new SharedArray('customers', () => TARGET.customers);
+export const STAFF = new SharedArray('staff', () => TARGET.staff ?? []);
+export const RUN_ID = TARGET.runId ?? null;
+
+export function pastikanTargetSeeded() {
+  if (TARGET.version !== 2 || TARGET.mode !== 'seeded' || !RUN_ID) {
+    throw new Error('Skenario tulis hanya boleh memakai target seeded v2 dengan run ID.');
+  }
+}
+
+export function pastikanTrafficDiizinkan(baseUrl) {
+  const produksi = /^https:\/\/pylox\.bi-nipponpaint\.com(?:\/|$)/i.test(baseUrl);
+  if (!produksi) return;
+  if (
+    __ENV.IZINKAN_PRODUKSI !== '1' ||
+    __ENV.KONFIRMASI_RUN_PRODUKSI !== RUN_ID ||
+    __ENV.OBSERVABILITY_SIAP !== '1' ||
+    __ENV.TIM_SUDAH_DIBERI_TAHU !== '1'
+  ) {
+    throw new Error(
+      'Traffic produksi ditolak: izin, run ID, observability, dan konfirmasi tim wajib lengkap.',
+    );
+  }
+}
 
 export const acak = (arr) => arr[Math.floor(Math.random() * arr.length)];
 

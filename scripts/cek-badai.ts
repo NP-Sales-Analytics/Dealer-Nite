@@ -1,201 +1,263 @@
-import { createHmac } from 'node:crypto';
-import { readFileSync } from 'node:fs';
 import { createClient, type RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js';
-import { db } from './loadtest-common';
+import {
+  DATA_DIR,
+  bacaSeededTarget,
+  pastikanTrafficDiizinkan,
+  tulisJson,
+} from './loadtest-common';
 
-/**
- * Badai realtime: yang TIDAK diuji oleh k6 sama sekali.
- *
- * k6 memberi tiap VU jeda acak yang independen, sehingga requestnya mengalir
- * MERATA. Pola sesungguhnya justru kebalikannya: satu order masuk, Supabase
- * menyiarkannya ke SEMUA klien, dan seluruhnya menembak dalam jendela sempit
- * yang sama. Puncak sesaatnya bisa berkali lipat dari rata-rata yang diukur k6,
- * dan puncak itulah yang menjatuhkan server, bukan rata-ratanya.
- *
- * Karena itu skrip ini membuka koneksi Realtime SUNGGUHAN, bukan mensimulasikan
- * protokolnya - satu-satunya cara membuktikan perilaku yang sebenarnya.
- *
- *   IZINKAN_PRODUKSI=1 npx tsx --env-file=.env.local scripts/cek-badai.ts
- *   KLIEN=180 ORDER=10 ... (batas koneksi: naikkan KLIEN sampai SUBSCRIBED gagal)
- */
 const BASE = process.env.BASE_URL ?? 'https://pylox.bi-nipponpaint.com';
 const KLIEN = Number(process.env.KLIEN ?? 200);
 const ORDER = Number(process.env.ORDER ?? 8);
-/**
- * ORDER=0 menjadikan proses ini PENDENGAR saja - tidak memicu order sendiri.
- *
- * Gunanya membedakan dua sebab yang gejalanya sama: kalau 150 koneksi dalam SATU
- * proses Node kehilangan separuh event, itu bisa berarti Supabase membatasi
- * penyiaran, ATAU event loop proses ini yang jenuh. Menyebar jumlah koneksi yang
- * sama ke beberapa proses memisahkan keduanya - di produksi tiap device punya
- * proses dan jaringannya sendiri, jadi kejenuhan satu proses tidak berlaku.
- */
-const PENDENGAR = ORDER === 0;
 const JEDA_ORDER_MS = Number(process.env.JEDA_ORDER_MS ?? 4_000);
-
-// Harus sama dengan lib/order/use-realtime-refresh.ts - kalau di sana diubah,
-// di sini ikut, kalau tidak yang diukur bukan perilaku yang dikirim ke pengguna.
+const HOLD_MS = Number(process.env.HOLD_MS ?? 30_000);
+const LAJU_KONEKSI = Math.min(Number(process.env.LAJU_KONEKSI ?? 10), 10);
 const TUNDA_MS = 1_500;
 const JITTER_MS = 1_000;
 
-const TANDA = `BADAI-${Date.now()}`;
-const MAX_AGE_S = 3600;
+type ClientState = {
+  sb: SupabaseClient;
+  ch: RealtimeChannel;
+  cookie: string;
+  timer: ReturnType<typeof setTimeout> | null;
+  subscribed: boolean;
+  pernahSubscribed: boolean;
+};
 
-function cookieCustomer(id: string, secret: string) {
-  const body = Buffer.from(`customer:${id}:${Date.now() + MAX_AGE_S * 1000}`).toString('base64url');
-  return `${body}.${createHmac('sha256', secret).update(body).digest('base64url')}`;
-}
-
-const persentil = (a: number[], p: number) =>
-  a.length ? a.slice().sort((x, y) => x - y)[Math.min(a.length - 1, Math.floor((a.length * p) / 100))] : 0;
+const tunggu = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const persentil = (values: number[], p: number) => {
+  if (!values.length) return 0;
+  const sorted = values.slice().sort((a, b) => a - b);
+  return sorted[Math.min(sorted.length - 1, Math.floor((sorted.length * p) / 100))];
+};
 
 async function main() {
-  const secret = process.env.AUTH_SECRET;
+  if (!Number.isInteger(KLIEN) || KLIEN < 1 || KLIEN > 200) {
+    throw new Error('KLIEN harus 1-200; paket Free tidak boleh diuji di atas 200.');
+  }
+  if (!Number.isFinite(LAJU_KONEKSI) || LAJU_KONEKSI <= 0) {
+    throw new Error('LAJU_KONEKSI harus lebih dari 0 dan maksimum 10/detik.');
+  }
+
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!secret || !url || !key) throw new Error('AUTH_SECRET / SUPABASE env belum lengkap.');
+  if (!url || !key) throw new Error('NEXT_PUBLIC_SUPABASE_URL/ANON_KEY belum lengkap.');
 
-  const target = JSON.parse(readFileSync('load-tests/data/target.json', 'utf8')) as {
-    customers: { id: string; cookie: string }[];
-  };
-  if (!target.customers?.length) throw new Error('target.json kosong - jalankan loadtest:target dulu.');
+  const target = bacaSeededTarget();
+  pastikanTrafficDiizinkan(BASE, target.runId);
+  if (target.customers.length < KLIEN) {
+    throw new Error(`Manifest hanya berisi ${target.customers.length} customer; perlu ${KLIEN}.`);
+  }
 
-  const sql = db(1);
-  const klien: { sb: SupabaseClient; ch: RealtimeChannel }[] = [];
+  const tahapanDasar = (process.env.TAHAP_REALTIME ?? '25,50,100,150,180,200')
+    .split(',')
+    .map(Number)
+    .filter((n) => Number.isInteger(n) && n > 0 && n <= KLIEN);
+  const tahapan = [...new Set([...tahapanDasar, KLIEN])].sort((a, b) => a - b);
 
-  // Latensi tiap refetch, dan cap waktu tiap request untuk menghitung puncak.
+  const clients: ClientState[] = [];
   const latensi: number[] = [];
   const capWaktu: number[] = [];
-  let gagal = 0;
-  let eventDiterima = 0;
+  const statusCount: Record<string, number> = {};
+  const stageReports: { target: number; subscribed: number; statuses: Record<string, number> }[] = [];
   let tersambung = 0;
+  let reconnect = 0;
+  let eventDiterima = 0;
+  let refetchGagal = 0;
+  let expectedEvents = 0;
+  let cleanupChannels = -1;
+  let subscribedAtEnd = 0;
 
-  try {
-    console.log(`Sasaran : ${BASE}`);
-    console.log(`Klien   : ${KLIEN} koneksi Realtime sungguhan`);
-    console.log(`Order   : ${ORDER} kali, tiap ${JEDA_ORDER_MS} ms\n`);
+  const connectOne = async (index: number) => {
+    const account = target.customers[index];
+    const sb = createClient(url, key, {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    });
+    const state = {} as ClientState;
 
-    // --- Buka N koneksi, tiap klien berperilaku seperti browser sungguhan ----
-    console.log('Menyambungkan...');
-    await Promise.all(
-      Array.from({ length: KLIEN }, async (_, i) => {
-        const akun = target.customers[i % target.customers.length];
-        const sb = createClient(url, key);
-        let timer: ReturnType<typeof setTimeout> | null = null;
-
-        // Peredam yang sama persis dengan useRealtimeRefresh.
-        const jadwalkan = () => {
-          if (timer) return;
-          timer = setTimeout(async () => {
-            timer = null;
-            const t0 = Date.now();
-            try {
-              const r = await fetch(`${BASE}/api/order/me`, {
-                headers: { cookie: `pylox_session=${akun.cookie}` },
-              });
-              if (!r.ok) gagal++;
-              else {
-                latensi.push(Date.now() - t0);
-                capWaktu.push(Date.now());
-              }
-            } catch {
-              gagal++;
-            }
-          }, TUNDA_MS + Math.random() * JITTER_MS);
-        };
-
-        const ch = sb
-          .channel('order_adjustments')
-          .on(
-            'postgres_changes',
-            { event: 'INSERT', schema: 'public', table: 'order_adjustments' },
-            () => {
-              eventDiterima++;
-              jadwalkan();
-            },
-          );
-
-        await new Promise<void>((selesai) => {
-          const batas = setTimeout(selesai, 20_000);
-          ch.subscribe((s) => {
-            if (s === 'SUBSCRIBED') {
-              tersambung++;
-              clearTimeout(batas);
-              selesai();
-            }
+    const jadwalkan = () => {
+      if (state.timer) return;
+      state.timer = setTimeout(async () => {
+        state.timer = null;
+        const started = Date.now();
+        try {
+          const response = await fetch(`${BASE}/api/order/me`, {
+            headers: { cookie: `pylox_session=${state.cookie}` },
           });
-        });
-        klien.push({ sb, ch });
-      }),
-    );
+          if (!response.ok) refetchGagal++;
+          else {
+            await response.arrayBuffer();
+            latensi.push(Date.now() - started);
+            capWaktu.push(Date.now());
+          }
+        } catch {
+          refetchGagal++;
+        }
+      }, TUNDA_MS + Math.random() * JITTER_MS);
+    };
 
-    const persen = ((tersambung / KLIEN) * 100).toFixed(1);
-    console.log(`  ${tersambung}/${KLIEN} SUBSCRIBED (${persen}%)\n`);
+    const ch = sb
+      .channel('order_adjustments')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'order_adjustments' },
+        () => {
+          eventDiterima++;
+          jadwalkan();
+        },
+      );
+    Object.assign(state, {
+      sb,
+      ch,
+      cookie: account.cookie,
+      timer: null,
+      subscribed: false,
+      pernahSubscribed: false,
+    });
+    clients.push(state);
 
-    // --- Picu badainya -------------------------------------------------------
-    if (PENDENGAR) {
-      const diam = Number(process.env.DENGAR_MS ?? 45_000);
-      console.log(`Mode pendengar: menunggu ${diam} ms tanpa memicu order sendiri...`);
-      await new Promise((r) => setTimeout(r, diam));
-    } else {
-      const [toko] = await sql<{ id: string }[]>`
-        insert into public.customers (nama_toko, kode_sap, region, depot, qty_undangan)
-        values (${`${TANDA} TOKO`}, ${TANDA}, '9Z', 'UJI', 1) returning id`;
-      const cookiePemicu = cookieCustomer(toko.id, secret);
+    await new Promise<void>((resolve) => {
+      let resolved = false;
+      const finish = () => {
+        if (resolved) return;
+        resolved = true;
+        clearTimeout(timeout);
+        resolve();
+      };
+      const timeout = setTimeout(() => {
+        statusCount.CLIENT_TIMEOUT = (statusCount.CLIENT_TIMEOUT ?? 0) + 1;
+        finish();
+      }, 20_000);
 
-      console.log('Mengirim order...');
-      for (let i = 0; i < ORDER; i++) {
-        const r = await fetch(`${BASE}/api/order/adjust`, {
+      ch.subscribe((status) => {
+        statusCount[status] = (statusCount[status] ?? 0) + 1;
+        if (status === 'SUBSCRIBED') {
+          if (!state.subscribed) {
+            state.subscribed = true;
+            tersambung++;
+            if (state.pernahSubscribed) reconnect++;
+          }
+          state.pernahSubscribed = true;
+          finish();
+          return;
+        }
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          if (state.subscribed) {
+            state.subscribed = false;
+            tersambung--;
+          }
+          if (!state.pernahSubscribed) finish();
+        }
+      });
+    });
+  };
+
+  let resultError: Error | null = null;
+  try {
+    console.log(`Run     : ${target.runId}`);
+    console.log(`Sasaran : ${BASE}`);
+    console.log(`Tahap   : ${tahapan.join(' -> ')}`);
+    console.log(`Laju    : ${LAJU_KONEKSI} koneksi/detik (maksimum paksa 10)\n`);
+
+    for (const stage of tahapan) {
+      while (clients.length < stage) {
+        await connectOne(clients.length);
+        await tunggu(1_000 / LAJU_KONEKSI);
+      }
+      await tunggu(HOLD_MS);
+      const report = { target: stage, subscribed: tersambung, statuses: { ...statusCount } };
+      stageReports.push(report);
+      console.log(`  tahap ${stage}: ${tersambung}/${stage} SUBSCRIBED`);
+      if (tersambung !== stage) {
+        throw new Error(`Subscription tidak lengkap pada tahap ${stage}; peningkatan beban dihentikan.`);
+      }
+    }
+
+    if (ORDER > 0) {
+      const pemicu = target.customers[KLIEN - 1];
+      console.log(`\nMengirim ${ORDER} order dummy...`);
+      for (let index = 0; index < ORDER; index++) {
+        expectedEvents += tersambung;
+        const response = await fetch(`${BASE}/api/order/adjust`, {
           method: 'POST',
-          headers: { 'content-type': 'application/json', cookie: `pylox_session=${cookiePemicu}` },
+          headers: {
+            'content-type': 'application/json',
+            cookie: `pylox_session=${pemicu.cookie}`,
+          },
           body: JSON.stringify({ qtyChange: 1 }),
         });
-        console.log(`  order ${i + 1}/${ORDER}: ${r.status}`);
-        await new Promise((r) => setTimeout(r, JEDA_ORDER_MS));
+        console.log(`  order ${index + 1}/${ORDER}: ${response.status}`);
+        if (response.status === 402 || response.status === 429 || response.status >= 500) {
+          throw new Error(`Stop condition: order menerima HTTP ${response.status}.`);
+        }
+        if (!response.ok) throw new Error(`Order dummy gagal: ${response.status} ${await response.text()}`);
+        await tunggu(JEDA_ORDER_MS);
       }
-
-      // Beri waktu peredam terakhir jatuh tempo dan requestnya selesai.
-      await new Promise((r) => setTimeout(r, TUNDA_MS + JITTER_MS + 5_000));
+      await tunggu(TUNDA_MS + JITTER_MS + 5_000);
     }
-
-    // --- Puncak sesungguhnya: request terbanyak dalam satu detik mana pun ----
-    let puncak = 0;
-    for (const t of capWaktu) {
-      const dalamDetikIni = capWaktu.filter((x) => x >= t && x < t + 1000).length;
-      if (dalamDetikIni > puncak) puncak = dalamDetikIni;
-    }
-
-    console.log(`\n--- HASIL ---`);
-    console.log(`  koneksi SUBSCRIBED : ${tersambung}/${KLIEN} (${persen}%)`);
-    const harapan = PENDENGAR ? Number(process.env.HARAP_ORDER ?? 0) : ORDER;
-    console.log(
-      `  event diterima     : ${eventDiterima}` +
-        (harapan ? `  (harapan ~${tersambung * harapan}, ${((eventDiterima / (tersambung * harapan)) * 100).toFixed(0)}%)` : ''),
-    );
-    console.log(`  refetch berhasil   : ${latensi.length}`);
-    console.log(`  refetch gagal      : ${gagal}`);
-    console.log(`  latensi p50/p95/p99: ${persentil(latensi, 50)} / ${persentil(latensi, 95)} / ${persentil(latensi, 99)} ms`);
-    console.log(`  PUNCAK req/detik   : ${puncak}`);
-
-    const rateGagal = latensi.length + gagal ? gagal / (latensi.length + gagal) : 0;
-    const lulus =
-      tersambung / KLIEN >= 0.95 && persentil(latensi, 95) < 500 && rateGagal < 0.01;
-    console.log(`\n  ${lulus ? 'LULUS' : 'TIDAK LULUS'} (SUBSCRIBED >=95%, p95 <500ms, gagal <1%)`);
-    process.exitCode = lulus ? 0 : 1;
+  } catch (error) {
+    resultError = error instanceof Error ? error : new Error(String(error));
   } finally {
-    console.log('\nMenutup koneksi & bersih-bersih...');
-    await Promise.all(klien.map(({ sb, ch }) => sb.removeChannel(ch)));
-    const dihapus = await sql`
-      delete from public.customers where kode_sap like ${TANDA + '%'} returning id`;
-    const [{ n }] = await sql<{ n: number }[]>`
-      select count(*)::int as n from public.customers where kode_sap like ${'BADAI-%'}`;
-    console.log(`  ${dihapus.length} toko dummy dihapus, sisa penanda = ${n}`);
-    await sql.end();
+    subscribedAtEnd = tersambung;
+    console.log('\nMenutup seluruh channel...');
+    for (const client of clients) {
+      if (client.timer) clearTimeout(client.timer);
+    }
+    await Promise.all(clients.map(({ sb, ch }) => sb.removeChannel(ch)));
+    cleanupChannels = clients.reduce((sum, { sb }) => sum + sb.getChannels().length, 0);
+    console.log(`  channel tersisa: ${cleanupChannels}`);
   }
-  process.exit(process.exitCode ?? 0);
+
+  let puncak = 0;
+  for (const time of capWaktu) {
+    puncak = Math.max(puncak, capWaktu.filter((x) => x >= time && x < time + 1_000).length);
+  }
+  const deliveryRate = expectedEvents ? eventDiterima / expectedEvents : 1;
+  const failureRate = latensi.length + refetchGagal ? refetchGagal / (latensi.length + refetchGagal) : 0;
+  const p95 = persentil(latensi, 95);
+  const p99 = persentil(latensi, 99);
+  const lulus =
+    !resultError &&
+    subscribedAtEnd === KLIEN &&
+    deliveryRate >= 0.999 &&
+    failureRate < 0.01 &&
+    p95 < 500 &&
+    cleanupChannels === 0;
+
+  const report = {
+    runId: target.runId,
+    dibuat: new Date().toISOString(),
+    target: KLIEN,
+    subscribedAtEnd,
+    stages: stageReports,
+    statuses: statusCount,
+    reconnect,
+    eventDiterima,
+    expectedEvents,
+    deliveryRate,
+    refetch: { berhasil: latensi.length, gagal: refetchGagal, p50: persentil(latensi, 50), p95, p99 },
+    peakRequestsPerSecond: puncak,
+    cleanupChannels,
+    result: lulus ? 'PASS' : 'FAIL',
+    error: resultError?.message ?? null,
+  };
+  const reportFile = `${DATA_DIR}/report-realtime-${target.runId}.json`;
+  tulisJson(reportFile, report);
+
+  console.log('\n--- HASIL ---');
+  console.log(`  SUBSCRIBED akhir   : ${subscribedAtEnd}/${KLIEN}`);
+  console.log(`  reconnect          : ${reconnect}`);
+  console.log(`  event              : ${eventDiterima}/${expectedEvents} (${(deliveryRate * 100).toFixed(2)}%)`);
+  console.log(`  refetch gagal      : ${refetchGagal}`);
+  console.log(`  p50/p95/p99        : ${persentil(latensi, 50)} / ${p95} / ${p99} ms`);
+  console.log(`  puncak request/dtk : ${puncak}`);
+  console.log(`  laporan            : ${reportFile}`);
+  console.log(`\n${lulus ? 'LULUS' : 'TIDAK LULUS'}`);
+  if (resultError) console.error(resultError.message);
+  process.exit(lulus ? 0 : 1);
 }
 
-main().catch((e) => {
-  console.error(e instanceof Error ? e.message : e);
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message : error);
   process.exit(1);
 });

@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "mode": "seeded",
+  "runId": "LOADTEST_20260911T000000Z_ABC123",
+  "dibuat": "2026-09-11T00:00:00.000Z",
+  "staff": [
+    { "id": "00000000-0000-4000-8000-000000000001", "fullName": "LOADTEST FIXTURE STAFF", "cookie": "fixture" }
+  ],
+  "customers": [
+    { "id": "00000000-0000-4000-8000-000000000002", "kodeSap": "LOADTEST_FIXTURE", "namaToko": "LOADTEST FIXTURE", "cookie": "fixture" }
+  ]
+}

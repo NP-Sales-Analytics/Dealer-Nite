@@ -1,9 +1,11 @@
 import { check, sleep } from 'k6';
 import http from 'k6/http';
 import { AMBANG, BASE_URL, tahap } from '../config.js';
-import { sesi, tokoVU } from '../utils/helpers.js';
+import { pastikanTrafficDiizinkan, sesi, tokoVU } from '../utils/helpers.js';
+import { catatStatus } from '../utils/metrics.js';
 
 export const options = { stages: tahap(), thresholds: AMBANG };
+pastikanTrafficDiizinkan(BASE_URL);
 
 /**
  * Skenario terberat dari sisi jumlah request: /leaderboard adalah halaman tujuan
@@ -17,11 +19,12 @@ export const options = { stages: tahap(), thresholds: AMBANG };
  *
  * Jeda 1,5-3 detik meniru pola refresh baru (peredam realtime 1,5-2,5 detik),
  * bukan 2-5 detik seperti sebelumnya. Sengaja lebih rapat: yang diuji justru
- * apakah percepatan sinkronisasi itu masih aman di 150 penonton bersamaan.
+ * apakah percepatan sinkronisasi itu masih aman di 200 penonton bersamaan.
  */
 export default function () {
   const toko = tokoVU();
   const res = http.get(`${BASE_URL}/api/order/me`, sesi(toko.cookie));
+  catatStatus(res);
 
   check(res, {
     'status 200': (r) => r.status === 200,

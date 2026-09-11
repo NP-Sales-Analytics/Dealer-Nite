@@ -1,9 +1,17 @@
 import { check, sleep } from 'k6';
 import http from 'k6/http';
 import { AMBANG, BASE_URL, tahap } from '../config.js';
-import { sesi, tokoVU } from '../utils/helpers.js';
+import {
+  pastikanTargetSeeded,
+  pastikanTrafficDiizinkan,
+  sesi,
+  tokoVU,
+} from '../utils/helpers.js';
+import { catatStatus } from '../utils/metrics.js';
 
 export const options = { stages: tahap(), thresholds: AMBANG };
+pastikanTargetSeeded();
+pastikanTrafficDiizinkan(BASE_URL);
 
 /**
  * Customer menambah dus sendiri. Tiap VU memakai tokonya sendiri, jadi ini
@@ -18,6 +26,7 @@ export default function () {
     JSON.stringify({ qtyChange: 1 }),
     sesi(toko.cookie),
   );
+  catatStatus(res);
 
   check(res, {
     'tersimpan': (r) => r.status === 200,

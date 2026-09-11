@@ -1,5 +1,4 @@
-import { readFileSync } from 'node:fs';
-import { db } from './loadtest-common';
+import { bacaSeededTarget, db, pastikanTrafficDiizinkan } from './loadtest-common';
 
 /**
  * Uji race condition pada /api/order/adjust - bagian 3.d dokumen uji beban.
@@ -15,11 +14,6 @@ const BASE = process.env.BASE_URL ?? 'http://localhost:3000';
 const SERENTAK = Number(process.env.SERENTAK ?? 50);
 const AWAL = Number(process.env.AWAL ?? 10);
 
-type Target = {
-  staff: { id: string; cookie: string }[];
-  customers: { id: string; kodeSap: string; cookie: string }[];
-};
-
 const kirim = (cookie: string, body: unknown) =>
   fetch(`${BASE}/api/order/adjust`, {
     method: 'POST',
@@ -28,8 +22,10 @@ const kirim = (cookie: string, body: unknown) =>
   });
 
 async function main() {
-  const target: Target = JSON.parse(readFileSync('load-tests/data/target.json', 'utf8'));
-  const sql = db();
+  const target = bacaSeededTarget();
+  pastikanTrafficDiizinkan(BASE, target.runId);
+  if (target.customers.length < 51) throw new Error('Manifest membutuhkan minimal 51 customer dummy.');
+  const sql = db(4, target.runId);
   console.log(`Sasaran: ${BASE}\n`);
 
   try {
@@ -84,9 +80,11 @@ async function main() {
     console.log(`  => ${sukses2 === banyak.length ? 'LULUS' : 'GAGAL - ada yang tertolak'}\n`);
 
     // ---- Test 3: verifikasi akhir ----------------------------------------
+    const targetIds = target.customers.map((customer) => customer.id);
     const minus = await sql<{ n: number }[]>`
       select count(*)::int as n from (
         select customer_id from public.order_adjustments
+        where customer_id in ${sql(targetIds)}
         group by customer_id having sum(qty_change) < 0
       ) s`;
     console.log(`Test 3: toko bertotal minus = ${minus[0].n} (harus 0)`);

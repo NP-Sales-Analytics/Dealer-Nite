@@ -2,7 +2,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Repeat2 } from 'lucide-react';
-import { type ReactNode } from 'react';
+import { useRef, type ReactNode } from 'react';
 import { BagianJumlahDus, labelSimpan, useFormJumlahDus } from './bagian-jumlah-dus';
 import { RiwayatOrder } from './riwayat-order';
 import { InitialAvatar } from '@/components/shared/initial-avatar';
@@ -82,6 +82,7 @@ export function OrderPanel({
 }) {
   const qc = useQueryClient();
   const f = useFormJumlahDus({ total, dusAwal, tenggat });
+  const sedangMengirim = useRef(false);
 
   const simpan = useMutation({
     mutationFn: async () => {
@@ -108,7 +109,16 @@ export function OrderPanel({
       const code = (err as { data?: { code?: string } })?.data?.code as Tolakan | undefined;
       toast.error(code && code in PESAN_TOLAKAN ? PESAN_TOLAKAN[code] : 'Gagal menyimpan. Coba lagi.');
     },
+    onSettled: () => {
+      sedangMengirim.current = false;
+    },
   });
+
+  const kirim = () => {
+    if (sedangMengirim.current || !f.bisaSimpan) return;
+    sedangMengirim.current = true;
+    simpan.mutate();
+  };
 
   return (
     <div className="space-y-4">
@@ -175,7 +185,7 @@ export function OrderPanel({
         </Button>
         <Button
           className="h-12 flex-[2] text-base font-semibold"
-          onClick={() => simpan.mutate()}
+          onClick={kirim}
           disabled={!f.bisaSimpan || simpan.isPending}
         >
           {labelSimpan(f, simpan.isPending)}

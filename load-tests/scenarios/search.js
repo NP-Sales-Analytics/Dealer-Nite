@@ -1,9 +1,18 @@
 import { check, sleep } from 'k6';
 import http from 'k6/http';
 import { AMBANG, BASE_URL, tahap } from '../config.js';
-import { acak, sesi, staffVU } from '../utils/helpers.js';
+import {
+  acak,
+  pastikanTargetSeeded,
+  pastikanTrafficDiizinkan,
+  sesi,
+  staffVU,
+} from '../utils/helpers.js';
+import { catatStatus } from '../utils/metrics.js';
 
 export const options = { stages: tahap(), thresholds: AMBANG };
+pastikanTargetSeeded();
+pastikanTrafficDiizinkan(BASE_URL);
 
 // Meniru admin yang mengetik: potongan kata, bukan nama lengkap.
 const KATA = ['toko', 'load', 'lt00', 'test', 'lt01', 'oko 1'];
@@ -20,6 +29,7 @@ export default function () {
     `${BASE_URL}/api/customers/search?q=${encodeURIComponent(q)}`,
     sesi(staff.cookie),
   );
+  catatStatus(res);
 
   check(res, {
     'status 200': (r) => r.status === 200,

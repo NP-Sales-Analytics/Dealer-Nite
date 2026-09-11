@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
+import { RealtimeChannelLifecycle } from '@/lib/order/realtime-channel-lifecycle';
 
 const TUNDA_MS = 1_500;
 const JITTER_MS = 1_000;
@@ -51,8 +53,16 @@ export function useRealtimeRefresh(onChange: () => void) {
   useEffect(() => {
     const supabase = createClient();
     let timer: ReturnType<typeof setTimeout> | null = null;
+    let selesai = false;
+
+    const batalkanJadwal = () => {
+      if (!timer) return;
+      clearTimeout(timer);
+      timer = null;
+    };
 
     const jadwalkan = () => {
+      if (selesai || document.visibilityState !== 'visible') return;
       // Sudah ada yang menunggu: event ini ikut terserap ke sana.
       if (timer) return;
       timer = setTimeout(() => {
@@ -61,24 +71,61 @@ export function useRealtimeRefresh(onChange: () => void) {
       }, TUNDA_MS + Math.random() * JITTER_MS);
     };
 
-    const channel = supabase
-      .channel('order_adjustments')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'order_adjustments' },
-        jadwalkan,
-      )
-      .subscribe((status) => {
-        const hidup = status === 'SUBSCRIBED';
-        setTersambung(hidup);
-        // Saat koneksi baru pulih, isi layar bisa saja sudah tertinggal jauh -
-        // sinyal yang lewat selama putus tidak dikirim ulang oleh Supabase.
-        if (hidup) jadwalkan();
-      });
+    const lifecycle = new RealtimeChannelLifecycle<RealtimeChannel>(
+      () => {
+        const baru = supabase
+          .channel('order_adjustments')
+          .on(
+            'postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'order_adjustments' },
+            jadwalkan,
+          );
+        baru.subscribe((status) => {
+          // Callback dari channel yang sudah dilepas tidak boleh mengubah status
+          // channel penggantinya.
+          if (selesai || !lifecycle.isCurrent(baru)) return;
+          const hidup = status === 'SUBSCRIBED';
+          setTersambung(hidup);
+        });
+        return baru;
+      },
+      (lama) => supabase.removeChannel(lama),
+    );
+
+    const sambung = (refresh = false) => {
+      if (selesai || document.visibilityState !== 'visible') return;
+      // Event selama tab tersembunyi tidak diputar ulang: baca keadaan terbaru
+      // segera, tanpa menunggu debounce event Realtime.
+      if (refresh) cb.current();
+      void lifecycle.setActive(true);
+    };
+
+    const putus = () => {
+      batalkanJadwal();
+      if (!selesai) setTersambung(false);
+      void lifecycle.setActive(false);
+    };
+
+    const saatVisibilityBerubah = () => {
+      if (document.visibilityState === 'visible') sambung(true);
+      else putus();
+    };
+
+    const saatPageShow = () => sambung(true);
+    const saatPageHide = () => putus();
+
+    document.addEventListener('visibilitychange', saatVisibilityBerubah);
+    window.addEventListener('pageshow', saatPageShow);
+    window.addEventListener('pagehide', saatPageHide);
+    sambung();
 
     return () => {
-      if (timer) clearTimeout(timer);
-      supabase.removeChannel(channel);
+      selesai = true;
+      document.removeEventListener('visibilitychange', saatVisibilityBerubah);
+      window.removeEventListener('pageshow', saatPageShow);
+      window.removeEventListener('pagehide', saatPageHide);
+      batalkanJadwal();
+      void lifecycle.stop();
     };
   }, []);
 

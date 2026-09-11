@@ -40,6 +40,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 !.env.example
+!.env.loadtest.example
 
 # claude code local settings
 .claude/settings.local.json
@@ -57,6 +58,9 @@ cookies*.txt
 .env.loadtest
 load-tests/data/target.json
 load-tests/data/snapshot-*.json
+load-tests/data/active-run.json
+load-tests/data/target-readonly.json
+load-tests/data/report-*.json
 # Cadangan tabel customers sebelum update master data: memuat kode_sap, yang
 # ADALAH kredensial login customer.
 load-tests/data/customers-sebelum-update-*.json
