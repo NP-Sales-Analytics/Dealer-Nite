@@ -1,7 +1,7 @@
 "use client"
 
 import { Toaster as Sonner, type ToasterProps } from "sonner"
-import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
+import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon, XIcon } from "lucide-react"
 
 const Toaster = ({ ...props }: ToasterProps) => {
   return (
@@ -11,6 +11,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
       // pada HP yang dark mode-nya menyala (persis kondisi malam event).
       theme="light"
       className="toaster group"
+      closeButton
       icons={{
         success: (
           <CircleCheckIcon className="size-4" />
@@ -27,6 +28,9 @@ const Toaster = ({ ...props }: ToasterProps) => {
         loading: (
           <Loader2Icon className="size-4 animate-spin" />
         ),
+        close: (
+          <XIcon className="size-4" />
+        ),
       }}
       style={
         {
@@ -37,6 +41,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
         } as React.CSSProperties
       }
       toastOptions={{
+        closeButtonAriaLabel: "Tutup notifikasi",
         classNames: {
           toast: "cn-toast",
         },
