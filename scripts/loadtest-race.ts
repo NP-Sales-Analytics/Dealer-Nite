@@ -11,7 +11,9 @@ import { bacaSeededTarget, db, pastikanTrafficDiizinkan } from './loadtest-commo
  *   BASE_URL=https://xxx.vercel.app npm run loadtest:race
  */
 const BASE = process.env.BASE_URL ?? 'http://localhost:3000';
-const SERENTAK = Number(process.env.SERENTAK ?? 50);
+// Satu akun dibatasi 40 request/10 detik. Sepuluh request sudah cukup untuk
+// membuktikan advisory lock tanpa mencampur hasil uji dengan rate limiter.
+const SERENTAK = Number(process.env.SERENTAK ?? 10);
 const AWAL = Number(process.env.AWAL ?? 10);
 
 const kirim = (cookie: string, body: unknown) =>
@@ -54,10 +56,14 @@ async function main() {
       from public.order_adjustments where customer_id = ${korban.id}`;
 
     console.log(`  status  : ${[...perStatus].map(([s, n]) => `${s}x${n}`).join('  ')}`);
-    console.log(`  berhasil: ${sukses} (harusnya tepat ${AWAL})`);
-    console.log(`  total    : ${total} (harusnya tepat 0, tidak boleh minus)`);
+    console.log(`  berhasil: ${sukses} (harusnya tepat 1)`);
+    console.log(`  total    : ${total} (harusnya tepat ${AWAL - 1}, tidak boleh minus)`);
     console.log(`  durasi   : ${ms1} ms`);
-    const lulus1 = sukses === AWAL && total === 0;
+    // Pengurangan API pertama menetapkan dus_awal baru sebagai lantai. Dengan
+    // advisory lock, hanya request pertama yang boleh lolos; sisanya 409.
+    // Tanpa serialisasi, beberapa request bisa membaca lantai null bersamaan.
+    const adaStopError = hasil.some((response) => response.status === 402 || response.status === 429 || response.status >= 500);
+    const lulus1 = sukses === 1 && total === AWAL - 1 && !adaStopError;
     console.log(`  => ${lulus1 ? 'LULUS' : 'GAGAL - race condition nyata'}\n`);
 
     // ---- Test 2: penambahan serentak dari BANYAK toko berbeda -------------

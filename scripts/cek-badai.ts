@@ -241,7 +241,9 @@ async function main() {
     result: lulus ? 'PASS' : 'FAIL',
     error: resultError?.message ?? null,
   };
-  const reportFile = `${DATA_DIR}/report-realtime-${target.runId}.json`;
+  // Satu run memuat profil realistis (180) DAN batas kuota (200); keduanya
+  // harus menjadi artefak terpisah agar laporan pertama tidak tertimpa.
+  const reportFile = `${DATA_DIR}/report-realtime-${target.runId}-${KLIEN}.json`;
   tulisJson(reportFile, report);
 
   console.log('\n--- HASIL ---');
