@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { requireRoleApi } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { customers, orderAdjustments } from '@/lib/db/schema';
+import { hierarkiDepot } from '@/lib/dashboard/hierarchy';
 import { segarkanOrder } from '@/lib/order/segarkan';
 import { rateLimit } from '@/lib/rate-limit';
 import { orderCustomerPatchSchema } from '@/lib/validations/order';
@@ -34,6 +35,10 @@ export async function PATCH(request: NextRequest, { params }: Ctx) {
     return NextResponse.json({ code: 'INVALID', issues: parsed.error.issues }, { status: 400 });
   }
   const { namaToko, depot, total } = parsed.data;
+  const induk = depot === undefined ? null : hierarkiDepot().get(depot);
+  if (depot !== undefined && !induk) {
+    return NextResponse.json({ code: 'DEPOT_INVALID' }, { status: 400 });
+  }
 
   const hasil = await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${id}, 0))`);
@@ -50,7 +55,11 @@ export async function PATCH(request: NextRequest, { params }: Ctx) {
         .update(customers)
         .set({
           ...(namaToko !== undefined && { namaToko }),
-          ...(depot !== undefined && { depot }),
+          ...(depot !== undefined && {
+            depot,
+            region: induk!.region,
+            wilayah: induk!.wilayah,
+          }),
           updatedAt: new Date(),
         })
         .where(eq(customers.id, id));

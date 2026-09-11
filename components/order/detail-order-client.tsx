@@ -13,6 +13,7 @@ import {
 import { TombolUnduh } from '@/components/shared/tombol-unduh';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import type { PilihanDepot } from '@/lib/dashboard/hierarchy';
 import { useDebounce } from '@/lib/use-debounce';
 
 const fetcher = <T,>(url: string) => async (): Promise<T> => {
@@ -31,9 +32,11 @@ const buildQuery = (f: FilterState, page: number, urut: 'asc' | 'desc') => {
 export function DetailOrderClient({
   bisaUbah,
   bisaUnduh,
+  depotOptions,
 }: {
   bisaUbah: boolean;
   bisaUnduh: boolean;
+  depotOptions: PilihanDepot[];
 }) {
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<FilterState>(FILTER_KOSONG);
@@ -63,7 +66,6 @@ export function DetailOrderClient({
   });
 
   const [tambah, setTambah] = useState(false);
-  const depots = options.data?.depots.map((d) => d.depot) ?? [];
   const adaFilter = adaFilterAktif({ ...filter, q });
   const jumlah = data.data?.total ?? 0;
 
@@ -118,7 +120,7 @@ export function DetailOrderClient({
           totalPages={data.data.totalPages}
           total={data.data.total}
           pageSize={data.data.pageSize}
-          depots={depots}
+          depotOptions={depotOptions}
           adaFilter={adaFilter}
           bisaUbah={bisaUbah}
           urut={urut}
@@ -130,6 +132,7 @@ export function DetailOrderClient({
 
       <MasterCustomerDialog
         open={tambah}
+        depotOptions={depotOptions}
         onOpenChange={setTambah}
         onSaved={() => queryClient.invalidateQueries({ queryKey: ['order-list'] })}
       />

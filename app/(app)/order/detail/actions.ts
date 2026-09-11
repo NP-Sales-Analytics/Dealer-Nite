@@ -3,10 +3,10 @@
 import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { requireRole } from '@/lib/auth';
-import { bersihkanCacheDashboard } from '@/lib/dashboard/cache';
+import { hierarkiDepot } from '@/lib/dashboard/hierarchy';
 import { db } from '@/lib/db';
 import { customers } from '@/lib/db/schema';
-import { papan } from '@/lib/order/papan';
+import { segarkanOrder } from '@/lib/order/segarkan';
 
 const teks = (formData: FormData, nama: string) => String(formData.get(nama) ?? '').trim();
 const kosongJadiNull = (v: string) => (v === '' ? null : v);
@@ -27,11 +27,14 @@ export async function tambahMasterCustomer(
   // Nama disimpan huruf besar mengikuti konvensi 0003_nama_upper.sql.
   const namaToko = teks(formData, 'namaToko').toUpperCase();
   const kodeSap = teks(formData, 'kodeSap');
+  const depot = teks(formData, 'depot');
+  const induk = hierarkiDepot().get(depot);
   const qtyMentah = teks(formData, 'qtyUndangan');
   const qtyUndangan = qtyMentah === '' ? 1 : Number(qtyMentah);
 
   if (namaToko.length < 2) return 'Nama toko minimal 2 karakter.';
   if (kodeSap === '') return 'Kode SAP wajib diisi.';
+  if (!induk) return 'Pilih depot dari daftar yang tersedia.';
   if (!Number.isInteger(qtyUndangan) || qtyUndangan < 0) return 'Qty undangan tidak valid.';
 
   const [bentrok] = await db
@@ -45,15 +48,14 @@ export async function tambahMasterCustomer(
     namaToko,
     kodeSap,
     qtyUndangan,
-    depot: kosongJadiNull(teks(formData, 'depot')),
-    wilayah: kosongJadiNull(teks(formData, 'wilayah')),
-    region: kosongJadiNull(teks(formData, 'region')),
+    depot,
+    wilayah: induk.wilayah,
+    region: induk.region,
     namaPemilik: kosongJadiNull(teks(formData, 'namaPemilik').toUpperCase()),
     picRsmAsm: kosongJadiNull(teks(formData, 'picRsmAsm')),
   });
 
-  papan.clear();
-  bersihkanCacheDashboard();
+  segarkanOrder();
   revalidatePath('/order/detail');
   return null;
 }

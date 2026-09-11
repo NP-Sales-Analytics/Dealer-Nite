@@ -22,27 +22,12 @@ export async function PATCH(request: NextRequest, { params }: Ctx) {
     return NextResponse.json({ code: 'INVALID', issues: parsed.error.issues }, { status: 400 });
   }
 
-  const [existing] = await db
-    .select({ id: reservations.id, isManualEntry: reservations.isManualEntry })
-    .from(reservations)
-    .where(eq(reservations.id, id))
-    .limit(1);
-  if (!existing) return NextResponse.json({ code: 'NOT_FOUND' }, { status: 404 });
-
-  // Nama hanya milik manual entry; toko terdaftar namanya dari master data.
-  if (parsed.data.manualNamaCustomer !== undefined && !existing.isManualEntry) {
-    return NextResponse.json({ code: 'NAMA_TERKUNCI' }, { status: 400 });
-  }
-
-  const patch = parsed.data;
-  await db
+  const updated = await db
     .update(reservations)
-    .set({
-      ...(patch.qtyHadir !== undefined && { qtyHadir: patch.qtyHadir }),
-      ...(patch.depotOverride !== undefined && { depotOverride: patch.depotOverride }),
-      ...(patch.manualNamaCustomer !== undefined && { manualNamaCustomer: patch.manualNamaCustomer }),
-    })
-    .where(eq(reservations.id, id));
+    .set({ qtyHadir: parsed.data.qtyHadir })
+    .where(eq(reservations.id, id))
+    .returning({ id: reservations.id });
+  if (updated.length === 0) return NextResponse.json({ code: 'NOT_FOUND' }, { status: 404 });
 
   bersihkanCacheDashboard();
   return NextResponse.json({ status: 'updated' });

@@ -1,5 +1,5 @@
 export type Summary = {
-  totalUndangan: number;
+  targetPax: number;
   totalHadir: number;
   totalToko: number;
   tokoCheckin: number;

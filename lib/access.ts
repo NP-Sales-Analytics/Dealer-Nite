@@ -21,6 +21,7 @@ export const HALAMAN: { href: string; label: string }[] = [
   { href: '/order/detail', label: 'Detail Order' },
   { href: '/admin/users', label: 'User Management' },
   { href: '/setting/waktu', label: 'Waktu Penambahan' },
+  { href: '/setting/pax', label: 'Setting Pax' },
 ];
 
 /**
@@ -34,7 +35,7 @@ export const HALAMAN_BAWAAN: Record<Role, string[]> = {
   superadmin: [
     '/dashboard', '/reservation', '/kehadiran',
     '/leaderboard', '/order', '/order/detail',
-    '/admin/users', '/setting/waktu',
+    '/admin/users', '/setting/waktu', '/setting/pax',
   ],
   admin_rsvp: ['/reservation', '/kehadiran', '/leaderboard', '/order', '/order/detail'],
   // Marketing & RSM: Detail Order hanya untuk dilihat - tombol ubah/hapus/tambah

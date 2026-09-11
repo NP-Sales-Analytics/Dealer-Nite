@@ -22,8 +22,8 @@ const load = cacheDashboard(async (key: string) => {
   // Satu definisi kondisi dipakai untuk data maupun hitungan total, supaya
   // nomor halaman tidak pernah berbeda dari isinya.
   const kondisi = sql`
-    ${cocokSalahSatu(sql`c.wilayah`, wilayah)}
-    and ${cocokSalahSatu(sql`c.region`, region)}
+    ${cocokSalahSatu(sql`coalesce(c.wilayah, pt.wilayah)`, wilayah)}
+    and ${cocokSalahSatu(sql`coalesce(c.region, pt.region)`, region)}
     and (${kodeSap}::text is null or c.kode_sap = ${kodeSap}::text)
     and ${cocokSalahSatu(sql`coalesce(r.depot_override, c.depot, r.manual_depot)`, depot)}
     and (
@@ -38,8 +38,8 @@ const load = cacheDashboard(async (key: string) => {
            coalesce(c.nama_toko, r.manual_nama_customer)                  as nama,
            coalesce(r.depot_override, c.depot, r.manual_depot, '-')       as depot,
            c.kode_sap                                                     as "kodeSap",
-           c.region                                                       as region,
-           c.wilayah                                                      as wilayah,
+           coalesce(c.region, pt.region)                                  as region,
+           coalesce(c.wilayah, pt.wilayah)                                as wilayah,
            c.nama_pemilik                                                 as "namaPemilik",
            c.pic_rsm_asm                                                  as "picRsmAsm",
            r.qty_hadir::int                                               as "qtyHadir",
@@ -49,6 +49,8 @@ const load = cacheDashboard(async (key: string) => {
            r.depot_override is not null                                   as "depotDiubah"
     from public.reservations r
     left join public.customers c on c.id = r.customer_id
+    left join public.depot_pax_targets pt
+      on pt.depot = coalesce(r.depot_override, c.depot, r.manual_depot)
     where ${kondisi}
     order by r.checked_in_at ${naik ? sql`asc` : sql`desc`}
     limit ${PAGE_SIZE} offset ${offset}
@@ -58,6 +60,8 @@ const load = cacheDashboard(async (key: string) => {
     select count(*)::int as total
     from public.reservations r
     left join public.customers c on c.id = r.customer_id
+    left join public.depot_pax_targets pt
+      on pt.depot = coalesce(r.depot_override, c.depot, r.manual_depot)
     where ${kondisi}
   `)) as unknown as { total: number }[];
   const total = totalRows[0]?.total ?? 0;

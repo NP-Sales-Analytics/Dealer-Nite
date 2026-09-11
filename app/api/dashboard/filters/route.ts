@@ -27,11 +27,13 @@ const load = cacheDashboard(async (key: string) => {
   const rows = (await db.execute(sql`
     select distinct
       coalesce(nullif(trim(coalesce(r.depot_override, c.depot, r.manual_depot)), ''), '(Tanpa Depot)') as depot,
-      nullif(trim(c.region), '')  as region,
-      nullif(trim(c.wilayah), '') as wilayah
+      nullif(trim(coalesce(c.region, t.region)), '')  as region,
+      nullif(trim(coalesce(c.wilayah, t.wilayah)), '') as wilayah
     from public.reservations r
     left join public.customers c on c.id = r.customer_id
-    where ${cocokSalahSatu(sql`c.region`, r)}
+    left join public.depot_pax_targets t
+      on t.depot = coalesce(r.depot_override, c.depot, r.manual_depot)
+    where ${cocokSalahSatu(sql`coalesce(c.region, t.region)`, r)}
       and (${k}::text is null or c.kode_sap = ${k}::text)
     order by depot
   `)) as unknown as { depot: string; region: string | null; wilayah: string | null }[];

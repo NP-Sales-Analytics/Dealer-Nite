@@ -104,9 +104,9 @@ export function CapacityPieChart({ summary }: { summary: Summary }) {
       <div className="border-t border-border" />
       <Donut
         judul="Pax (orang)"
-        keterangan="Orang hadir terhadap kuota undangan"
+        keterangan="Orang hadir terhadap target pax yang disetting"
         hadir={summary.totalHadir}
-        total={summary.totalUndangan}
+        total={summary.targetPax}
         satuan="orang"
       />
     </div>

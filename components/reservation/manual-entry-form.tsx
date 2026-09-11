@@ -112,8 +112,8 @@ export function ManualEntryForm({
           </div>
 
           <p className="rounded-xl border border-border bg-secondary/30 px-3.5 py-3 text-xs leading-relaxed text-muted-foreground">
-            Tamu manual tidak punya wilayah dan region, jadi barisnya tidak akan
-            muncul saat filter wilayah atau region dipakai.
+            Wilayah dan region tamu manual mengikuti depot yang dipilih. Gunakan
+            depot Komunitas &amp; Media untuk tamu yang hadir bukan sebagai customer.
           </p>
         </div>
 

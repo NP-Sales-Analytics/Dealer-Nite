@@ -3,12 +3,14 @@
 import { X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { DepotFields } from './depot-fields';
 import type { OrderRow } from '@/app/api/order/list/route';
 import { QtyStepper } from '@/components/reservation/qty-stepper';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogClose, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import type { PilihanDepot } from '@/lib/dashboard/hierarchy';
 
 /**
  * Koreksi admin untuk satu toko: nama, depot, dan jumlah dus.
@@ -20,12 +22,12 @@ import { Label } from '@/components/ui/label';
  */
 export function EditOrderDialog({
   row,
-  depots,
+  depotOptions,
   onOpenChange,
   onSaved,
 }: {
   row: OrderRow | null;
-  depots: string[];
+  depotOptions: PilihanDepot[];
   onOpenChange: (v: boolean) => void;
   onSaved: () => void;
 }) {
@@ -84,10 +86,7 @@ export function EditOrderDialog({
         className="grid max-h-[88svh] w-full max-w-lg grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-2xl p-0"
       >
         <header className="flex items-center justify-between border-b border-border px-5 py-4">
-          <div className="min-w-0">
-            <DialogTitle className="text-base font-semibold">Ubah Data Order</DialogTitle>
-            <p className="truncate text-xs text-muted-foreground">{row.kodeSap}</p>
-          </div>
+          <DialogTitle className="text-base font-semibold">Ubah Data Order</DialogTitle>
           <DialogClose
             aria-label="Tutup"
             className="grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
@@ -107,23 +106,12 @@ export function EditOrderDialog({
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="o-depot">Depot</Label>
-            {/* datalist bawaan browser, bukan combobox: daftarnya panjang tapi
-                pemakainya mengetik, dan ini sudah dapat keyboard + screen reader. */}
-            <Input
-              className="h-11"
-              id="o-depot"
-              list="o-depot-list"
-              value={depot}
-              onChange={(e) => setDepot(e.target.value)}
-            />
-            <datalist id="o-depot-list">
-              {depots.map((d) => (
-                <option key={d} value={d} />
-              ))}
-            </datalist>
-          </div>
+          <DepotFields
+            idPrefix="o"
+            depot={depot}
+            options={depotOptions}
+            onDepotChange={setDepot}
+          />
 
           <div className="space-y-2.5">
             <Label htmlFor="o-dus" className="text-base">Jumlah dus</Label>

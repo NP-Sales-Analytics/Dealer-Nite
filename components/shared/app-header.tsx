@@ -48,6 +48,11 @@ const JUDUL: { awalan: string; judul: string; keterangan: string }[] = [
     keterangan: 'Batas waktu penambahan order. Setelah lewat, semua penambahan terkunci.',
   },
   {
+    awalan: '/setting/pax',
+    judul: 'Setting Pax',
+    keterangan: 'Atur target maksimum orang hadir untuk setiap depot.',
+  },
+  {
     awalan: '/admin/users',
     judul: 'User Management',
     keterangan: 'Kelola akun, halaman yang bisa diakses, dan cakupan datanya.',

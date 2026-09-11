@@ -39,7 +39,7 @@ function PillPax({ hadir, undangan }: { hadir: number; undangan: number | null }
 }
 
 export function AttendanceTable({
-  rows, page, totalPages, total, pageSize, depots, adaFilter, bisaUbah, urut,
+  rows, page, totalPages, total, pageSize, adaFilter, bisaUbah, urut,
   onPageChange, onUrutChange, onChanged,
 }: {
   rows: AttendanceRow[];
@@ -47,7 +47,6 @@ export function AttendanceTable({
   totalPages: number;
   total: number;
   pageSize: number;
-  depots: string[];
   adaFilter: boolean;
   bisaUbah: boolean;
   urut: 'asc' | 'desc';
@@ -224,7 +223,6 @@ export function AttendanceTable({
       />
       <EditCheckinDialog
         row={edit}
-        depots={depots}
         onOpenChange={(v) => !v && setEdit(null)}
         onSaved={onChanged}
       />

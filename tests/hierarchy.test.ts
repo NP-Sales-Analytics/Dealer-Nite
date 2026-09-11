@@ -1,9 +1,26 @@
 import { describe, expect, it } from 'vitest';
-import { hierarkiDepot, lengkapiInduk } from '@/lib/dashboard/hierarchy';
+import { hierarkiDepot, lengkapiInduk, pilihanDepot } from '@/lib/dashboard/hierarchy';
 
 describe('hierarkiDepot', () => {
   it('membaca seluruh baris CSV', () => {
-    expect(hierarkiDepot().size).toBe(97);
+    expect(hierarkiDepot().size).toBe(98);
+  });
+
+  it('memuat depot sintetis Komunitas & Media', () => {
+    expect(hierarkiDepot().get('Komunitas & Media')).toEqual({
+      region: 'Komunitas & Media', wilayah: 'Komunitas & Media',
+    });
+  });
+
+  it('menyediakan pilihan depot lengkap dan terurut untuk form master', () => {
+    const pilihan = pilihanDepot();
+    expect(pilihan).toHaveLength(98);
+    expect(pilihan.find((item) => item.depot === '1P Semarang')).toEqual({
+      depot: '1P Semarang', region: '3A', wilayah: 'Indonesia Barat',
+    });
+    expect(pilihan.map((item) => item.depot)).toEqual(
+      [...pilihan.map((item) => item.depot)].sort((a, b) => a.localeCompare(b, 'id')),
+    );
   });
 
   it('memetakan depot ke region dan wilayahnya', () => {

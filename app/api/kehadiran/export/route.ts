@@ -115,8 +115,8 @@ export async function GET(request: NextRequest) {
            c.kode_sap                                              as "kodeSap",
            c.nama_pemilik                                          as "namaPemilik",
            c.pic_rsm_asm                                           as "picRsmAsm",
-           c.wilayah                                               as wilayah,
-           c.region                                                as region,
+           coalesce(c.wilayah, pt.wilayah)                         as wilayah,
+           coalesce(c.region, pt.region)                           as region,
            coalesce(r.depot_override, c.depot, r.manual_depot, '-') as depot,
            c.qty_undangan::int                                     as "qtyUndangan",
            r.qty_hadir::int                                        as "qtyHadir",
@@ -125,9 +125,11 @@ export async function GET(request: NextRequest) {
            p.full_name                                             as "dicatatOleh"
     from public.reservations r
     left join public.customers c on c.id = r.customer_id
+    left join public.depot_pax_targets pt
+      on pt.depot = coalesce(r.depot_override, c.depot, r.manual_depot)
     left join public.profiles p on p.id = r.checked_in_by
-    where ${cocokSalahSatu(sql`c.wilayah`, wilayah)}
-      and ${cocokSalahSatu(sql`c.region`, region)}
+    where ${cocokSalahSatu(sql`coalesce(c.wilayah, pt.wilayah)`, wilayah)}
+      and ${cocokSalahSatu(sql`coalesce(c.region, pt.region)`, region)}
       and (${kodeSap}::text is null or c.kode_sap = ${kodeSap}::text)
       and ${cocokSalahSatu(sql`coalesce(r.depot_override, c.depot, r.manual_depot)`, depot)}
       and (

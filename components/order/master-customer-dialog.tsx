@@ -1,25 +1,34 @@
 'use client';
 
 import { X } from 'lucide-react';
-import { useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { toast } from 'sonner';
+import { DepotFields } from './depot-fields';
 import { tambahMasterCustomer } from '@/app/(app)/order/detail/actions';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogClose, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import type { PilihanDepot } from '@/lib/dashboard/hierarchy';
 
 /** Menambah toko baru ke master data, mis. peserta yang datang mendadak. */
 export function MasterCustomerDialog({
   open,
+  depotOptions,
   onOpenChange,
   onSaved,
 }: {
   open: boolean;
+  depotOptions: PilihanDepot[];
   onOpenChange: (v: boolean) => void;
   onSaved: () => void;
 }) {
   const [pending, start] = useTransition();
+  const [depot, setDepot] = useState('');
+
+  useEffect(() => {
+    if (open) setDepot('');
+  }, [open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -52,6 +61,7 @@ export function MasterCustomerDialog({
                 return;
               }
               toast.success('Master customer ditambahkan.');
+              setDepot('');
               onOpenChange(false);
               onSaved();
             })
@@ -81,27 +91,15 @@ export function MasterCustomerDialog({
             <Input className="h-11" id="m-pemilik" name="namaPemilik" />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="m-depot">Depot</Label>
-              <Input className="h-11" id="m-depot" name="depot" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="m-region">Region</Label>
-              <Input className="h-11" id="m-region" name="region" placeholder="Misal: 3A" />
-            </div>
-          </div>
+          <DepotFields
+            idPrefix="m"
+            depot={depot}
+            options={depotOptions}
+            onDepotChange={setDepot}
+            fieldName="depot"
+          />
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="m-wilayah">Wilayah</Label>
-              <Input
-                className="h-11"
-                id="m-wilayah"
-                name="wilayah"
-                placeholder="Misal: Indonesia Barat"
-              />
-            </div>
             <div className="space-y-2">
               <Label htmlFor="m-qty">Qty Undangan</Label>
               <Input
@@ -130,7 +128,12 @@ export function MasterCustomerDialog({
           >
             Batal
           </Button>
-          <Button type="submit" form="master-form" className="h-11 flex-1" disabled={pending}>
+          <Button
+            type="submit"
+            form="master-form"
+            className="h-11 flex-1"
+            disabled={pending || depot === ''}
+          >
             {pending ? 'Menyimpan...' : 'Simpan'}
           </Button>
         </footer>

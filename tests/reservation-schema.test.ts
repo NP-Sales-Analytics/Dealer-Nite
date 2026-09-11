@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { reservationInputSchema } from '@/lib/validations/reservation';
+import { reservationInputSchema, reservationPatchSchema } from '@/lib/validations/reservation';
 
 const uuid = '9f1e4c2a-7b3d-4e5f-8a1b-2c3d4e5f6a7b';
 
@@ -58,5 +58,22 @@ describe('reservationInputSchema', () => {
       isManualEntry: true, customerId: uuid, manualNamaCustomer: 'X', manualDepot: 'Y', qtyHadir: 1,
     });
     expect(r.success).toBe(false);
+  });
+});
+
+describe('reservationPatchSchema', () => {
+  it('hanya menerima perubahan jumlah pax', () => {
+    expect(reservationPatchSchema.safeParse({ qtyHadir: 5 }).success).toBe(true);
+  });
+
+  it('menolak perubahan depot meskipun jumlah pax valid', () => {
+    expect(reservationPatchSchema.safeParse({
+      qtyHadir: 5,
+      depotOverride: 'Depot Lain',
+    }).success).toBe(false);
+  });
+
+  it('menolak patch kosong', () => {
+    expect(reservationPatchSchema.safeParse({}).success).toBe(false);
   });
 });

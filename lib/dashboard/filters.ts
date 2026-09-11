@@ -111,10 +111,6 @@ export function bacaKunci(key: string): DashboardFilter {
   };
 }
 
-/**
- * Wilayah dan region hanya ada di master data customer. Manual entry tidak
- * punya keduanya, jadi memfilter per wilayah/region memang mengeluarkannya -
- * itu perilaku yang diharapkan, bukan bug.
- */
+/** Manual entry memperoleh wilayah/region dari metadata target depot. */
 export const CATATAN_REGION_MANUAL =
-  'Manual entry tidak punya wilayah/region sehingga tidak muncul saat filter itu dipakai.';
+  'Manual entry mengikuti wilayah dan region dari depot yang dipilih.';

@@ -19,11 +19,9 @@ export function DepotBarChart({ rows }: { rows: DepotRow[] }) {
   const aman = Math.min(page, totalPages);
   const mulai = (aman - 1) * PER_PAGE;
   const tampil = rows.slice(mulai, mulai + PER_PAGE);
-  // Bar diskalakan ke jumlah TOKO hadir tertinggi, bukan undangan: daftarnya
-  // diurutkan menurut kehadiran, jadi bar terpanjang harus jatuh di peringkat 1.
-  // Memakai undangan membuat peringkat 10 tampak lebih panjang daripada peringkat 1.
+  // Bar diskalakan ke jumlah TOKO hadir tertinggi, sehingga urutan visual dan
+  // urutan daftar tetap sama seperti tampilan awal.
   const maksHadir = Math.max(1, ...rows.map((r) => r.tokoHadir));
-
   return (
     <div className="rounded-2xl border border-border bg-card shadow-xs">
       <div className="flex flex-wrap items-start justify-between gap-2 border-b border-border px-4 py-3.5 sm:px-5">

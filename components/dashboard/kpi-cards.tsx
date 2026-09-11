@@ -55,16 +55,16 @@ export function KpiCards({ summary }: { summary: Summary }) {
       />
       <Kpi
         icon={Users}
-        label="Pax Diundang"
-        value={String(summary.totalUndangan)}
-        unit="orang"
+        label="Target Pax"
+        value={String(summary.targetPax)}
+        unit="target maksimum orang hadir"
       />
       <Kpi
         icon={UserCheck}
         tone="hadir"
         label="Pax Hadir"
         value={String(summary.totalHadir)}
-        unit={persen(summary.totalHadir, summary.totalUndangan)}
+        unit={persen(summary.totalHadir, summary.targetPax)}
       />
     </div>
   );

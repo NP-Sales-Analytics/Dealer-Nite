@@ -1,7 +1,7 @@
 'use client';
 
 import {
-  ChevronLeft, ClipboardCheck, ClipboardList, Clock, LayoutDashboard, ListChecks,
+  ChevronLeft, ClipboardCheck, ClipboardList, Clock, Gauge, LayoutDashboard, ListChecks,
   LogOut, PlusCircle, Trophy, Users,
 } from 'lucide-react';
 import Image from 'next/image';
@@ -46,6 +46,7 @@ const GRUP: { label: string; links: NavLink[] }[] = [
     links: [
       { href: '/admin/users', label: 'User Management', icon: Users },
       { href: '/setting/waktu', label: 'Waktu Penambahan', icon: Clock },
+      { href: '/setting/pax', label: 'Setting Pax', icon: Gauge },
     ],
   },
 ];

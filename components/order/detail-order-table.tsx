@@ -10,6 +10,7 @@ import type { OrderRow } from '@/app/api/order/list/route';
 import { InitialAvatar } from '@/components/shared/initial-avatar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn, jamJakarta } from '@/lib/utils';
+import type { PilihanDepot } from '@/lib/dashboard/hierarchy';
 
 /** Jumlah dus dibuat menonjol: inilah angka yang dicari orang di halaman ini. */
 function PillDus({ total }: { total: number }) {
@@ -68,7 +69,7 @@ export function DetailOrderTable({
   totalPages,
   total,
   pageSize,
-  depots,
+  depotOptions,
   adaFilter,
   bisaUbah,
   urut,
@@ -81,7 +82,7 @@ export function DetailOrderTable({
   totalPages: number;
   total: number;
   pageSize: number;
-  depots: string[];
+  depotOptions: PilihanDepot[];
   adaFilter: boolean;
   bisaUbah: boolean;
   urut: 'asc' | 'desc';
@@ -259,7 +260,7 @@ export function DetailOrderTable({
 
       <EditOrderDialog
         row={edit}
-        depots={depots}
+        depotOptions={depotOptions}
         onOpenChange={(v) => !v && setEdit(null)}
         onSaved={onChanged}
       />

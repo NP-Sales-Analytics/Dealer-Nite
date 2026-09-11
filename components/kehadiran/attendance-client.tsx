@@ -65,11 +65,6 @@ export function AttendanceClient({
     placeholderData: keepPreviousData,
   });
 
-  const namaDepot = useMemo(
-    () => (options.data?.depots ?? []).map((d) => d.depot),
-    [options.data],
-  );
-
   const adaFilter = adaFilterAktif(filterEfektif);
 
   const jumlah = data.data?.total ?? 0;
@@ -121,7 +116,6 @@ export function AttendanceClient({
           totalPages={data.data.totalPages}
           total={data.data.total}
           pageSize={data.data.pageSize}
-          depots={namaDepot}
           adaFilter={adaFilter}
           bisaUbah={bisaUbah}
           urut={urut}

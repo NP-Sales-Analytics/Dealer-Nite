@@ -2,10 +2,11 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 export type IndukDepot = { region: string; wilayah: string };
+export type PilihanDepot = IndukDepot & { depot: string };
 
 /**
  * Hierarki resmi Wilayah > Region > Depot, dibaca dari
- * public/Hierarchy Depot.csv (97 depot, 18 region, 2 wilayah).
+ * public/Hierarchy Depot.csv (termasuk depot sintetis Komunitas & Media).
  *
  * Dibaca dari berkas, bukan ditulis ulang sebagai konstanta TypeScript, supaya
  * daftar depot bisa diperbarui tanpa menyentuh kode. Konsekuensinya berkas itu
@@ -79,4 +80,11 @@ export function lengkapiInduk(
  */
 export function semuaDepot(): string[] {
   return [...hierarkiDepot().keys()].sort((a, b) => a.localeCompare(b, 'id'));
+}
+
+/** Daftar lengkap untuk dropdown depot yang sekaligus mengisi region/wilayah. */
+export function pilihanDepot(): PilihanDepot[] {
+  return [...hierarkiDepot().entries()]
+    .map(([depot, induk]) => ({ depot, ...induk }))
+    .sort((a, b) => a.depot.localeCompare(b.depot, 'id'));
 }

@@ -6,8 +6,8 @@ import { sortDepots, type DepotRow } from '@/lib/dashboard/compute';
 import { bacaKunci, cocokSalahSatu, filterKey, readFilter, terapkanScope } from '@/lib/dashboard/filters';
 import { db } from '@/lib/db';
 
-// FULL OUTER JOIN supaya depot manual-entry yang tidak ada di master data
-// tetap muncul di daftar.
+// FULL OUTER JOIN supaya depot manual-entry tetap muncul di daftar. Metadata
+// wilayah/region untuk manual entry diambil dari setting target depot.
 const load = cacheDashboard(async (key: string) => {
   const { wilayah, region, depot, kodeSap } = bacaKunci(key);
   const w = wilayah;
@@ -16,38 +16,58 @@ const load = cacheDashboard(async (key: string) => {
   const k = kodeSap;
 
   const rows = (await db.execute(sql`
-    with target as (
-      select coalesce(nullif(trim(depot), ''), '(Tanpa Depot)') as depot,
-             sum(qty_undangan)::int as qty,
-             count(*)::int as toko,
-             -- Satu depot pada praktiknya berada di satu region; ambil yang
-             -- paling sering muncul supaya labelnya stabil.
-             mode() within group (order by region) as region
+    with katalog_depot as (
+      select btrim(depot) as depot,
+             mode() within group (order by nullif(btrim(region), '')) as region,
+             mode() within group (order by nullif(btrim(wilayah), '')) as wilayah,
+             count(*)::int as toko
       from public.customers
-      where ${cocokSalahSatu(sql`wilayah`, w)}
-        and ${cocokSalahSatu(sql`region`, r)}
-        and ${cocokSalahSatu(sql`depot`, d)}
+      where nullif(btrim(depot), '') is not null
         and (${k}::text is null or kode_sap = ${k}::text)
-      group by 1
+      group by btrim(depot)
+
+      union all
+
+      select 'Komunitas & Media', 'Komunitas & Media', 'Komunitas & Media', 0
+      where ${k}::text is null
+    ),
+    target as (
+      select kd.depot,
+             kd.region,
+             coalesce(t.target_pax, 0)::int as target_pax,
+             kd.toko
+      from katalog_depot kd
+      left join public.depot_pax_targets t on t.depot = kd.depot
+      where ${cocokSalahSatu(sql`kd.wilayah`, w)}
+        and ${cocokSalahSatu(sql`kd.region`, r)}
+        and ${cocokSalahSatu(sql`kd.depot`, d)}
     ),
     actual as (
-      select coalesce(nullif(trim(coalesce(r.depot_override, c.depot, r.manual_depot)), ''), '(Tanpa Depot)') as depot,
-             sum(r.qty_hadir)::int as qty,
-             -- Hanya toko terdaftar yang dihitung sebagai "toko hadir": manual
-             -- entry bukan bagian dari daftar undangan, sehingga memasukkannya
-             -- membuat hadir bisa melebihi diundang. Pax-nya tetap ikut dijumlah.
-             count(*) filter (where r.customer_id is not null)::int as toko
-      from public.reservations r
-      left join public.customers c on c.id = r.customer_id
-      where ${cocokSalahSatu(sql`c.wilayah`, w)}
-        and ${cocokSalahSatu(sql`c.region`, r)}
-        and ${cocokSalahSatu(sql`coalesce(r.depot_override, c.depot, r.manual_depot)`, d)}
-        and (${k}::text is null or c.kode_sap = ${k}::text)
-      group by 1
+      select x.depot,
+             mode() within group (order by x.region) as region,
+             sum(x.qty_hadir)::int as qty,
+             count(*) filter (where x.customer_id is not null)::int as toko
+      from (
+        select coalesce(nullif(btrim(coalesce(rv.depot_override, c.depot, rv.manual_depot)), ''), '(Tanpa Depot)') as depot,
+               coalesce(c.region, pt.region) as region,
+               coalesce(c.wilayah, pt.wilayah) as wilayah,
+               c.kode_sap,
+               rv.customer_id,
+               rv.qty_hadir
+        from public.reservations rv
+        left join public.customers c on c.id = rv.customer_id
+        left join public.depot_pax_targets pt
+          on pt.depot = coalesce(rv.depot_override, c.depot, rv.manual_depot)
+      ) x
+      where ${cocokSalahSatu(sql`x.wilayah`, w)}
+        and ${cocokSalahSatu(sql`x.region`, r)}
+        and ${cocokSalahSatu(sql`x.depot`, d)}
+        and (${k}::text is null or x.kode_sap = ${k}::text)
+      group by x.depot
     )
     select coalesce(t.depot, a.depot)  as depot,
-           t.region                    as region,
-           coalesce(t.qty, 0)::int     as "qtyUndangan",
+           coalesce(t.region, a.region) as region,
+           coalesce(t.target_pax, 0)::int as "targetPax",
            coalesce(a.qty, 0)::int     as "qtyHadir",
            coalesce(t.toko, 0)::int    as "tokoDiundang",
            coalesce(a.toko, 0)::int    as "tokoHadir"

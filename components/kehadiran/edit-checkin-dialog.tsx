@@ -13,31 +13,24 @@ import type { AttendanceRow } from '@/lib/dashboard/types';
 import { inisial } from '@/lib/utils';
 
 export function EditCheckinDialog({
-  row, depots, onOpenChange, onSaved,
+  row, onOpenChange, onSaved,
 }: {
   row: AttendanceRow | null;
-  depots: string[];
   onOpenChange: (v: boolean) => void;
   onSaved: () => void;
 }) {
   const [qty, setQty] = useState('0');
-  const [depot, setDepot] = useState('');
-  const [nama, setNama] = useState('');
   const [sibuk, setSibuk] = useState(false);
 
   // Isi ulang setiap kali baris yang diedit berganti.
   useEffect(() => {
     if (!row) return;
     setQty(String(row.qtyHadir));
-    setDepot(row.depot === '-' ? '' : row.depot);
-    setNama(row.nama);
   }, [row]);
 
   if (!row) return null;
 
   const qtyValid = qty !== '' && Number.isInteger(Number(qty)) && Number(qty) >= 0;
-  const namaValid = !row.isManualEntry || nama.trim().length >= 2;
-  const valid = qtyValid && namaValid && depot.trim().length >= 1;
 
   async function simpan() {
     if (!row) return;
@@ -46,11 +39,7 @@ export function EditCheckinDialog({
       const res = await fetch(`/api/reservations/${row.id}`, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          qtyHadir: Number(qty),
-          depotOverride: depot.trim(),
-          ...(row.isManualEntry && { manualNamaCustomer: nama.trim() }),
-        }),
+        body: JSON.stringify({ qtyHadir: Number(qty) }),
       });
       if (!res.ok) { toast.error('Gagal menyimpan perubahan.'); return; }
       toast.success('Catatan kehadiran diperbarui.');
@@ -106,35 +95,16 @@ export function EditCheckinDialog({
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="e-nama">Nama Customer</Label>
-              <Input
-                id="e-nama"
-                className="h-11 w-full"
-                value={nama}
-                onChange={(e) => setNama(e.target.value)}
-                disabled={!row.isManualEntry}
-              />
-              {!row.isManualEntry && (
-                <p className="text-xs text-muted-foreground">
-                  Nama toko terdaftar mengikuti master data dan tidak bisa diubah di sini.
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
               <Label htmlFor="e-depot">Depot</Label>
               <Input
                 id="e-depot"
-                className="h-11 w-full"
-                list="edit-depot-list"
-                value={depot}
-                onChange={(e) => setDepot(e.target.value)}
+                className="h-11 bg-secondary/40"
+                value={row.depot}
+                readOnly
+                aria-readonly="true"
               />
-              <datalist id="edit-depot-list">
-                {depots.map((d) => <option key={d} value={d} />)}
-              </datalist>
               <p className="text-xs text-muted-foreground">
-                Hanya mengubah catatan ini. Master data toko tidak tersentuh.
+                Depot mengikuti data customer dan tidak dapat diubah dari catatan kehadiran.
               </p>
             </div>
 
@@ -154,7 +124,7 @@ export function EditCheckinDialog({
           >
             Batal
           </Button>
-          <Button className="h-11 flex-1" onClick={simpan} disabled={!valid || sibuk}>
+          <Button className="h-11 flex-1" onClick={simpan} disabled={!qtyValid || sibuk}>
             {sibuk ? 'Menyimpan...' : 'Simpan Perubahan'}
           </Button>
         </footer>
