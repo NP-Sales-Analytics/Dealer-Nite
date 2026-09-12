@@ -2,9 +2,10 @@ import { sql } from 'drizzle-orm';
 import { bersihkanCacheDashboard } from '@/lib/dashboard/cache';
 import { db } from '@/lib/db';
 import { depotPaxTargets } from '@/lib/db/schema';
+import { KOMUNITAS_MEDIA } from '@/lib/dashboard/komunitas-media';
 import { targetPaxListSchema, type TargetPaxItem } from '@/lib/validations/pax-target';
 
-export const KOMUNITAS_MEDIA = 'Komunitas & Media';
+export { KOMUNITAS_MEDIA };
 
 export type DepotTargetPax = {
   depot: string;

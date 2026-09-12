@@ -70,12 +70,21 @@ function Donut({
       </ChartContainer>
 
       {/* Legenda ditulis tangan, bukan ChartLegend bawaan: yang bawaan menaruh
-          titik warna kotak kecil dan jaraknya rapat. Di sini titik bulat dan
-          lega, meniru referensi. */}
+          titik warna kotak kecil dan jaraknya rapat. Di sini kotak membulat dan
+          lega, meniru referensi.
+          Warnanya diambil dari config, BUKAN dari d.fill: d.fill memakai
+          var(--color-hadir), variabel yang cuma didefinisikan di dalam
+          [data-chart=...] oleh ChartContainer. Div ini ada di LUAR
+          ChartContainer, jadi variabel itu tidak pernah resolve di sini -
+          kotaknya akan transparan tanpa terlihat error apa pun. */}
       <div className="-mt-1 flex items-center justify-center gap-5">
         {data.map((d) => (
           <span key={d.key} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className="size-2.5 shrink-0 rounded-full" style={{ background: d.fill }} aria-hidden />
+            <span
+              className="size-2.5 shrink-0 rounded-[3px]"
+              style={{ background: config[d.key as keyof typeof config].color }}
+              aria-hidden
+            />
             {d.name}
           </span>
         ))}

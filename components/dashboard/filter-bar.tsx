@@ -5,6 +5,7 @@ import { useMemo } from 'react';
 import type { FilterOptions } from '@/app/api/dashboard/filters/route';
 import { Button } from '@/components/ui/button';
 import { PilihBanyak } from '@/components/ui/combobox';
+import { KOMUNITAS_MEDIA } from '@/lib/dashboard/komunitas-media';
 
 /**
  * Ketiganya bisa dipilih lebih dari satu; daftar KOSONG berarti semua.
@@ -170,7 +171,9 @@ export function FilterBar({
             onChange={(v) => ubah('region', v)}
             labelSemua="Region"
             satuan="Region"
-            format={(r) => `Region ${r}`}
+            // Komunitas & Media bukan kode region (2A, 3A, ...) - depot sintetis
+            // ini memakai namanya sendiri sebagai region, jadi tidak diberi awalan.
+            format={(r) => (r === KOMUNITAS_MEDIA ? r : `Region ${r}`)}
             cariPlaceholder="Cari region..."
             kosong="Region tidak ditemukan."
             className="min-w-0 flex-1 sm:w-44 sm:flex-none"
