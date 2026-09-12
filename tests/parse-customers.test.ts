@@ -15,13 +15,13 @@ describe('parseCustomerCsv', () => {
   // Kalau CSV diperbarui lagi dan angka ini berubah, itu memang harus diperbarui
   // di sini juga: test ini penjaga supaya perubahan master data tidak lewat
   // tanpa ada yang menyadari.
-  it('menghasilkan 135 customer unik', () => {
-    expect(rows).toHaveLength(135);
-    expect(new Set(rows.map((r) => r.kodeSap)).size).toBe(135);
+  it('menghasilkan 144 customer unik', () => {
+    expect(rows).toHaveLength(144);
+    expect(new Set(rows.map((r) => r.kodeSap)).size).toBe(144);
   });
 
-  it('mempertahankan total undangan 164 orang', () => {
-    expect(rows.reduce((s, r) => s + r.qtyUndangan, 0)).toBe(164);
+  it('mempertahankan total undangan 201 orang', () => {
+    expect(rows.reduce((s, r) => s + r.qtyUndangan, 0)).toBe(201);
   });
 
   it('membaca field bertanda kutip yang mengandung koma', () => {
