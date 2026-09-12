@@ -25,5 +25,9 @@ export async function bolehUbahOrder(user: SessionUser, customerId: string): Pro
   return info?.region === region;
 }
 
-/** Balasan seragam saat toko berada di luar cakupan region user. */
-export const PESAN_LUAR_REGION = 'Toko ini di luar region Anda.';
+/**
+ * Balasan seragam saat toko berada di luar cakupan region user.
+ * Kalimatnya tinggal di lib/order/aturan.ts bersama pesan aturan lain supaya
+ * klien bisa membacanya tanpa ikut menarik lib/auth ke dalam bundel.
+ */
+export { PESAN_LUAR_REGION } from '@/lib/order/aturan';

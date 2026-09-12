@@ -14,7 +14,7 @@ import { RiwayatOrder } from '@/components/order/riwayat-order';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
-import { PESAN_TOLAKAN, type Tolakan } from '@/lib/order/aturan';
+import { pesanGagal } from '@/lib/order/aturan';
 import type { LeaderRow } from '@/lib/order/leaderboard';
 import { selangPolling, useRealtimeRefresh } from '@/lib/order/use-realtime-refresh';
 import { inisial, jamJakarta } from '@/lib/utils';
@@ -140,8 +140,8 @@ function IsiTambahOrder({ me, onTutup }: { me: DataSaya; onTutup: () => void }) 
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ qtyChange: f.selisih }),
       });
-      const data = await r.json();
-      if (!r.ok) throw Object.assign(new Error(data.code ?? 'error'), { data });
+      const data = await r.json().catch(() => null);
+      if (!r.ok) throw Object.assign(new Error(data?.code ?? 'error'), { data, status: r.status });
       return data as { total: number };
     },
     onSuccess: (data) => {
@@ -154,8 +154,8 @@ function IsiTambahOrder({ me, onTutup }: { me: DataSaya; onTutup: () => void }) 
       onTutup();
     },
     onError: (err: unknown) => {
-      const code = (err as { data?: { code?: string } })?.data?.code as Tolakan | undefined;
-      toast.error(code && code in PESAN_TOLAKAN ? PESAN_TOLAKAN[code] : 'Gagal menyimpan. Coba lagi.');
+      const { status = 0, data } = (err ?? {}) as { status?: number; data?: unknown };
+      toast.error(pesanGagal(status, data));
     },
     onSettled: () => {
       sedangMengirim.current = false;

@@ -11,6 +11,7 @@ import { Dialog, DialogClose, DialogContent, DialogTitle } from '@/components/ui
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { PilihanDepot } from '@/lib/dashboard/hierarchy';
+import { MAKS_TOTAL, pesanGagal } from '@/lib/order/aturan';
 
 /**
  * Koreksi admin untuk satu toko: nama, depot, dan jumlah dus.
@@ -46,7 +47,12 @@ export function EditOrderDialog({
 
   if (!row) return null;
 
-  const dusValid = dus !== '' && Number.isInteger(Number(dus)) && Number(dus) >= 0;
+  // MAKS_TOTAL ikut diperiksa DI SINI, bukan hanya di server: sebelumnya
+  // batas ini tidak muncul di layar mana pun, jadi angka di atasnya ditolak
+  // sebagai kegagalan tanpa sebab yang bisa dibaca.
+  const kebanyakan = dus !== '' && Number(dus) > MAKS_TOTAL;
+  const dusValid =
+    dus !== '' && Number.isInteger(Number(dus)) && Number(dus) >= 0 && !kebanyakan;
   const valid = dusValid && nama.trim().length >= 2 && depot.trim().length >= 1;
   const selisih = dusValid ? Number(dus) - row.total : 0;
 
@@ -64,7 +70,7 @@ export function EditOrderDialog({
         }),
       });
       if (!res.ok) {
-        toast.error('Gagal menyimpan perubahan.');
+        toast.error(pesanGagal(res.status, await res.json().catch(() => null)));
         return;
       }
       toast.success(`${nama.trim().toUpperCase()}: ${dus} dus tercatat.`);
@@ -115,7 +121,21 @@ export function EditOrderDialog({
 
           <div className="space-y-2.5">
             <Label htmlFor="o-dus" className="text-base">Jumlah dus</Label>
-            <QtyStepper id="o-dus" value={dus} onChange={setDus} ariaLabel="Jumlah dus" />
+            {/* max eksplisit: bawaan stepper 1.000 membuat tombol + mati diam-diam
+                di 1.000 padahal koreksi admin boleh sampai MAKS_TOTAL. */}
+            <QtyStepper
+              id="o-dus"
+              value={dus}
+              onChange={setDus}
+              max={MAKS_TOTAL}
+              ariaLabel="Jumlah dus"
+              onBatas={() => toast.info(`Maksimal ${MAKS_TOTAL.toLocaleString('id-ID')} dus.`)}
+            />
+            {kebanyakan && (
+              <p className="text-xs leading-relaxed font-medium text-destructive">
+                Maksimal {MAKS_TOTAL.toLocaleString('id-ID')} dus. Turunkan angkanya dulu.
+              </p>
+            )}
             <p className="text-xs leading-relaxed text-muted-foreground">
               {selisih === 0
                 ? `Tercatat sekarang ${row.total} dus. Isi dengan total keseluruhan, bukan tambahan.`

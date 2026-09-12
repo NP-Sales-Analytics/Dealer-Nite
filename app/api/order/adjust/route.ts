@@ -46,7 +46,12 @@ export async function POST(request: NextRequest) {
     // lain. Catatan: pembatasan ini hanya untuk mencatat order - papan Top
     // Spender tetap memperlihatkan seluruh toko kepada semua peran tim.
     if (!(await bolehUbahOrder(user, targetId))) {
-      return NextResponse.json({ error: PESAN_LUAR_REGION }, { status: 403 });
+      // Diberi kode, bukan cuma kalimat: klien memetakan kode ke pesan, jadi
+      // tanpa ini penolakan region sampai ke RSM sebagai "gagal" tanpa sebab.
+      return NextResponse.json(
+        { code: 'LUAR_REGION', error: PESAN_LUAR_REGION },
+        { status: 403 },
+      );
     }
   }
 

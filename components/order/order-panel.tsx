@@ -7,7 +7,7 @@ import { BagianJumlahDus, labelSimpan, useFormJumlahDus } from './bagian-jumlah-
 import { RiwayatOrder } from './riwayat-order';
 import { InitialAvatar } from '@/components/shared/initial-avatar';
 import { Button } from '@/components/ui/button';
-import { PESAN_TOLAKAN, type Tolakan } from '@/lib/order/aturan';
+import { pesanGagal } from '@/lib/order/aturan';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -93,8 +93,8 @@ export function OrderPanel({
           customerId ? { qtyChange: f.selisih, customerId } : { qtyChange: f.selisih },
         ),
       });
-      const data = await r.json();
-      if (!r.ok) throw Object.assign(new Error(data.code ?? 'error'), { data });
+      const data = await r.json().catch(() => null);
+      if (!r.ok) throw Object.assign(new Error(data?.code ?? 'error'), { data, status: r.status });
       return data as { total: number };
     },
     onSuccess: (data) => {
@@ -106,8 +106,8 @@ export function OrderPanel({
       qc.invalidateQueries({ queryKey: ['leaderboard'] });
     },
     onError: (err: unknown) => {
-      const code = (err as { data?: { code?: string } })?.data?.code as Tolakan | undefined;
-      toast.error(code && code in PESAN_TOLAKAN ? PESAN_TOLAKAN[code] : 'Gagal menyimpan. Coba lagi.');
+      const { status = 0, data } = (err ?? {}) as { status?: number; data?: unknown };
+      toast.error(pesanGagal(status, data));
     },
     onSettled: () => {
       sedangMengirim.current = false;
