@@ -27,7 +27,14 @@ function Avatar({ nama }: { nama: string }) {
   );
 }
 
-export function UserTable({ rows, currentUserId }: { rows: UserRow[]; currentUserId: string }) {
+export function UserTable({
+  rows, currentUserId, regionOptions,
+}: {
+  rows: UserRow[];
+  currentUserId: string;
+  /** Daftar region resmi untuk pilihan cakupan RSM - lihat UserFormDialog. */
+  regionOptions: string[];
+}) {
   const [pending, start] = useTransition();
   const [detail, setDetail] = useState<UserRow | null>(null);
   const [edit, setEdit] = useState<UserRow | null>(null);
@@ -153,7 +160,12 @@ export function UserTable({ rows, currentUserId }: { rows: UserRow[]; currentUse
         onHapus={(u) => { setDetail(null); setHapus(u); }}
       />
 
-      <UserFormDialog mode="create" open={tambah} onOpenChange={setTambah} />
+      <UserFormDialog
+        mode="create"
+        open={tambah}
+        onOpenChange={setTambah}
+        regionOptions={regionOptions}
+      />
 
       {/* key: state form diisi dari props saat mount, jadi tanpa ini membuka
           user kedua akan menampilkan isian user pertama. */}
@@ -164,6 +176,7 @@ export function UserTable({ rows, currentUserId }: { rows: UserRow[]; currentUse
           row={edit}
           open
           onOpenChange={(v) => !v && setEdit(null)}
+          regionOptions={regionOptions}
         />
       )}
 

@@ -5,6 +5,7 @@ import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 import { createUser, updateUser } from '@/app/(app)/admin/users/actions';
 import { Button } from '@/components/ui/button';
+import { PilihBanyak } from '@/components/ui/combobox';
 import { Dialog, DialogClose, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,9 +13,10 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import {
-  halamanEfektif, HALAMAN, ROLE_LABEL, SCOPE_PER_ROLE, SEMUA_ROLE,
+  daftarRegion, halamanEfektif, HALAMAN, ROLE_LABEL, SCOPE_PER_ROLE, SEMUA_ROLE,
 } from '@/lib/access';
 import type { Role } from '@/lib/auth';
+import { KOMUNITAS_MEDIA } from '@/lib/dashboard/komunitas-media';
 
 export type UserRow = {
   id: string;
@@ -72,12 +74,14 @@ function PemilihHalaman({ terpilih, onChange }: { terpilih: string[]; onChange: 
 }
 
 export function UserFormDialog({
-  mode, row, open, onOpenChange,
+  mode, row, open, onOpenChange, regionOptions,
 }: {
   mode: 'create' | 'edit';
   row?: UserRow | null;
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  /** Daftar region resmi - isi pilihan cakupan data saat role-nya RSM. */
+  regionOptions: string[];
 }) {
   const [pending, start] = useTransition();
   const [role, setRole] = useState<Role>(row?.role ?? 'admin_rsvp');
@@ -85,6 +89,11 @@ export function UserFormDialog({
   // kosong, menyimpan tanpa menyentuh apa pun justru akan mencabut aksesnya.
   const [pages, setPages] = useState<string[]>(
     row ? halamanEfektif(row.role, row.allowedPages) : [],
+  );
+  // Cakupan region RSM - boleh lebih dari satu. Diisi ulang dari baris hanya
+  // saat rolenya memang RSM; kalau tidak, dataScope berarti hal lain (kode SAP).
+  const [regionScope, setRegionScope] = useState<string[]>(
+    row?.role === 'rsm' ? daftarRegion(row.dataScope) : [],
   );
   const [lihatSandi, setLihatSandi] = useState(false);
 
@@ -195,8 +204,36 @@ export function UserFormDialog({
           </div>
 
           {/* Hanya muncul untuk role yang memang dibatasi. Super Admin, Admin
-              RSVP, dan Marketing melihat seluruh data. */}
-          {scope ? (
+              RSVP, dan Marketing melihat seluruh data. RSM dipisah dari
+              customer: RSM boleh merangkap beberapa region sekaligus (mis.
+              1A, 1B, 1C & 5), jadi pilihannya lewat multi-select, bukan
+              ketikan bebas - satu salah ketik di sini berarti toko di region
+              itu ikut tersembunyi atau, kebalikannya, region yang salah malah
+              ikut kebuka. */}
+          {role === 'rsm' ? (
+            <div className="space-y-2">
+              <Label>Cakupan Data &mdash; Region</Label>
+              <PilihBanyak
+                items={regionOptions}
+                value={regionScope}
+                onChange={setRegionScope}
+                labelSemua="Semua region (tidak dibatasi)"
+                satuan="Region"
+                cariPlaceholder="Cari region..."
+                kosong="Region tidak ditemukan."
+                format={(r) => (r === KOMUNITAS_MEDIA ? r : `Region ${r}`)}
+                className="w-full"
+              />
+              <p className="text-xs text-muted-foreground">
+                Boleh pilih lebih dari satu region. Kosongkan berarti melihat semua data.
+              </p>
+              {/* Dibaca dengan formData.getAll('dataScope') di server, sama
+                  seperti PemilihHalaman membaca banyak "pages" sekaligus. */}
+              {regionScope.map((r) => (
+                <input key={r} type="hidden" name="dataScope" value={r} />
+              ))}
+            </div>
+          ) : scope ? (
             <div className="space-y-2">
               <Label htmlFor="u-scope">Cakupan Data &mdash; {scope.label}</Label>
               <Input

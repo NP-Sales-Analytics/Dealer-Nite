@@ -66,9 +66,25 @@ export const SCOPE_PER_ROLE: Partial<Record<Role, { label: string; contoh: strin
 
 export const butuhScope = (role: Role) => role in SCOPE_PER_ROLE;
 
+/**
+ * RSM dengan beberapa region (mis. seorang RSM merangkap 1A, 1B, 1C & 5)
+ * menyimpan cakupannya sebagai daftar berkoma dalam KOLOM YANG SAMA, bukan
+ * kolom array terpisah - kode region (2A, 3A, ...) tidak pernah mengandung
+ * koma sendiri (sama seperti daftar berkoma di query string dashboard), jadi
+ * ini aman tanpa migrasi skema atau pengkodean tambahan. Customer memakai
+ * kolom yang sama untuk kode SAP tunggal - tidak pernah lewat sini.
+ */
+export const daftarRegion = (dataScope: string | null): string[] =>
+  (dataScope ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+
+/** Kebalikan daftarRegion - dipakai saat menyimpan pilihan dari form. */
+export const gabungRegion = (regions: string[]) =>
+  [...new Set(regions)].sort((a, b) => a.localeCompare(b, 'id')).join(',');
+
 /** Ringkasan cakupan data untuk ditampilkan di tabel dan panel detail. */
 export function labelScope(role: Role, dataScope: string | null) {
   if (!butuhScope(role)) return 'Semua data';
   if (!dataScope) return 'Semua data';
+  if (role === 'rsm') return `${SCOPE_PER_ROLE.rsm!.label} ${daftarRegion(dataScope).join(', ')}`;
   return `${SCOPE_PER_ROLE[role]!.label} ${dataScope}`;
 }

@@ -2,10 +2,11 @@
 
 import { and, eq, ne } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
-import { butuhScope, HALAMAN, SEMUA_ROLE } from '@/lib/access';
+import { butuhScope, gabungRegion, HALAMAN, SEMUA_ROLE } from '@/lib/access';
 import { lupakanProfil, requireRole, type Role } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { profiles } from '@/lib/db/schema';
+import { semuaRegion } from '@/lib/dashboard/hierarchy';
 import { hashPassword } from '@/lib/password';
 
 const HREF_SAH = HALAMAN.map((h) => h.href);
@@ -31,9 +32,24 @@ function bacaBolehUnduh(formData: FormData, role: Role): boolean {
   return formData.get('bolehUnduh') === 'on';
 }
 
-/** Cakupan data hanya disimpan untuk role yang memang dibatasi. */
+/**
+ * Cakupan data hanya disimpan untuk role yang memang dibatasi.
+ *
+ * RSM boleh merangkap lebih dari satu region (mis. 1A, 1B, 1C & 5 sekaligus):
+ * dibaca dengan getAll, sama seperti bacaHalaman membaca banyak "pages"
+ * sekaligus, lalu disaring terhadap daftar region resmi - formData datang dari
+ * klien dan ini pembatas akses, jadi tidak boleh percaya begitu saja pada
+ * string yang dikirim, sama alasannya dengan HREF_SAH di bacaHalaman.
+ * Disimpan sebagai satu string berkoma (gabungRegion), bukan kolom array
+ * terpisah - lihat komentar daftarRegion di lib/access.ts.
+ */
 function bacaScope(formData: FormData, role: Role): string | null {
   if (!butuhScope(role)) return null;
+  if (role === 'rsm') {
+    const sah = new Set(semuaRegion());
+    const dipilih = formData.getAll('dataScope').map(String).map((v) => v.trim()).filter((v) => sah.has(v));
+    return dipilih.length > 0 ? gabungRegion(dipilih) : null;
+  }
   const v = String(formData.get('dataScope') ?? '').trim();
   return v === '' ? null : v;
 }

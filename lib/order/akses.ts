@@ -1,14 +1,18 @@
+import { daftarRegion } from '@/lib/access';
 import { infoCustomer, type SessionUser } from '@/lib/auth';
 
 /**
- * Region yang mengunci seorang user, atau null bila ia melihat semua toko.
+ * Daftar region yang mengunci seorang user. Kosong berarti ia melihat semua
+ * toko - dipilih daripada null supaya pemanggil bisa langsung menyodorkannya
+ * ke cocokSalahSatu() di lib/dashboard/filters.ts tanpa pengecekan tambahan.
  *
- * Hanya RSM yang punya cakupan region (data_scope). Superadmin, Admin RSVP, dan
+ * Hanya RSM yang punya cakupan region (data_scope), dan seorang RSM boleh
+ * merangkap lebih dari satu (lihat daftarRegion). Superadmin, Admin RSVP, dan
  * Marketing melihat seluruh toko - sama dengan aturan terapkanScope di
  * lib/dashboard/filters.ts.
  */
-export const lingkupRegion = (user: SessionUser): string | null =>
-  user.role === 'rsm' ? user.dataScope : null;
+export const lingkupRegion = (user: SessionUser): string[] =>
+  user.role === 'rsm' ? daftarRegion(user.dataScope) : [];
 
 /**
  * Bolehkah user tim menyentuh order sebuah toko.
@@ -16,13 +20,14 @@ export const lingkupRegion = (user: SessionUser): string | null =>
  * PENTING - ini HANYA berlaku untuk mencatat order (cari toko, lihat totalnya,
  * simpan penambahan). Papan Top Spender sengaja TIDAK dibatasi: semua peran tim,
  * termasuk RSM, tetap melihat seluruh toko di sana. Jadi RSM 3A hanya bisa
- * menambah order untuk toko 3A, tapi tetap bisa melihat peringkat semua toko.
+ * menambah order untuk toko 3A (atau region-region rangkapannya), tapi tetap
+ * bisa melihat peringkat semua toko.
  */
 export async function bolehUbahOrder(user: SessionUser, customerId: string): Promise<boolean> {
-  const region = lingkupRegion(user);
-  if (!region) return true;
+  const regions = lingkupRegion(user);
+  if (regions.length === 0) return true;
   const info = await infoCustomer(customerId);
-  return info?.region === region;
+  return !!info?.region && regions.includes(info.region);
 }
 
 /**

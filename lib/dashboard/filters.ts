@@ -1,5 +1,6 @@
 import { sql, type SQL } from 'drizzle-orm';
 import type { NextRequest } from 'next/server';
+import { daftarRegion } from '@/lib/access';
 import type { Role } from '@/lib/auth';
 
 export type DashboardFilter = {
@@ -71,9 +72,10 @@ export const cocokSalahSatu = (kolom: SQL, pilihan: string[]): SQL =>
  * Memaksakan cakupan data milik akun ke atas filter yang diminta.
  *
  * Menimpa, bukan menggabung: RSM yang cakupannya region 3A tetap terkunci di 3A
- * walaupun query string-nya meminta 3B. Karena itu fungsi ini harus dipanggil
- * SESUDAH readFilter dan SEBELUM filterKey - hasilnya ikut masuk kunci cache,
- * sehingga dua user dengan cakupan berbeda tidak pernah berbagi entri cache.
+ * (atau, untuk RSM multi-region, ke daftar regionnya) walaupun query string-nya
+ * meminta region lain. Karena itu fungsi ini harus dipanggil SESUDAH readFilter
+ * dan SEBELUM filterKey - hasilnya ikut masuk kunci cache, sehingga dua user
+ * dengan cakupan berbeda tidak pernah berbagi entri cache.
  *
  * Role selain rsm dan customer melihat seluruh data, jadi filternya lewat
  * apa adanya.
@@ -83,9 +85,9 @@ export function terapkanScope(
   user: { role: Role; dataScope: string | null },
 ): DashboardFilter {
   if (!user.dataScope) return f;
-  // Menimpa seluruh daftar, bukan menambah: RSM tetap terkunci di satu region
-  // walau query string-nya menyodorkan lima region sekaligus.
-  if (user.role === 'rsm') return { ...f, region: [user.dataScope] };
+  // Menimpa seluruh daftar, bukan menambah: RSM tetap terkunci ke regionnya
+  // sendiri walau query string-nya menyodorkan region lain.
+  if (user.role === 'rsm') return { ...f, region: daftarRegion(user.dataScope) };
   if (user.role === 'customer') return { ...f, kodeSap: user.dataScope };
   return f;
 }

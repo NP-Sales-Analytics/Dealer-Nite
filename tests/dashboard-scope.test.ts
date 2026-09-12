@@ -21,6 +21,17 @@ describe('terapkanScope', () => {
     expect(terapkanScope(diminta, { role: 'rsm', dataScope: '3A' }).region).toEqual(['3A']);
   });
 
+  it('mengunci RSM multi-region ke seluruh regionnya sekaligus', () => {
+    // Kasus RSM yang merangkap beberapa region (mis. 1A, 1B, 1C & 5).
+    const hasil = terapkanScope(KOSONG, { role: 'rsm', dataScope: '1A,1B,1C,5' });
+    expect(hasil.region).toEqual(['1A', '1B', '1C', '5']);
+  });
+
+  it('spasi di sekitar koma pada dataScope RSM tidak bocor ke daftar region', () => {
+    const hasil = terapkanScope(KOSONG, { role: 'rsm', dataScope: '1A, 1B ,  1C' });
+    expect(hasil.region).toEqual(['1A', '1B', '1C']);
+  });
+
   it('mengunci customer ke kode SAP-nya', () => {
     const hasil = terapkanScope(KOSONG, { role: 'customer', dataScope: '600001' });
     expect(hasil.kodeSap).toBe('600001');
