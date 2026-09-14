@@ -4,6 +4,7 @@ import writeExcelFile from 'write-excel-file/node';
 import { requireRoleApi } from '@/lib/auth';
 import { cocokSalahSatu, readFilter, terapkanScope } from '@/lib/dashboard/filters';
 import { db } from '@/lib/db';
+import { angka, header, teks, waktuWib } from '@/lib/excel/kolom';
 
 type BarisEkspor = {
   namaToko: string;
@@ -21,41 +22,6 @@ type BarisEkspor = {
   qtyUndangan: number | null;
   checkedInAt: string | null;
 };
-
-/**
- * Waktu ditulis sebagai TEKS ber-zona Jakarta, bukan tanggal Excel - alasan
- * yang sama dengan ekspor kehadiran: Excel menyimpan tanggal tanpa zona
- * sementara fungsi ini berjalan di server ber-UTC, jadi menuliskannya sebagai
- * tanggal berarti menyerahkan penafsiran zonanya ke komputer yang membukanya.
- */
-const waktuWib = (v: string | null) =>
-  v === null
-    ? ''
-    : new Date(v)
-        .toLocaleString('id-ID', {
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-          timeZone: 'Asia/Jakarta',
-        })
-        .replace(',', '')
-        .replace(/\./g, ':');
-
-const header = (teks: string) => ({
-  value: teks,
-  fontWeight: 'bold' as const,
-  backgroundColor: '#EEF2FF',
-  align: 'center' as const,
-});
-
-const teks = (v: string | null) => ({ value: v ?? '' });
-const angka = (v: number | null | undefined) => ({
-  value: v ?? undefined,
-  type: Number,
-  align: 'center' as const,
-});
 
 const KOLOM = [
   { header: header('Nama Toko'), width: 34, cell: (r: BarisEkspor) => teks(r.namaToko) },

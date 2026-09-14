@@ -4,6 +4,7 @@ import writeExcelFile from 'write-excel-file/node';
 import { requireRoleApi } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { cocokSalahSatu, readFilter, terapkanScope } from '@/lib/dashboard/filters';
+import { angka, header, teks, waktuWib } from '@/lib/excel/kolom';
 
 type BarisEkspor = {
   nama: string | null;
@@ -19,46 +20,6 @@ type BarisEkspor = {
   isManualEntry: boolean;
   dicatatOleh: string | null;
 };
-
-/**
- * Waktu ditulis sebagai TEKS ber-zona Jakarta, bukan tanggal Excel.
- *
- * Excel menyimpan tanggal tanpa zona waktu, sedangkan fungsi ini berjalan di
- * server yang zonanya UTC. Menuliskannya sebagai tanggal berarti menyerahkan
- * penafsiran zona ke Excel di komputer yang membukanya - dan satu jam yang
- * bergeser di rekap kehadiran acara jauh lebih merepotkan daripada kehilangan
- * kemampuan mengurutkan lewat kolom. Urutan kronologisnya sendiri tidak hilang:
- * barisnya memang sudah diurutkan dari query.
- */
-const waktuWib = (v: string) =>
-  new Date(v)
-    .toLocaleString('id-ID', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZone: 'Asia/Jakarta',
-    })
-    // id-ID menyisipkan koma antara tanggal dan jam, dan memakai titik sebagai
-    // pemisah jam-menit. Dirapikan jadi "08/09/2026 15:15".
-    .replace(',', '')
-    .replace(/\./g, ':');
-
-/** Header ditebalkan dan diberi latar supaya tidak hilang saat digulir. */
-const header = (teks: string) => ({
-  value: teks,
-  fontWeight: 'bold' as const,
-  backgroundColor: '#EEF2FF',
-  align: 'center' as const,
-});
-
-const teks = (v: string | null) => ({ value: v ?? '' });
-const angka = (v: number | null | undefined) => ({
-  value: v ?? undefined,
-  type: Number,
-  align: 'center' as const,
-});
 
 const KOLOM = [
   { header: header('Nama Toko'), width: 34, cell: (r: BarisEkspor) => teks(r.nama ?? '-') },
