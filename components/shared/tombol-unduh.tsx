@@ -22,14 +22,22 @@ export function TombolUnduh({
   namaBawaan,
   jumlah,
   label = 'Download Excel',
+  pesanSukses,
   className,
 }: {
   /** Termasuk query string filter, supaya yang terunduh sama dengan yang terlihat. */
   url: string;
   namaBawaan: string;
-  /** Dipakai untuk pesan sukses dan untuk mematikan tombol saat kosong. */
+  /** Dipakai untuk mematikan tombol saat kosong, dan pesan sukses bawaan. */
   jumlah: number;
   label?: string;
+  /**
+   * Override pesan sukses saat "N baris" tidak berarti apa-apa - dipakai
+   * unduhan yang cakupannya bukan daftar terfilter yang sedang terlihat
+   * (mis. audit lintas region), jadi jumlah barisnya tidak diketahui klien
+   * tanpa query tambahan yang percuma.
+   */
+  pesanSukses?: string;
   className?: string;
 }) {
   const [mengunduh, setMengunduh] = useState(false);
@@ -57,7 +65,7 @@ export function TombolUnduh({
       a.download = nama;
       a.click();
       URL.revokeObjectURL(objectUrl);
-      toast.success(`${jumlah} baris diunduh.`);
+      toast.success(pesanSukses ?? `${jumlah} baris diunduh.`);
     } catch {
       toast.error('Koneksi bermasalah. Coba lagi.');
     } finally {

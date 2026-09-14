@@ -32,10 +32,13 @@ const buildQuery = (f: FilterState, page: number, urut: 'asc' | 'desc') => {
 export function DetailOrderClient({
   bisaUbah,
   bisaUnduh,
+  bisaAuditRiwayat,
   depotOptions,
 }: {
   bisaUbah: boolean;
   bisaUnduh: boolean;
+  /** Superadmin/admin_rsvp + bolehUnduh - lihat gerbangnya di /api/order/adjustments-export. */
+  bisaAuditRiwayat: boolean;
   depotOptions: PilihanDepot[];
 }) {
   const queryClient = useQueryClient();
@@ -87,6 +90,24 @@ export function DetailOrderClient({
               url={`/api/order/export?${buildQuery(filterEfektif, 1, urut)}`}
               namaBawaan="Detail-Order-Pylox.xlsx"
               jumlah={jumlah}
+              className="h-11 gap-2"
+            />
+          )}
+          {/*
+            Beda dari tombol di atas: ini BUKAN "unduh yang sedang terlihat" -
+            cakupannya lintas region dan tidak ikut filter/halaman, khusus
+            untuk mengadili kontes top order dari riwayat waktu tiap toko
+            (lihat komentar di route-nya). jumlah=1 sentinel: tombolnya
+            memang selalu aktif selama ada akses, bukan bergantung baris yang
+            sedang terfilter di tabel ini.
+          */}
+          {bisaAuditRiwayat && (
+            <TombolUnduh
+              url="/api/order/adjustments-export"
+              namaBawaan="Riwayat-Penyesuaian-Pylox.xlsx"
+              label="Riwayat Audit"
+              jumlah={1}
+              pesanSukses="Riwayat penyesuaian seluruh toko diunduh."
               className="h-11 gap-2"
             />
           )}
