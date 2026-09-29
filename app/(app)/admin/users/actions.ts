@@ -1,65 +1,39 @@
 'use server';
 
+import { randomUUID } from 'node:crypto';
 import { and, eq, ne } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
-import { butuhScope, gabungRegion, HALAMAN, SEMUA_ROLE } from '@/lib/access';
+import { HALAMAN, SEMUA_ROLE } from '@/lib/access';
 import { lupakanProfil, requireRole, type Role } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { profiles } from '@/lib/db/schema';
-import { semuaRegion } from '@/lib/dashboard/hierarchy';
+import { dealerNights, profiles } from '@/lib/db/schema';
 import { hashPassword } from '@/lib/password';
 
-const HREF_SAH = HALAMAN.map((h) => h.href);
+const HREF_SAH = HALAMAN.map((item) => item.href);
 
-/**
- * Membaca halaman terpilih dari FormData, disaring terhadap daftar yang sah.
- * FormData datang dari klien dan bisa berisi path apa pun, sedangkan nilai ini
- * jadi dasar keputusan akses di requireHalaman().
- */
 function bacaHalaman(formData: FormData): string[] {
-  return formData.getAll('pages').map(String).filter((h) => HREF_SAH.includes(h));
+  return formData.getAll('pages').map(String).filter((href) => HREF_SAH.includes(href));
 }
 
-/**
- * Izin unduh dibaca dari centang, dan HANYA berlaku untuk peran tim.
- *
- * Customer tidak punya halaman rekap sama sekali, jadi menyimpan izin unduh
- * untuk mereka cuma menyisakan nilai yang tidak pernah dipakai tapi terlihat
- * seperti berarti - jenis data yang nanti dipercaya orang saat mengaudit.
- */
-function bacaBolehUnduh(formData: FormData, role: Role): boolean {
-  if (role === 'customer') return false;
-  return formData.get('bolehUnduh') === 'on';
+async function bacaDealerNight(formData: FormData, role: Role): Promise<string | null> {
+  if (role !== 'dn_user') return null;
+
+  const id = String(formData.get('dealerNightId') ?? '').trim();
+  if (!id) throw new Error('Dealer Night wajib dipilih untuk Akun DN.');
+  const [dealerNight] = await db
+    .select({ id: dealerNights.id })
+    .from(dealerNights)
+    .where(eq(dealerNights.id, id))
+    .limit(1);
+  if (!dealerNight) throw new Error('Dealer Night tidak valid.');
+  return dealerNight.id;
 }
 
-/**
- * Cakupan data hanya disimpan untuk role yang memang dibatasi.
- *
- * RSM boleh merangkap lebih dari satu region (mis. 1A, 1B, 1C & 5 sekaligus):
- * dibaca dengan getAll, sama seperti bacaHalaman membaca banyak "pages"
- * sekaligus, lalu disaring terhadap daftar region resmi - formData datang dari
- * klien dan ini pembatas akses, jadi tidak boleh percaya begitu saja pada
- * string yang dikirim, sama alasannya dengan HREF_SAH di bacaHalaman.
- * Disimpan sebagai satu string berkoma (gabungRegion), bukan kolom array
- * terpisah - lihat komentar daftarRegion di lib/access.ts.
- */
-function bacaScope(formData: FormData, role: Role): string | null {
-  if (!butuhScope(role)) return null;
-  if (role === 'rsm') {
-    const sah = new Set(semuaRegion());
-    const dipilih = formData.getAll('dataScope').map(String).map((v) => v.trim()).filter((v) => sah.has(v));
-    return dipilih.length > 0 ? gabungRegion(dipilih) : null;
-  }
-  const v = String(formData.get('dataScope') ?? '').trim();
-  return v === '' ? null : v;
-}
-
-/** Password wajib unik: dialah pengenal saat login "password saja". */
 async function passwordDipakai(hash: string, kecualiUserId?: string): Promise<boolean> {
-  const cond = kecualiUserId
+  const condition = kecualiUserId
     ? and(eq(profiles.passwordHash, hash), ne(profiles.id, kecualiUserId))
     : eq(profiles.passwordHash, hash);
-  const [row] = await db.select({ id: profiles.id }).from(profiles).where(cond).limit(1);
+  const [row] = await db.select({ id: profiles.id }).from(profiles).where(condition).limit(1);
   return !!row;
 }
 
@@ -71,21 +45,30 @@ export async function createUser(_prev: string | null, formData: FormData): Prom
   const fullName = String(formData.get('fullName') ?? '').trim();
   const role = String(formData.get('role') ?? '') as Role;
 
-  if (email !== '' && !email.includes('@')) return 'Email tidak valid.';
+  if (email && !email.includes('@')) return 'Email tidak valid.';
+  if (!fullName) return 'Nama lengkap wajib diisi.';
   if (password.length < 8) return 'Password minimal 8 karakter.';
   if (!SEMUA_ROLE.includes(role)) return 'Role tidak valid.';
 
   const passwordHash = hashPassword(password);
   if (await passwordDipakai(passwordHash)) return 'Password sudah dipakai user lain. Pakai yang berbeda.';
 
+  let dealerNightId: string | null;
+  try {
+    dealerNightId = await bacaDealerNight(formData, role);
+  } catch (error) {
+    return error instanceof Error ? error.message : 'Dealer Night tidak valid.';
+  }
+
   await db.insert(profiles).values({
+    id: randomUUID(),
     email: email || null,
     fullName,
     role,
     passwordHash,
     allowedPages: bacaHalaman(formData),
-    dataScope: bacaScope(formData, role),
-    bolehUnduh: bacaBolehUnduh(formData, role),
+    dealerNightId,
+    bolehUnduh: formData.get('bolehUnduh') === 'on',
   });
 
   revalidatePath('/admin/users');
@@ -102,22 +85,25 @@ export async function updateUser(_prev: string | null, formData: FormData): Prom
   const role = String(formData.get('role') ?? '') as Role;
 
   if (!userId) return 'User tidak ditemukan.';
-  if (email !== '' && !email.includes('@')) return 'Email tidak valid.';
-  // Password kosong = jangan diubah. Kalau diisi, minimal 8 dan tetap harus unik.
-  if (password !== '' && password.length < 8) return 'Password minimal 8 karakter.';
+  if (email && !email.includes('@')) return 'Email tidak valid.';
+  if (!fullName) return 'Nama lengkap wajib diisi.';
+  if (password && password.length < 8) return 'Password minimal 8 karakter.';
   if (!SEMUA_ROLE.includes(role)) return 'Role tidak valid.';
+  if (me.id === userId && role !== 'superadmin') return 'Tidak bisa mengubah role akun sendiri.';
 
-  // Superadmin terakhir tidak boleh menurunkan rolenya sendiri lalu terkunci.
-  if (me.id === userId && role !== 'superadmin') {
-    return 'Tidak bisa mengubah role akun sendiri.';
+  let dealerNightId: string | null;
+  try {
+    dealerNightId = await bacaDealerNight(formData, role);
+  } catch (error) {
+    return error instanceof Error ? error.message : 'Dealer Night tidak valid.';
   }
 
-  const set: {
+  const values: {
     email: string | null;
     fullName: string;
     role: Role;
     allowedPages: string[];
-    dataScope: string | null;
+    dealerNightId: string | null;
     bolehUnduh: boolean;
     passwordHash?: string;
   } = {
@@ -125,21 +111,19 @@ export async function updateUser(_prev: string | null, formData: FormData): Prom
     fullName,
     role,
     allowedPages: bacaHalaman(formData),
-    dataScope: bacaScope(formData, role),
-    bolehUnduh: bacaBolehUnduh(formData, role),
+    dealerNightId,
+    bolehUnduh: formData.get('bolehUnduh') === 'on',
   };
 
-  if (password !== '') {
+  if (password) {
     const passwordHash = hashPassword(password);
     if (await passwordDipakai(passwordHash, userId)) {
       return 'Password sudah dipakai user lain. Pakai yang berbeda.';
     }
-    set.passwordHash = passwordHash;
+    values.passwordHash = passwordHash;
   }
 
-  await db.update(profiles).set(set).where(eq(profiles.id, userId));
-
-  // Tanpa ini, role dan akses lama masih dipakai sampai cache 60 detik habis.
+  await db.update(profiles).set(values).where(eq(profiles.id, userId));
   lupakanProfil(userId);
   revalidatePath('/admin/users');
   return null;

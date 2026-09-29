@@ -1,9 +1,8 @@
-import { asc } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { UserTable } from '@/components/admin/user-table';
 import { requireHalaman } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { profiles } from '@/lib/db/schema';
-import { semuaRegion } from '@/lib/dashboard/hierarchy';
+import { dealerNights, profiles } from '@/lib/db/schema';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,14 +17,21 @@ export default async function UsersPage() {
       role: profiles.role,
       allowedPages: profiles.allowedPages,
       bolehUnduh: profiles.bolehUnduh,
-      dataScope: profiles.dataScope,
+      dealerNightId: profiles.dealerNightId,
+      dealerNightName: dealerNights.name,
     })
     .from(profiles)
+    .leftJoin(dealerNights, eq(profiles.dealerNightId, dealerNights.id))
     .orderBy(asc(profiles.fullName));
+
+  const dealerNightOptions = await db
+    .select({ id: dealerNights.id, name: dealerNights.name })
+    .from(dealerNights)
+    .orderBy(asc(dealerNights.name));
 
   return (
     <div className="mx-auto w-full max-w-6xl">
-      <UserTable rows={rows} currentUserId={me.id} regionOptions={semuaRegion()} />
+      <UserTable rows={rows} currentUserId={me.id} dealerNightOptions={dealerNightOptions} />
     </div>
   );
 }

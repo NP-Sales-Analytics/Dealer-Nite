@@ -4,7 +4,7 @@ import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 import { UserDetailDialog } from './user-detail-dialog';
-import { UserFormDialog, type UserRow } from './user-form-dialog';
+import { UserFormDialog, type DealerNightOption, type UserRow } from './user-form-dialog';
 import { deleteUser } from '@/app/(app)/admin/users/actions';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -13,7 +13,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { halamanEfektif, labelScope, ROLE_LABEL } from '@/lib/access';
+import { halamanEfektif, labelDealerNightAccess, ROLE_LABEL } from '@/lib/access';
 import { inisial } from '@/lib/utils';
 
 function Avatar({ nama }: { nama: string }) {
@@ -28,12 +28,11 @@ function Avatar({ nama }: { nama: string }) {
 }
 
 export function UserTable({
-  rows, currentUserId, regionOptions,
+  rows, currentUserId, dealerNightOptions,
 }: {
   rows: UserRow[];
   currentUserId: string;
-  /** Daftar region resmi untuk pilihan cakupan RSM - lihat UserFormDialog. */
-  regionOptions: string[];
+  dealerNightOptions: DealerNightOption[];
 }) {
   const [pending, start] = useTransition();
   const [detail, setDetail] = useState<UserRow | null>(null);
@@ -108,7 +107,7 @@ export function UserTable({
                       <Badge variant="secondary">{ROLE_LABEL[u.role]}</Badge>
                     </TableCell>
                     <TableCell className="py-4 text-muted-foreground">
-                      {labelScope(u.role, u.dataScope)}
+                      {labelDealerNightAccess(u.role, u.dealerNightId, u.dealerNightName)}
                     </TableCell>
                     <TableCell className="py-4 text-center">
                       <span
@@ -164,7 +163,7 @@ export function UserTable({
         mode="create"
         open={tambah}
         onOpenChange={setTambah}
-        regionOptions={regionOptions}
+        dealerNightOptions={dealerNightOptions}
       />
 
       {/* key: state form diisi dari props saat mount, jadi tanpa ini membuka
@@ -176,7 +175,7 @@ export function UserTable({
           row={edit}
           open
           onOpenChange={(v) => !v && setEdit(null)}
-          regionOptions={regionOptions}
+          dealerNightOptions={dealerNightOptions}
         />
       )}
 

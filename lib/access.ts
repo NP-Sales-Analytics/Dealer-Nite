@@ -1,90 +1,53 @@
 import type { Role } from '@/lib/auth';
 
-/** Nama role sebagaimana ditulis di UI. Satu sumber untuk tabel dan dropdown. */
 export const ROLE_LABEL: Record<Role, string> = {
   superadmin: 'Super Admin',
-  admin_rsvp: 'Admin RSVP',
+  admin: 'Admin',
   marketing: 'Marketing',
-  rsm: 'RSM',
-  customer: 'Customer',
+  management: 'Management',
+  dn_user: 'Akun DN',
 };
 
 export const SEMUA_ROLE = Object.keys(ROLE_LABEL) as Role[];
 
-/** Halaman yang bisa diberikan ke sebuah akun. Urut per modul: Kehadiran, Order, Setting. */
 export const HALAMAN: { href: string; label: string }[] = [
   { href: '/dashboard', label: 'Dashboard Kehadiran' },
   { href: '/reservation', label: 'Pencatatan Kehadiran' },
   { href: '/kehadiran', label: 'Detail Toko Hadir' },
-  { href: '/leaderboard', label: 'Leaderboard Top Order' },
-  { href: '/order', label: 'Tambah Order' },
-  { href: '/order/detail', label: 'Detail Order' },
+  { href: '/leaderboard', label: 'Leaderboard Target DN' },
+  { href: '/order/detail', label: 'Detail Target DN' },
   { href: '/admin/users', label: 'User Management' },
-  { href: '/setting/waktu', label: 'Waktu Penambahan' },
   { href: '/setting/pax', label: 'Setting Pax' },
 ];
 
-/**
- * Preset per role, dipakai saat allowed_pages sebuah akun masih kosong.
- *
- * Sengaja tidak dipakai sebagai batas keras: begitu superadmin menyimpan
- * pilihannya, isian kolomlah yang berlaku. Preset hanya titik awal supaya akun
- * yang dibuat sebelum kolom ini ada tidak mendadak kehilangan akses.
- */
 export const HALAMAN_BAWAAN: Record<Role, string[]> = {
-  superadmin: [
-    '/dashboard', '/reservation', '/kehadiran',
-    '/leaderboard', '/order', '/order/detail',
-    '/admin/users', '/setting/waktu', '/setting/pax',
-  ],
-  admin_rsvp: ['/reservation', '/kehadiran', '/leaderboard', '/order', '/order/detail'],
-  // Marketing & RSM: Detail Order hanya untuk dilihat - tombol ubah/hapus/tambah
-  // disembunyikan di UI dan ditolak di route mutasinya.
+  superadmin: HALAMAN.map((item) => item.href),
+  admin: ['/dashboard', '/reservation', '/kehadiran', '/leaderboard', '/order/detail', '/setting/pax'],
   marketing: ['/dashboard', '/kehadiran', '/leaderboard', '/order/detail'],
-  rsm: ['/dashboard', '/kehadiran', '/leaderboard', '/order/detail'],
-  // Customer cukup SATU halaman. Papan peringkat dan penambahan order sudah
-  // menyatu di /leaderboard, jadi tidak ada lagi yang perlu dicari lewat menu -
-  // dan menu samping pun tinggal satu entri.
-  customer: ['/leaderboard'],
+  management: ['/dashboard', '/kehadiran', '/leaderboard', '/order/detail'],
+  dn_user: ['/dashboard', '/kehadiran', '/leaderboard', '/order/detail'],
 };
 
-/** Halaman efektif sebuah akun: pilihan tersimpan, atau preset bila belum diatur. */
 export const halamanEfektif = (role: Role, allowedPages: string[]) =>
   allowedPages.length > 0 ? allowedPages : HALAMAN_BAWAAN[role];
 
-/**
- * Cakupan data hanya berlaku untuk role yang memang dibatasi.
- *
- * Super Admin, Admin RSVP, dan Marketing melihat seluruh data - menyimpan
- * pembatas untuk mereka hanya akan jadi jebakan yang diam-diam menyembunyikan
- * baris tanpa alasan yang terlihat di UI.
- */
-export const SCOPE_PER_ROLE: Partial<Record<Role, { label: string; contoh: string }>> = {
-  rsm: { label: 'Region', contoh: 'Misal: 3A' },
-  customer: { label: 'Kode SAP', contoh: 'Misal: 600001' },
-};
+type DealerNightPrincipal = { role: Role; dealerNightId: string | null };
 
-export const butuhScope = (role: Role) => role in SCOPE_PER_ROLE;
+export function canReadDealerNight(user: DealerNightPrincipal, dealerNightId: string): boolean {
+  return user.role === 'dn_user' ? user.dealerNightId === dealerNightId : true;
+}
 
-/**
- * RSM dengan beberapa region (mis. seorang RSM merangkap 1A, 1B, 1C & 5)
- * menyimpan cakupannya sebagai daftar berkoma dalam KOLOM YANG SAMA, bukan
- * kolom array terpisah - kode region (2A, 3A, ...) tidak pernah mengandung
- * koma sendiri (sama seperti daftar berkoma di query string dashboard), jadi
- * ini aman tanpa migrasi skema atau pengkodean tambahan. Customer memakai
- * kolom yang sama untuk kode SAP tunggal - tidak pernah lewat sini.
- */
-export const daftarRegion = (dataScope: string | null): string[] =>
-  (dataScope ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+export function canAdjustTarget(user: DealerNightPrincipal, dealerNightId: string): boolean {
+  return (user.role === 'superadmin' || user.role === 'admin')
+    && canReadDealerNight(user, dealerNightId);
+}
 
-/** Kebalikan daftarRegion - dipakai saat menyimpan pilihan dari form. */
-export const gabungRegion = (regions: string[]) =>
-  [...new Set(regions)].sort((a, b) => a.localeCompare(b, 'id')).join(',');
-
-/** Ringkasan cakupan data untuk ditampilkan di tabel dan panel detail. */
-export function labelScope(role: Role, dataScope: string | null) {
-  if (!butuhScope(role)) return 'Semua data';
-  if (!dataScope) return 'Semua data';
-  if (role === 'rsm') return `${SCOPE_PER_ROLE.rsm!.label} ${daftarRegion(dataScope).join(', ')}`;
-  return `${SCOPE_PER_ROLE[role]!.label} ${dataScope}`;
+export function labelDealerNightAccess(
+  role: Role,
+  dealerNightId: string | null,
+  dealerNightName: string | null,
+): string {
+  if (role !== 'dn_user') return 'Semua Dealer Night';
+  if (!dealerNightId) return 'Belum ditentukan';
+  return dealerNightName || dealerNightId;
 }

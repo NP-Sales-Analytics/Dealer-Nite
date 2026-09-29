@@ -5,67 +5,49 @@ import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 import { createUser, updateUser } from '@/app/(app)/admin/users/actions';
 import { Button } from '@/components/ui/button';
-import { PilihBanyak } from '@/components/ui/combobox';
 import { Dialog, DialogClose, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
-import {
-  daftarRegion, halamanEfektif, HALAMAN, ROLE_LABEL, SCOPE_PER_ROLE, SEMUA_ROLE,
-} from '@/lib/access';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { halamanEfektif, HALAMAN, ROLE_LABEL, SEMUA_ROLE } from '@/lib/access';
 import type { Role } from '@/lib/auth';
-import { KOMUNITAS_MEDIA } from '@/lib/dashboard/komunitas-media';
 
+export type DealerNightOption = { id: string; name: string };
 export type UserRow = {
   id: string;
   email: string | null;
   fullName: string;
   role: Role;
   allowedPages: string[];
-  dataScope: string | null;
+  dealerNightId: string | null;
+  dealerNightName: string | null;
   bolehUnduh: boolean;
 };
 
-/**
- * Pemilih halaman: <details> bawaan browser, bukan komponen dropdown.
- *
- * Daftarnya cuma empat baris dan hanya muncul di dalam dialog, jadi menambah
- * popover berikut manajemen fokusnya tidak sepadan. <details> sudah bisa
- * dibuka-tutup dengan keyboard dan dibacakan screen reader apa adanya.
- */
-function PemilihHalaman({ terpilih, onChange }: { terpilih: string[]; onChange: (v: string[]) => void }) {
-  const toggle = (href: string) =>
-    onChange(terpilih.includes(href) ? terpilih.filter((h) => h !== href) : [...terpilih, href]);
+function PemilihHalaman({ terpilih, onChange }: { terpilih: string[]; onChange: (value: string[]) => void }) {
+  const toggle = (href: string) => onChange(
+    terpilih.includes(href) ? terpilih.filter((item) => item !== href) : [...terpilih, href],
+  );
 
   return (
     <details className="group rounded-xl border border-border bg-background">
-      <summary className="flex h-11 cursor-pointer list-none items-center justify-between gap-2 px-3.5 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
-        <span className={terpilih.length === 0 ? 'text-muted-foreground' : ''}>
-          {terpilih.length === 0
-            ? 'Belum dipilih (pakai bawaan role)'
-            : `${terpilih.length} halaman dipilih`}
-        </span>
-        <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+      <summary className="flex h-11 cursor-pointer list-none items-center justify-between px-3.5 text-sm">
+        <span>{terpilih.length ? `${terpilih.length} halaman dipilih` : 'Pakai akses bawaan role'}</span>
+        <ChevronDown className="size-4 transition-transform group-open:rotate-180" />
       </summary>
-
       <div className="space-y-1 border-t border-border p-2">
-        {HALAMAN.map((h) => (
-          <label
-            key={h.href}
-            className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2 text-sm transition-colors hover:bg-secondary"
-          >
+        {HALAMAN.map((item) => (
+          <label key={item.href} className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2 text-sm hover:bg-secondary">
             <input
               type="checkbox"
               name="pages"
-              value={h.href}
-              checked={terpilih.includes(h.href)}
-              onChange={() => toggle(h.href)}
-              className="size-4 shrink-0 accent-primary"
+              value={item.href}
+              checked={terpilih.includes(item.href)}
+              onChange={() => toggle(item.href)}
+              className="size-4 accent-primary"
             />
-            <span className="min-w-0 flex-1">{h.label}</span>
-            <span className="shrink-0 text-xs text-muted-foreground">{h.href}</span>
+            <span className="flex-1">{item.label}</span>
+            <span className="text-xs text-muted-foreground">{item.href}</span>
           </label>
         ))}
       </div>
@@ -74,222 +56,119 @@ function PemilihHalaman({ terpilih, onChange }: { terpilih: string[]; onChange: 
 }
 
 export function UserFormDialog({
-  mode, row, open, onOpenChange, regionOptions,
+  mode,
+  row,
+  open,
+  onOpenChange,
+  dealerNightOptions,
 }: {
   mode: 'create' | 'edit';
   row?: UserRow | null;
   open: boolean;
-  onOpenChange: (v: boolean) => void;
-  /** Daftar region resmi - isi pilihan cakupan data saat role-nya RSM. */
-  regionOptions: string[];
+  onOpenChange: (value: boolean) => void;
+  dealerNightOptions: DealerNightOption[];
 }) {
+  const edit = mode === 'edit';
   const [pending, start] = useTransition();
-  const [role, setRole] = useState<Role>(row?.role ?? 'admin_rsvp');
-  // Saat mengedit, kotak dicentang sesuai akses efektifnya - kalau ditampilkan
-  // kosong, menyimpan tanpa menyentuh apa pun justru akan mencabut aksesnya.
-  const [pages, setPages] = useState<string[]>(
-    row ? halamanEfektif(row.role, row.allowedPages) : [],
-  );
-  // Cakupan region RSM - boleh lebih dari satu. Diisi ulang dari baris hanya
-  // saat rolenya memang RSM; kalau tidak, dataScope berarti hal lain (kode SAP).
-  const [regionScope, setRegionScope] = useState<string[]>(
-    row?.role === 'rsm' ? daftarRegion(row.dataScope) : [],
-  );
-  const [lihatSandi, setLihatSandi] = useState(false);
-
-  const scope = SCOPE_PER_ROLE[role];
-  const ubah = mode === 'edit';
+  const [role, setRole] = useState<Role>(row?.role ?? 'admin');
+  const [pages, setPages] = useState(row ? halamanEfektif(row.role, row.allowedPages) : []);
+  const [dealerNightId, setDealerNightId] = useState(row?.dealerNightId ?? '');
+  const [showPassword, setShowPassword] = useState(false);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        showCloseButton={false}
-        className="grid max-h-[80svh] w-full max-w-lg grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-2xl p-0 sm:max-h-[86svh]"
-      >
+      <DialogContent showCloseButton={false} className="grid max-h-[86svh] max-w-lg grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-2xl p-0">
         <header className="flex items-center justify-between border-b border-border px-5 py-4">
-          <div className="min-w-0">
-            <DialogTitle className="text-base font-semibold">
-              {ubah ? 'Ubah User' : 'Tambah User'}
-            </DialogTitle>
-            <p className="truncate text-xs text-muted-foreground">
-              {ubah ? (row?.email ?? row?.fullName ?? '') : 'Login pakai password. Password harus unik.'}
-            </p>
+          <div>
+            <DialogTitle className="text-base">{edit ? 'Ubah User' : 'Tambah User'}</DialogTitle>
+            <p className="text-xs text-muted-foreground">Semua akun login hanya dengan password unik.</p>
           </div>
-          <DialogClose
-            aria-label="Tutup"
-            className="grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-          >
+          <DialogClose aria-label="Tutup" className="grid size-8 place-items-center rounded-lg hover:bg-secondary">
             <X className="size-4" />
           </DialogClose>
         </header>
 
         <form
           id="user-form"
-          action={(fd) => start(async () => {
-            const msg = ubah ? await updateUser(null, fd) : await createUser(null, fd);
-            if (msg) { toast.error(msg); return; }
-            toast.success(ubah ? 'User diperbarui.' : 'User dibuat.');
+          action={(formData) => start(async () => {
+            const message = edit ? await updateUser(null, formData) : await createUser(null, formData);
+            if (message) return toast.error(message);
+            toast.success(edit ? 'User diperbarui.' : 'User dibuat.');
             onOpenChange(false);
           })}
           className="min-h-0 space-y-4 overflow-y-auto px-5 py-5"
         >
-          {ubah && <input type="hidden" name="userId" value={row?.id ?? ''} />}
-          {/* Select base-ui tidak menyumbang nilai ke FormData; nilainya
-              dikirim lewat input tersembunyi ini. */}
+          {edit && <input type="hidden" name="userId" value={row?.id ?? ''} />}
           <input type="hidden" name="role" value={role} />
+          {role === 'dn_user' && <input type="hidden" name="dealerNightId" value={dealerNightId} />}
 
           <div className="space-y-2">
             <Label htmlFor="u-email">Email (opsional)</Label>
-            <Input
-              className="h-11"
-              id="u-email"
-              name="email"
-              type="email"
-              defaultValue={row?.email ?? ''}
-            />
+            <Input id="u-email" name="email" type="email" defaultValue={row?.email ?? ''} className="h-11" />
           </div>
-
           <div className="space-y-2">
             <Label htmlFor="u-name">Nama Lengkap</Label>
-            <Input className="h-11" id="u-name" name="fullName" defaultValue={row?.fullName ?? ''} />
+            <Input id="u-name" name="fullName" defaultValue={row?.fullName ?? ''} required className="h-11" />
           </div>
-
           <div className="space-y-2">
-            <Label htmlFor="u-pass">
-              {ubah ? 'Password Baru' : 'Password (min. 8 karakter, unik)'}
-            </Label>
+            <Label htmlFor="u-pass">{edit ? 'Password Baru' : 'Password (min. 8 karakter, unik)'}</Label>
             <div className="relative">
               <Input
-                className="h-11 pr-11"
                 id="u-pass"
                 name="password"
-                type={lihatSandi ? 'text' : 'password'}
+                type={showPassword ? 'text' : 'password'}
                 minLength={8}
-                // Saat mengedit, kolom kosong berarti password lama dibiarkan.
-                // Karena itu tidak required, dan minLength baru berlaku begitu
-                // ada isinya - browser melewati minLength pada kolom kosong.
-                required={!ubah}
-                placeholder={ubah ? 'Kosongkan kalau tidak diubah' : undefined}
+                required={!edit}
                 autoComplete="new-password"
+                placeholder={edit ? 'Kosongkan jika tidak diubah' : undefined}
+                className="h-11 pr-11"
               />
-              <button
-                type="button"
-                onClick={() => setLihatSandi((v) => !v)}
-                aria-label={lihatSandi ? 'Sembunyikan password' : 'Tampilkan password'}
-                title={lihatSandi ? 'Sembunyikan password' : 'Tampilkan password'}
-                className="absolute right-0 top-0 grid h-11 w-11 place-items-center text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-              >
-                {lihatSandi ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              <button type="button" onClick={() => setShowPassword((value) => !value)} className="absolute right-0 top-0 grid size-11 place-items-center" aria-label="Tampilkan atau sembunyikan password">
+                {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
               </button>
             </div>
           </div>
-
           <div className="space-y-2">
-            <Label htmlFor="u-role">Role</Label>
-            <Select value={role} onValueChange={(v) => v && setRole(v as Role)}>
-              <SelectTrigger id="u-role" className="h-11 w-full data-[size=default]:h-11">
-                <SelectValue>{ROLE_LABEL[role]}</SelectValue>
-              </SelectTrigger>
+            <Label>Role</Label>
+            <Select value={role} onValueChange={(value) => value && setRole(value as Role)}>
+              <SelectTrigger className="h-11 w-full"><SelectValue>{ROLE_LABEL[role]}</SelectValue></SelectTrigger>
               <SelectContent>
-                {SEMUA_ROLE.map((r) => (
-                  <SelectItem key={r} value={r}>{ROLE_LABEL[r]}</SelectItem>
-                ))}
+                {SEMUA_ROLE.map((item) => <SelectItem key={item} value={item}>{ROLE_LABEL[item]}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
+
+          {role === 'dn_user' ? (
+            <div className="space-y-2">
+              <Label>Dealer Night</Label>
+              <Select value={dealerNightId} onValueChange={(value) => setDealerNightId(value ?? '')}>
+                <SelectTrigger className="h-11 w-full"><SelectValue placeholder="Pilih Dealer Night" /></SelectTrigger>
+                <SelectContent>
+                  {dealerNightOptions.map((item) => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">Akun ini hanya dapat melihat data Dealer Night yang dipilih.</p>
+            </div>
+          ) : (
+            <p className="rounded-xl border border-border bg-secondary/30 px-3.5 py-3 text-xs text-muted-foreground">
+              {ROLE_LABEL[role]} dapat melihat seluruh Dealer Night.
+            </p>
+          )}
 
           <div className="space-y-2">
             <Label>Halaman yang bisa diakses</Label>
             <PemilihHalaman terpilih={pages} onChange={setPages} />
           </div>
 
-          {/* Hanya muncul untuk role yang memang dibatasi. Super Admin, Admin
-              RSVP, dan Marketing melihat seluruh data. RSM dipisah dari
-              customer: RSM boleh merangkap beberapa region sekaligus (mis.
-              1A, 1B, 1C & 5), jadi pilihannya lewat multi-select, bukan
-              ketikan bebas - satu salah ketik di sini berarti toko di region
-              itu ikut tersembunyi atau, kebalikannya, region yang salah malah
-              ikut kebuka. */}
-          {role === 'rsm' ? (
-            <div className="space-y-2">
-              <Label>Cakupan Data &mdash; Region</Label>
-              <PilihBanyak
-                items={regionOptions}
-                value={regionScope}
-                onChange={setRegionScope}
-                labelSemua="Semua region (tidak dibatasi)"
-                satuan="Region"
-                cariPlaceholder="Cari region..."
-                kosong="Region tidak ditemukan."
-                format={(r) => (r === KOMUNITAS_MEDIA ? r : `Region ${r}`)}
-                className="w-full"
-              />
-              <p className="text-xs text-muted-foreground">
-                Boleh pilih lebih dari satu region. Kosongkan berarti melihat semua data.
-              </p>
-              {/* Dibaca dengan formData.getAll('dataScope') di server, sama
-                  seperti PemilihHalaman membaca banyak "pages" sekaligus. */}
-              {regionScope.map((r) => (
-                <input key={r} type="hidden" name="dataScope" value={r} />
-              ))}
-            </div>
-          ) : scope ? (
-            <div className="space-y-2">
-              <Label htmlFor="u-scope">Cakupan Data &mdash; {scope.label}</Label>
-              <Input
-                className="h-11"
-                id="u-scope"
-                name="dataScope"
-                placeholder={scope.contoh}
-                defaultValue={row?.dataScope ?? ''}
-              />
-            </div>
-          ) : (
-            <p className="rounded-xl border border-border bg-secondary/30 px-3.5 py-3 text-xs leading-relaxed text-muted-foreground">
-              Role <span className="font-medium text-foreground">{ROLE_LABEL[role]}</span> melihat
-              seluruh data, jadi tidak ada cakupan data yang perlu diisi.
-            </p>
-          )}
-
-          {/* Customer tidak punya halaman rekap sama sekali, jadi izin ini tidak
-              berarti apa-apa untuk mereka - disembunyikan alih-alih ditampilkan
-              lalu diabaikan diam-diam di server. */}
-          {role !== 'customer' && (
-            <div className="space-y-2">
-              <Label>Izin Unduh Data</Label>
-              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-background px-3.5 py-3 transition-colors hover:bg-secondary/40">
-                <input
-                  type="checkbox"
-                  name="bolehUnduh"
-                  defaultChecked={row?.bolehUnduh ?? false}
-                  className="mt-0.5 size-4 shrink-0 accent-primary"
-                />
-                <span className="min-w-0 flex-1 text-sm">
-                  Boleh mengunduh Excel
-                  <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
-                    Rekap Kehadiran dan Detail Order. Terpisah dari izin membuka
-                    halamannya: berkas yang sudah terunduh bisa dikirim ke mana saja
-                    dan tidak bisa ditarik kembali.
-                  </span>
-                </span>
-              </label>
-            </div>
-          )}
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border px-3.5 py-3">
+            <input type="checkbox" name="bolehUnduh" defaultChecked={row?.bolehUnduh ?? false} className="mt-0.5 size-4 accent-primary" />
+            <span className="text-sm">Boleh mengunduh data</span>
+          </label>
         </form>
 
-        <footer className="flex items-center gap-2 border-t border-border px-5 py-4">
-          <Button
-            type="button"
-            variant="outline"
-            className="h-11 flex-1 sm:flex-none sm:px-6"
-            onClick={() => onOpenChange(false)}
-            disabled={pending}
-          >
-            Batal
-          </Button>
-          <Button type="submit" form="user-form" className="h-11 flex-1" disabled={pending}>
-            {pending ? 'Menyimpan...' : ubah ? 'Simpan Perubahan' : 'Simpan'}
-          </Button>
+        <footer className="flex gap-2 border-t border-border px-5 py-4">
+          <Button type="button" variant="outline" className="h-11" onClick={() => onOpenChange(false)} disabled={pending}>Batal</Button>
+          <Button type="submit" form="user-form" className="h-11 flex-1" disabled={pending}>{pending ? 'Menyimpan...' : 'Simpan'}</Button>
         </footer>
       </DialogContent>
     </Dialog>

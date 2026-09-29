@@ -28,12 +28,12 @@ export default function LoginPage() {
           Masuk ke Nippon
         </h1>
         <p className="mx-auto mt-1.5 mb-6 max-w-[17rem] text-center text-sm text-muted-foreground">
-          Tim internal masuk dengan password. Customer masuk dengan Kode SAP.
+          Akses khusus tim internal Dealer Night.
         </p>
 
         <form action={action} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="credential">Password atau Kode SAP</Label>
+            <Label htmlFor="credential">Password</Label>
             <div className="relative">
               <Input
                 id="credential"
@@ -41,7 +41,7 @@ export default function LoginPage() {
                 required
                 type={show ? 'text' : 'password'}
                 autoComplete="off"
-                placeholder="Masukkan password atau Kode SAP"
+                placeholder="Masukkan password"
                 className="h-12 pr-12"
               />
               {/* Di HP orang sering salah ketik dan tidak punya cara memeriksanya. */}

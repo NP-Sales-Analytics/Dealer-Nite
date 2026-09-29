@@ -5,7 +5,7 @@ import type { UserRow } from './user-form-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogClose, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { halamanEfektif, HALAMAN, labelScope, ROLE_LABEL } from '@/lib/access';
+import { halamanEfektif, HALAMAN, labelDealerNightAccess, ROLE_LABEL } from '@/lib/access';
 import { inisial } from '@/lib/utils';
 
 function Baris({ label, nilai }: { label: string; nilai: string | null }) {
@@ -77,7 +77,9 @@ export function UserDetailDialog({
               {row.email && <p className="mt-0.5 break-all text-sm text-muted-foreground">{row.email}</p>}
               <div className="mt-2 flex flex-wrap gap-1.5">
                 <Badge variant="secondary">{ROLE_LABEL[row.role]}</Badge>
-                <Badge variant="outline">{labelScope(row.role, row.dataScope)}</Badge>
+                <Badge variant="outline">
+                  {labelDealerNightAccess(row.role, row.dealerNightId, row.dealerNightName)}
+                </Badge>
                 {akunSendiri && <Badge variant="outline">Akun Anda</Badge>}
               </div>
             </div>
@@ -85,7 +87,10 @@ export function UserDetailDialog({
 
           <Seksi judul="Akses">
             <Baris label="Role" nilai={ROLE_LABEL[row.role]} />
-            <Baris label="Cakupan data" nilai={labelScope(row.role, row.dataScope)} />
+            <Baris
+              label="Dealer Night"
+              nilai={labelDealerNightAccess(row.role, row.dealerNightId, row.dealerNightName)}
+            />
           </Seksi>
 
           <section className="space-y-2">

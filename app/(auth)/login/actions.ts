@@ -4,14 +4,14 @@ import { eq } from 'drizzle-orm';
 import { redirect } from 'next/navigation';
 import { HOME_BY_ROLE, type Role } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { customers, profiles } from '@/lib/db/schema';
+import { profiles } from '@/lib/db/schema';
 import { hashPassword } from '@/lib/password';
 import { rateLimit } from '@/lib/rate-limit';
 import { clearSessionCookie, setSessionCookie } from '@/lib/session';
 
 export async function signIn(_prev: string | null, formData: FormData): Promise<string | null> {
   const credential = String(formData.get('credential') ?? '').trim();
-  if (!credential) return 'Masukkan password atau Kode SAP.';
+  if (!credential) return 'Masukkan password.';
 
   // Dikunci pada kredensial yang dicoba, BUKAN pada IP. Di venue seluruh tamu
   // berbagi satu IP NAT wifi, jadi kunci per-IP akan mengunci SATU RUANGAN
@@ -30,22 +30,11 @@ export async function signIn(_prev: string | null, formData: FormData): Promise<
     .where(eq(profiles.passwordHash, hashPassword(credential)))
     .limit(1);
   if (team) {
-    await setSessionCookie('team', team.id);
+    await setSessionCookie(team.id);
     redirect(HOME_BY_ROLE[team.role as Role]);
   }
 
-  // Customer: kode_sap.
-  const [cust] = await db
-    .select({ id: customers.id })
-    .from(customers)
-    .where(eq(customers.kodeSap, credential))
-    .limit(1);
-  if (cust) {
-    await setSessionCookie('customer', cust.id);
-    redirect('/leaderboard');
-  }
-
-  return 'Password atau Kode SAP salah.';
+  return 'Password salah.';
 }
 
 export async function signOut() {

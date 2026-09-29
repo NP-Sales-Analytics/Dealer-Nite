@@ -1,8 +1,8 @@
 'use client';
 
 import {
-  ChevronLeft, ClipboardCheck, ClipboardList, Clock, Gauge, LayoutDashboard, ListChecks,
-  LogOut, PlusCircle, Trophy, Users,
+  ChevronLeft, ClipboardCheck, ClipboardList, Gauge, LayoutDashboard, ListChecks,
+  LogOut, Trophy, Users,
 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -34,18 +34,16 @@ const GRUP: { label: string; links: NavLink[] }[] = [
     ],
   },
   {
-    label: 'Order',
+    label: 'Target DN',
     links: [
-      { href: '/leaderboard', label: 'Leaderboard Top Order', icon: Trophy },
-      { href: '/order', label: 'Tambah Order', icon: PlusCircle },
-      { href: '/order/detail', label: 'Detail Order', icon: ClipboardList },
+      { href: '/leaderboard', label: 'Leaderboard Target DN', icon: Trophy },
+      { href: '/order/detail', label: 'Detail Target DN', icon: ClipboardList },
     ],
   },
   {
     label: 'Setting',
     links: [
       { href: '/admin/users', label: 'User Management', icon: Users },
-      { href: '/setting/waktu', label: 'Waktu Penambahan', icon: Clock },
       { href: '/setting/pax', label: 'Setting Pax', icon: Gauge },
     ],
   },
@@ -147,7 +145,7 @@ export function AppSidebar({ user }: { user: SessionUser }) {
           <span
             className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-semibold text-accent-foreground"
             aria-hidden
-            title={user.email || user.dataScope || ''}
+            title={user.email || user.dealerNightId || ''}
           >
             {initials(user)}
           </span>
@@ -155,9 +153,8 @@ export function AppSidebar({ user }: { user: SessionUser }) {
             <span className="block truncate text-sm font-medium leading-tight">
               {user.fullName || 'Pengguna'}
             </span>
-            {/* Customer tidak punya email; tampilkan Kode SAP (dataScope) sebagai gantinya. */}
             <span className="block truncate text-xs leading-tight text-muted-foreground">
-              {user.email || user.dataScope}
+              {user.email || user.dealerNightId}
             </span>
           </span>
           <form action={signOut} className="group-data-[collapsible=icon]:hidden">
