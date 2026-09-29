@@ -1,0 +1,31 @@
+import { NextResponse, type NextRequest } from 'next/server';
+import { getSessionUser } from '@/lib/auth';
+import { resolveDealerNightId } from '@/lib/target/access';
+import { listTargets } from '@/lib/target/service';
+import { targetErrorResponse } from '../_response';
+
+const csvCell = (value: unknown) => `"${String(value ?? '').replaceAll('"', '""')}"`;
+
+export async function GET(request: NextRequest) {
+  const user = await getSessionUser();
+  if (!user) return NextResponse.json({ error: 'Belum login' }, { status: 401 });
+  if (user.role === 'dn_user') return NextResponse.json({ error: 'Tidak punya akses unduh.' }, { status: 403 });
+
+  try {
+    const dealerNightId = resolveDealerNightId(user, request.nextUrl.searchParams.get('dealerNightId'));
+    const rows = await listTargets(dealerNightId);
+    const header = ['MG Code', 'MG Name', 'Depot', 'Target Awal', 'Penyesuaian', 'Target Efektif'];
+    const csv = [header, ...rows.map((row) => [
+      row.mgCode, row.mgName, row.depotName, row.targetAwal, row.delta, row.targetEfektif,
+    ])].map((row) => row.map(csvCell).join(',')).join('\r\n');
+
+    return new NextResponse(`\uFEFF${csv}`, {
+      headers: {
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': `attachment; filename="target-dn-${dealerNightId}.csv"`,
+      },
+    });
+  } catch (error) {
+    return targetErrorResponse(error);
+  }
+}
