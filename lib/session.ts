@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { cookies } from 'next/headers';
+import { SESSION_COOKIE } from '@/lib/session-cookie';
 
-const COOKIE = 'dealer_nite_session';
 const MAX_AGE_S = 12 * 3600;
 
 export type Session = { kind: 'team'; id: string };
@@ -36,7 +36,7 @@ export function verifySession(token: string, now = Date.now()): Session | null {
 }
 
 export async function setSessionCookie(id: string) {
-  (await cookies()).set(COOKIE, signSession('team', id), {
+  (await cookies()).set(SESSION_COOKIE, signSession('team', id), {
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
@@ -46,10 +46,10 @@ export async function setSessionCookie(id: string) {
 }
 
 export async function getSession(): Promise<Session | null> {
-  const value = (await cookies()).get(COOKIE)?.value;
+  const value = (await cookies()).get(SESSION_COOKIE)?.value;
   return value ? verifySession(value) : null;
 }
 
 export async function clearSessionCookie() {
-  (await cookies()).delete(COOKIE);
+  (await cookies()).delete(SESSION_COOKIE);
 }

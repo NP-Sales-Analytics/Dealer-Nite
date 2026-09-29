@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { createHmac } from 'node:crypto';
+import { NextRequest } from 'next/server';
+import { middleware } from '@/middleware';
+import { SESSION_COOKIE } from '@/lib/session-cookie';
 process.env.AUTH_SECRET = 'test-secret';
 const { signSession, verifySession } = await import('@/lib/session');
 
@@ -35,5 +38,18 @@ describe('signed session', () => {
   it('rejects garbage', () => {
     expect(verifySession('not-a-token')).toBeNull();
     expect(verifySession('')).toBeNull();
+  });
+
+  it('uses the same cookie name in the writer and middleware guard', () => {
+    // Regression: ISSUE-001 — login sukses langsung dipantulkan kembali ke /login
+    // Found by /qa on 2026-09-29
+    // Report: .gstack/qa-reports/qa-report-localhost-2026-09-29.md
+    const withSession = new NextRequest('http://localhost/dashboard', {
+      headers: { cookie: `${SESSION_COOKIE}=signed-token` },
+    });
+    const withoutSession = new NextRequest('http://localhost/dashboard');
+
+    expect(middleware(withSession).headers.get('location')).toBeNull();
+    expect(middleware(withoutSession).headers.get('location')).toBe('http://localhost/login');
   });
 });
