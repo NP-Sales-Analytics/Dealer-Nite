@@ -61,6 +61,7 @@ mysql://<user>:<password-yang-sudah-di-url-encode>@127.0.0.1:13306/pylox_dn
 |---|---|---|
 | `DATABASE_URL` | ya | URL koneksi MySQL 8 |
 | `DB_SSL` | tidak | Set `1` bila server mewajibkan TLS |
+| `DB_SSL_CA` | bila TLS memakai CA privat | Sertifikat CA PEM; boleh multiline atau memakai literal `\n` |
 | `AUTH_SECRET` | ya | Menandatangani cookie dan menjadi pepper hash password; perubahan nilai membuat password lama tidak cocok |
 | `BOOTSTRAP_ADMIN_NAME` | saat bootstrap | Nama superadmin awal |
 | `BOOTSTRAP_ADMIN_PASSWORD` | saat bootstrap | Password unik minimal 8 karakter |

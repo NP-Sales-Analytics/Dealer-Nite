@@ -2,7 +2,11 @@ import { drizzle } from 'drizzle-orm/mysql2';
 import { createPool, type PoolOptions } from 'mysql2/promise';
 import * as schema from './schema';
 
-function connectionOptions(raw = process.env.DATABASE_URL): PoolOptions {
+export function connectionOptions(
+  raw = process.env.DATABASE_URL,
+  sslEnabled = process.env.DB_SSL === '1',
+  sslCa = process.env.DB_SSL_CA,
+): PoolOptions {
   if (!raw) {
     if (process.env.NODE_ENV === 'test') {
       return {
@@ -32,7 +36,7 @@ function connectionOptions(raw = process.env.DATABASE_URL): PoolOptions {
     queueLimit: 0,
     timezone: 'Z',
     enableKeepAlive: true,
-    ...(process.env.DB_SSL === '1' ? { ssl: {} } : {}),
+    ...(sslEnabled ? { ssl: sslCa ? { ca: sslCa.replace(/\\n/g, '\n') } : {} } : {}),
   };
 }
 
