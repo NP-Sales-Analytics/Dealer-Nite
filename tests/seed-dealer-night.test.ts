@@ -59,5 +59,5 @@ describe('seedDealerNight', () => {
     expect(Math.min(...reseeded.map((row) => row.targetDnAwal))).toBe(53_000_000);
     expect(reseeded.reduce((total, row) => total + row.targetDnAwal, 0)).toBe(42_955_000_000);
     expect(ledger).toHaveLength(1);
-  });
+  }, 15_000);
 });

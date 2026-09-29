@@ -1,83 +1,88 @@
-# Runbook Malam Event
+# Runbook Malam Dealer Nite
 
-Untuk dibaca saat acara berlangsung, bukan saat mengembangkan. Ringkas dan
-langsung ke tindakan.
+Panduan singkat untuk tim internal saat event berlangsung.
 
-## Sebelum acara dimulai
+## Sebelum acara
 
-1. **Kosongkan ledger order** supaya mulai dari nol:
-   ```sql
-   delete from public.order_adjustments;
-   update public.customers set dus_awal = null;
-   ```
-   `dus_awal` ikut dikosongkan - kalau tidak, lantai pengambilan pertama dari
-   data uji akan menghalangi order sungguhan.
+1. Buka `/leaderboard` dan pastikan Dealer Night yang benar tampil.
+2. Pastikan leaderboard menampilkan 113 toko untuk DN Bogor dan nilai teratas memakai format miliar/juta.
+3. Login dengan satu akun admin dan satu akun DN untuk menguji hak akses.
+4. Pada akun DN, pastikan pilihan Dealer Night terkunci dan tombol **Sesuaikan** tidak ada.
+5. Buka `/order/detail`, cari satu MG Code, dan periksa target awal serta target efektif.
+6. Buka `/reservation`, cari satu toko, dan pastikan jumlah undangan otomatis 1.
+7. Pastikan koneksi MySQL, Vercel, dan Upstash (jika diaktifkan) sehat.
 
-2. **Pastikan tenggat penambahan benar** di Setting → Waktu Penambahan. Kalau
-   tenggat sudah lewat, semua penambahan ditolak `TENGGAT_HABIS` dan tidak ada
-   yang bisa order.
+Tidak perlu mengaktifkan koneksi push atau mengatur batas waktu. Halaman membaca ulang data otomatis setiap 10 detik selama tab terlihat.
 
-3. **Cek aplikasi hidup**: buka `/leaderboard`, pastikan papan tampil.
+## Penyesuaian Target DN
 
-## Saat acara berlangsung
+1. Login sebagai `superadmin` atau `admin`.
+2. Buka **Target DN → Detail Target DN**.
+3. Cari nama toko atau MG Code.
+4. Tekan **Sesuaikan**.
+5. Masukkan nominal target baru dan catatan singkat.
+6. Periksa nilai **Selisih** sebelum menyimpan.
+7. Tekan **Simpan Penyesuaian**.
+8. Pastikan target efektif berubah dan riwayat memuat pencatat serta waktunya.
 
-### Gejala: leaderboard tidak berubah di device tamu
+Target boleh naik atau turun, tetapi hasil akhirnya tidak boleh kurang dari Rp50.000.000. Aplikasi menyimpan delta di ledger; target awal dari master tidak ditimpa.
 
-Aplikasi **sudah otomatis** menangani ini - kalau realtime putus, ia beralih ke
-penyegaran tiap 10 detik sendiri. Kalau realtime sehat, penyegaran tiap 30 detik
-plus dorongan realtime ~3 detik.
+## Gejala dan tindakan
 
-Artinya: **paling lambat 30 detik pun angkanya tetap masuk.** Tidak ada tindakan
-darurat yang perlu diambil hanya karena terasa lambat beberapa detik.
+### Target di bawah Rp50 juta ditolak
 
-Cara memastikan realtime memang hidup - buka Console di browser device mana pun,
-jalankan di halaman `/leaderboard`:
-```js
-// Kalau ada baris "SUBSCRIBED", realtime hidup.
-// Kalau "CHANNEL_ERROR"/"TIMED_OUT", ia sudah otomatis polling 10 detik.
-```
-Atau lebih mudah: catat angka di satu device, tambah order dari device lain,
-hitung berapa detik sampai berubah. Di bawah 30 detik = normal.
+Ini perilaku yang benar. Periksa kembali nominal. Jangan mengubah data langsung di database untuk melewati batas.
 
-### Gejala: order gagal disimpan
+### Target tersimpan tetapi leaderboard belum berubah
 
-Baca pesan errornya - aplikasi menyebut alasannya secara spesifik:
+Tunggu paling lama 10 detik atau pindah halaman lalu kembali. Jika belum berubah:
 
-| Pesan | Artinya | Tindakan |
-|---|---|---|
-| `TENGGAT_HABIS` | Waktu penambahan sudah lewat | Perpanjang di Setting → Waktu Penambahan, atau koreksi lewat Detail Order (tidak tunduk tenggat) |
-| `DI_BAWAH_AWAL` | Angka lebih rendah dari pengambilan pertama | Koreksi lewat Detail Order - admin adalah otoritas |
-| `NEGATIVE` | Total akan jadi minus | Angkanya memang salah, periksa ulang |
-| `Terlalu banyak permintaan` (429) | Rate limit 40 request / 10 detik per akun | Tunggu 10 detik. Kalau sering terjadi di meja registrasi, bagi beban ke akun admin lain |
+1. Buka riwayat toko di `/order/detail`.
+2. Jika ledger baru ada, periksa endpoint leaderboard dan koneksi MySQL.
+3. Jika ledger baru tidak ada, baca pesan pada form dan ulangi sekali.
+4. Jangan menekan simpan berkali-kali tanpa memeriksa riwayat.
 
-### Gejala: aplikasi lambat menyeluruh
+### Akun DN melihat Dealer Night yang salah
 
-Sudah diuji sampai 200 pengguna bersamaan tanpa error (lihat tabel di bawah).
-Kalau tetap lambat:
+1. Hentikan penggunaan akun tersebut.
+2. Superadmin membuka **User Management**.
+3. Perbaiki Dealer Night akun.
+4. Minta pengguna keluar lalu login kembali.
+5. Uji akses langsung ke DN lain; API harus menolak.
 
-1. Cek status Vercel dan Supabase - kemungkinan besar bukan aplikasinya.
-2. Jangan restart apa pun tanpa alasan jelas; tidak ada proses yang perlu
-   di-restart di arsitektur ini.
+### Login gagal untuk semua akun
 
-### Yang TIDAK boleh dilakukan saat acara
+1. Pastikan `AUTH_SECRET` deployment tidak berubah setelah akun dibuat.
+2. Pastikan koneksi `DATABASE_URL` aktif.
+3. Periksa tabel `profiles` dan status deployment terakhir.
+4. Jangan mengganti `AUTH_SECRET` pada malam acara kecuali semua password akan dibuat ulang.
 
-- **Jangan** jalankan skrip mana pun di `scripts/loadtest-*` atau `cek-badai`.
-  Semuanya menulis atau membebani database produksi.
-- **Jangan** hapus customer dari Detail Order kecuali yakin - penghapusan ikut
-  membuang seluruh riwayat order dan kehadirannya (cascade).
+### Aplikasi lambat
 
-## Kapasitas yang sudah terbukti
+1. Periksa status deployment dan koneksi MySQL.
+2. Pastikan jumlah koneksi MySQL belum mencapai batas server.
+3. Periksa Upstash bila rate limiting aktif.
+4. Hindari reload serentak di semua perangkat; polling otomatis sudah cukup.
 
-Diukur langsung ke produksi, 7 September 2026:
+## Kehadiran
 
-| Uji | Hasil |
-|---|---|
-| Baca 150 VU | p95 189 ms, nol error |
-| Tulis 150 VU | p95 414 ms, nol error |
-| Gabungan baca+tulis (~300 VU) | tulis p95 421 ms, baca p95 158 ms, nol error |
-| Spike 200 VU, 12 menit | p95 410 ms, p99 483 ms, nol error, 30.752/30.752 cek |
-| Badai realtime 150 koneksi | 150/150 tersambung, p95 247 ms, puncak 96 req/detik |
-| Koneksi Realtime bersamaan | 300/300 tersambung |
-| Kebenaran data di bawah beban | Nol toko minus, nol di bawah lantai, nol kehadiran ganda |
+- Hanya superadmin/admin yang dapat mencatat atau mengoreksi kehadiran.
+- Akun DN hanya dapat melihat rekap DN miliknya.
+- Pencatatan ulang MG Code yang sama memperbarui catatan yang sudah ada, bukan membuat duplikat.
+- Tamu yang tidak ada di master dapat dicatat manual oleh admin.
 
-Ambang yang dipakai: p95 < 500 ms, p99 < 1000 ms, error < 1%.
+## Larangan operasional
+
+- Jangan menghapus database, master toko, atau ledger penyesuaian.
+- Jangan menjalankan migration ulang tanpa backup dan persetujuan operator.
+- Jangan mengubah target langsung di tabel `customers`.
+- Jangan membagikan password akun internal atau URL database.
+- Jangan memakai akun database admin server sebagai kredensial runtime jangka panjang.
+
+## Setelah acara
+
+1. Unduh data Target DN dan kehadiran.
+2. Simpan backup database.
+3. Catat akun sementara yang perlu dinonaktifkan.
+4. Rotasi kredensial yang pernah dibagikan melalui chat atau kanal tidak aman.
+5. Jangan menghapus ledger; ledger adalah audit trail penyesuaian malam event.
