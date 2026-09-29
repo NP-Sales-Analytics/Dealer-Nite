@@ -1,25 +1,31 @@
-import { boolean, pgEnum, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+import {
+  boolean,
+  datetime,
+  json,
+  mysqlEnum,
+  mysqlTable,
+  uniqueIndex,
+  varchar,
+} from 'drizzle-orm/mysql-core';
+import { dealerNights } from './dealer-nights';
 
-export const userRole = pgEnum('user_role', [
-  'superadmin', 'admin_rsvp', 'marketing', 'rsm', 'customer',
-]);
+export const roles = ['superadmin', 'admin', 'marketing', 'management', 'dn_user'] as const;
+export type DbRole = (typeof roles)[number];
 
-export const profiles = pgTable('profiles', {
-  // Sejak auth pindah dari Supabase Auth ke sesi custom, id tidak lagi mengacu ke
-  // auth.users - dibuat sendiri di DB.
-  id: uuid('id').primaryKey().defaultRandom(),
-  // Email kini opsional (info kontak), BUKAN kredensial. Login tim pakai password.
-  email: text('email'),
-  fullName: text('full_name').notNull().default(''),
-  // Password tim di-hash (HMAC+pepper, lihat lib/password.ts) dan UNIK - inilah
-  // kredensial sekaligus pengenal saat login "password saja".
-  passwordHash: text('password_hash'),
-  role: userRole('role').notNull().default('customer'),
-  // Lihat supabase/migrations/0004_user_access.sql untuk arti kedua kolom ini.
-  allowedPages: text('allowed_pages').array().notNull().default([]),
-  dataScope: text('data_scope'),
-  // Izin mengunduh Excel, terpisah dari izin membuka halamannya - berkas yang
-  // sudah terunduh tidak bisa ditarik kembali. Lihat 0009_boleh_unduh.sql.
+export const profiles = mysqlTable('profiles', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  email: varchar('email', { length: 255 }),
+  fullName: varchar('full_name', { length: 200 }).notNull().default(''),
+  passwordHash: varchar('password_hash', { length: 64 }),
+  role: mysqlEnum('role', roles).notNull().default('dn_user'),
+  allowedPages: json('allowed_pages').$type<string[]>().notNull(),
+  dealerNightId: varchar('dealer_night_id', { length: 36 })
+    .references(() => dealerNights.id, { onDelete: 'set null' }),
   bolehUnduh: boolean('boleh_unduh').notNull().default(false),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+  createdAt: datetime('created_at', { mode: 'date', fsp: 3 })
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP(3)`),
+}, (table) => [
+  uniqueIndex('profiles_password_hash_unique').on(table.passwordHash),
+]);

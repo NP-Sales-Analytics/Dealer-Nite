@@ -1,11 +1,10 @@
-import { pgTable, text, timestamp } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+import { datetime, mysqlTable, text, varchar } from 'drizzle-orm/mysql-core';
 
-/**
- * Setelan aplikasi berbentuk key-value. Sengaja generik supaya setelan
- * berikutnya tidak perlu tabel baru. Saat ini hanya 'order_deadline'.
- */
-export const appSettings = pgTable('app_settings', {
-  key: text('key').primaryKey(),
+export const appSettings = mysqlTable('app_settings', {
+  key: varchar('key', { length: 100 }).primaryKey(),
   value: text('value').notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: datetime('updated_at', { mode: 'date', fsp: 3 })
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP(3)`),
 });
