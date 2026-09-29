@@ -1,26 +1,20 @@
-import { DetailOrderClient } from '@/components/order/detail-order-client';
+import { TargetDetail } from '@/components/target/target-detail';
 import { requireHalaman } from '@/lib/auth';
-import { pilihanDepot } from '@/lib/dashboard/hierarchy';
+import { dealerNightOptionsFor } from '@/lib/target/dealer-night-options';
 
 export const dynamic = 'force-dynamic';
 
-export default async function DetailOrderPage() {
+export default async function DetailTargetPage() {
   const user = await requireHalaman('/order/detail');
-  // Marketing & RSM hanya melihat. Tombol ubah/hapus/tambah disembunyikan di
-  // sini dan tetap ditolak di route mutasinya - UI bukan penjaganya.
-  const bisaUbah = user.role === 'superadmin' || user.role === 'admin_rsvp';
-  // Sama persis dengan gerbang di /api/order/adjustments-export - tombolnya
-  // hanya berarti kalau syarat di baliknya juga terpenuhi.
-  const bisaAuditRiwayat = bisaUbah && user.bolehUnduh;
-  const depotOptions = pilihanDepot();
-
+  const dealerNights = await dealerNightOptionsFor(user);
   return (
-    <div className="mx-auto w-full max-w-6xl">
-      <DetailOrderClient
-        bisaUbah={bisaUbah}
-        bisaUnduh={user.bolehUnduh}
-        bisaAuditRiwayat={bisaAuditRiwayat}
-        depotOptions={depotOptions}
+    <div className="mx-auto w-full max-w-7xl">
+      <TargetDetail
+        dealerNights={dealerNights}
+        initialDealerNightId={user.dealerNightId ?? dealerNights[0]?.id ?? ''}
+        fixedDealerNight={user.role === 'dn_user'}
+        canAdjust={user.role === 'superadmin' || user.role === 'admin'}
+        canExport={user.role !== 'dn_user'}
       />
     </div>
   );

@@ -1,14 +1,17 @@
-import { CustomerBoard } from '@/components/leaderboard/customer-board';
-import { LeaderboardClient } from '@/components/leaderboard/leaderboard-client';
+import { TargetLeaderboard } from '@/components/target/target-leaderboard';
 import { requireHalaman } from '@/lib/auth';
+import { dealerNightOptionsFor } from '@/lib/target/dealer-night-options';
 
 export const dynamic = 'force-dynamic';
 
 export default async function LeaderboardPage() {
   const user = await requireHalaman('/leaderboard');
-  // Customer mendapat halaman gabungan: papan peringkat DAN penambahan order
-  // dalam satu layar, supaya tidak perlu membuka menu untuk pindah halaman.
-  // Tim tetap memakai papan penuh berikut pencariannya - tidak ada yang berubah
-  // bagi mereka. Perannya ditentukan di sini, di server, bukan ditebak di klien.
-  return user.role === 'customer' ? <CustomerBoard /> : <LeaderboardClient />;
+  const dealerNights = await dealerNightOptionsFor(user);
+  return (
+    <TargetLeaderboard
+      dealerNights={dealerNights}
+      initialDealerNightId={user.dealerNightId ?? dealerNights[0]?.id ?? ''}
+      fixedDealerNight={user.role === 'dn_user'}
+    />
+  );
 }

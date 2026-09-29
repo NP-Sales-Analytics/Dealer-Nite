@@ -92,7 +92,10 @@ export function UserFormDialog({
           id="user-form"
           action={(formData) => start(async () => {
             const message = edit ? await updateUser(null, formData) : await createUser(null, formData);
-            if (message) return toast.error(message);
+            if (message) {
+              toast.error(message);
+              return;
+            }
             toast.success(edit ? 'User diperbarui.' : 'User dibuat.');
             onOpenChange(false);
           })}
