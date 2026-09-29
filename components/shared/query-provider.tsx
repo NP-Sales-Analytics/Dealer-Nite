@@ -9,7 +9,7 @@ export function QueryProvider({ children }: { children: ReactNode }) {
       queries: {
         // Pindah filter bolak-balik dalam rentang ini dilayani dari memori,
         // bukan request baru. Tidak mengganggu kesegaran leaderboard: baik
-        // invalidate dari sinyal realtime maupun refetchInterval mengabaikan
+        // invalidasi manual maupun refetchInterval mengabaikan
         // staleTime, jadi yang terpengaruh hanya refetch saat komponen mount.
         staleTime: 10_000,
         // Tanpa retry: saat server sedang kepayahan, mencoba ulang hanya

@@ -20,7 +20,9 @@ export async function simpanSettingPax(formData: FormData): Promise<string | nul
   }));
 
   try {
-    await simpanTargetPax(items);
+    const dealerNightId = String(formData.get('dealerNightId') ?? '');
+    if (!dealerNightId) return 'Dealer Night wajib dipilih.';
+    await simpanTargetPax(dealerNightId, items);
   } catch (error) {
     return error instanceof Error ? error.message : 'Target pax gagal disimpan.';
   }

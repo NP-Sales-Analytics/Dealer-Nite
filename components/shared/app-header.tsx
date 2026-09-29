@@ -15,12 +15,12 @@ const JUDUL: { awalan: string; judul: string; keterangan: string }[] = [
   {
     awalan: '/dashboard',
     judul: 'Dashboard Kehadiran',
-    keterangan: 'Rekap kehadiran tamu undangan, diperbarui otomatis tiap 15 detik.',
+    keterangan: 'Rekap kehadiran tamu undangan, diperbarui otomatis tiap 10 detik.',
   },
   {
     awalan: '/reservation',
     judul: 'Pencatatan Kehadiran',
-    keterangan: 'Cari toko dengan nama atau kode SAP, lalu isi jumlah orang yang hadir.',
+    keterangan: 'Cari toko dengan nama atau MG Code, lalu isi jumlah orang yang hadir.',
   },
   {
     awalan: '/kehadiran',
@@ -29,23 +29,13 @@ const JUDUL: { awalan: string; judul: string; keterangan: string }[] = [
   },
   {
     awalan: '/leaderboard',
-    judul: 'Leaderboard Top Order',
-    keterangan: 'Peringkat toko berdasarkan jumlah dus. Seri dimenangkan yang lebih dulu mencapainya.',
-  },
-  {
-    awalan: '/order',
-    judul: 'Tambah Order',
-    keterangan: 'Catat jumlah dus yang diambil, lalu simpan.',
+    judul: 'Leaderboard Target DN',
+    keterangan: 'Peringkat toko berdasarkan nominal Target DN efektif terbesar.',
   },
   {
     awalan: '/order/detail',
-    judul: 'Detail Order',
-    keterangan: 'Master data toko beserta jumlah dus dan pengambilan terakhirnya.',
-  },
-  {
-    awalan: '/setting/waktu',
-    judul: 'Waktu Penambahan',
-    keterangan: 'Batas waktu penambahan order. Setelah lewat, semua penambahan terkunci.',
+    judul: 'Detail Target DN',
+    keterangan: 'Master toko, target awal, target efektif, dan riwayat penyesuaian.',
   },
   {
     awalan: '/setting/pax',
@@ -77,7 +67,7 @@ export function AppHeader() {
 
       <div className="min-w-0 flex-1">
         <h1 className="truncate text-base font-semibold leading-tight tracking-tight md:text-lg">
-          {aktif?.judul ?? 'Pylox'}
+          {aktif?.judul ?? 'Dealer Nite'}
         </h1>
         {/* Keterangan disembunyikan di HP: tinggi header dua baris memakan
             ruang daftar yang justru jadi isi utama halaman. */}

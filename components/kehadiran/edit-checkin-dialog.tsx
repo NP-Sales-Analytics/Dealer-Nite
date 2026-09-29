@@ -85,7 +85,7 @@ export function EditCheckinDialog({
             <div className="min-w-0 flex-1">
               <p className="break-words text-sm font-semibold leading-snug">{row.nama}</p>
               <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
-                {row.kodeSap ?? 'Tanpa kode SAP'}
+                {row.kodeSap ?? 'Tanpa MG Code'}
               </p>
               {row.isManualEntry && (
                 <Badge variant="outline" className="mt-1.5">Manual</Badge>

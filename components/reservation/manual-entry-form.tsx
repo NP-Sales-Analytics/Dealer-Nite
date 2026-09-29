@@ -11,8 +11,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 export function ManualEntryForm({
-  open, depots, onOpenChange,
-}: { open: boolean; depots: string[]; onOpenChange: (v: boolean) => void }) {
+  open, depots, dealerNightId, onOpenChange,
+}: { open: boolean; depots: string[]; dealerNightId: string; onOpenChange: (v: boolean) => void }) {
   const [nama, setNama] = useState('');
   const [depot, setDepot] = useState('');
   const [qty, setQty] = useState('1');
@@ -24,7 +24,7 @@ export function ManualEntryForm({
   async function submit() {
     setSubmitting(true);
     try {
-      const res = await fetch('/api/reservations', {
+      const res = await fetch(`/api/reservations?dealerNightId=${encodeURIComponent(dealerNightId)}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({

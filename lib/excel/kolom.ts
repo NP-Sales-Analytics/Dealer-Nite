@@ -1,7 +1,7 @@
 /**
  * Sel dan pemformatan bersama untuk semua ekspor Excel (write-excel-file).
  *
- * Sebelumnya disalin persis di tiap route export (kehadiran, order, dan
+ * Sebelumnya disalin persis di tiap route export (kehadiran dan target),
  * sekarang riwayat penyesuaian) - begitu ada yang ketiga, penyalinan itu
  * jadi tiga sumber kebenaran untuk satu keputusan format yang sama.
  */

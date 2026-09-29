@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { cookies } from 'next/headers';
 
-const COOKIE = 'pylox_session';
+const COOKIE = 'dealer_nite_session';
 const MAX_AGE_S = 12 * 3600;
 
 export type Session = { kind: 'team'; id: string };

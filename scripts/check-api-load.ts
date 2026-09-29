@@ -23,7 +23,7 @@ function cookies(domain: string) {
 }
 
 /** Menghitung request ke /api/ selama satu aksi, dalam jendela pendek supaya
- *  polling 15 detik tidak ikut terhitung. */
+ *  polling 10 detik tidak ikut terhitung. */
 async function hitung(p: Page, aksi: () => Promise<void>, jeda = 3000) {
   const url: string[] = [];
   const rekam = (r: { url: () => string }) => {
@@ -97,14 +97,14 @@ async function main() {
   const kotak = p.getByLabel('Cari toko');
   const ketik = await hitung(p, async () => {
     // delay 80ms: kecepatan mengetik wajar, jauh di bawah jeda debounce 300ms.
-    await kotak.pressSequentially('panta', { delay: 80 });
+    await kotak.pressSequentially('halim', { delay: 80 });
   });
   ok('ketik 5 huruf = 1 request pencarian', ketik.length === 1,
     `${ketik.length} request: ${ketik.join(', ') || '-'}`);
 
   const ulang = await hitung(p, async () => {
     for (let i = 0; i < 5; i++) await kotak.press('Backspace');
-    await kotak.pressSequentially('panta', { delay: 80 });
+    await kotak.pressSequentially('halim', { delay: 80 });
   });
   ok('hapus lalu ketik ulang kata sama = 0 request (staleTime 30 detik)', ulang.length === 0,
     `${ulang.length} request: ${ulang.join(', ') || '-'}`);

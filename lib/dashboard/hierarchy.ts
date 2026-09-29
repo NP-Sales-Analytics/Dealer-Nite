@@ -92,9 +92,8 @@ export function pilihanDepot(): PilihanDepot[] {
 /**
  * Seluruh kode region resmi, urut abjad.
  *
- * Dipakai sebagai isi pilihan cakupan data RSM di User Management - daftar
- * itu harus lengkap terlepas dari toko mana yang sudah check-in, beda dengan
- * dropdown filter dashboard yang sengaja dibatasi ke data yang sudah masuk.
+ * Dipakai bila antarmuka membutuhkan daftar region lengkap, terlepas dari toko
+ * mana yang sudah check-in. Dropdown dashboard tetap dibatasi ke data aktif.
  */
 export function semuaRegion(): string[] {
   return [...new Set([...hierarkiDepot().values()].map((v) => v.region))].sort((a, b) =>

@@ -13,6 +13,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { DealerNightSelect } from '@/components/target/dealer-night-select';
+import type { DealerNightOption } from '@/components/target/types';
 
 type Konfirmasi = {
   judul: string;
@@ -21,13 +23,19 @@ type Konfirmasi = {
   lanjut: () => void;
 };
 
-export function CheckinForm({ depots }: { depots: string[] }) {
+export function CheckinForm({ depots, dealerNights, initialDealerNightId, fixedDealerNight }: {
+  depots: string[];
+  dealerNights: DealerNightOption[];
+  initialDealerNightId: string;
+  fixedDealerNight: boolean;
+}) {
   const [selected, setSelected] = useState<CustomerSearchResult | null>(null);
   const [qty, setQty] = useState('1');
   const [manualOpen, setManualOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [konfirmasi, setKonfirmasi] = useState<Konfirmasi | null>(null);
   const queryClient = useQueryClient();
+  const [dealerNightId, setDealerNightId] = useState(initialDealerNightId);
 
   const reset = () => { setSelected(null); setQty('1'); };
 
@@ -35,7 +43,7 @@ export function CheckinForm({ depots }: { depots: string[] }) {
     if (!selected) return;
     setSubmitting(true);
     try {
-      const res = await fetch('/api/reservations', {
+      const res = await fetch(`/api/reservations?dealerNightId=${encodeURIComponent(dealerNightId)}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -89,9 +97,12 @@ export function CheckinForm({ depots }: { depots: string[] }) {
 
   return (
     <div className="space-y-4">
+      <div className="flex justify-end">
+        <DealerNightSelect options={dealerNights} value={dealerNightId} onChange={(value) => { setDealerNightId(value); reset(); }} fixed={fixedDealerNight} />
+      </div>
       {!selected ? (
         <>
-          <SearchBar onSelect={(c) => { setSelected(c); setQty(String(c.qtyUndangan || 1)); }} />
+          <SearchBar dealerNightId={dealerNightId} onSelect={(c) => { setSelected(c); setQty(String(c.qtyUndangan || 1)); }} />
           <Button
             variant="link"
             className="h-11 px-0 text-base"
@@ -99,7 +110,7 @@ export function CheckinForm({ depots }: { depots: string[] }) {
           >
             Tidak ditemukan? Tambah manual
           </Button>
-          <ManualEntryForm open={manualOpen} depots={depots} onOpenChange={setManualOpen} />
+          <ManualEntryForm open={manualOpen} depots={depots} dealerNightId={dealerNightId} onOpenChange={setManualOpen} />
         </>
       ) : (
         <>

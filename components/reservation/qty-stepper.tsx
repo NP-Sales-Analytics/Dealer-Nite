@@ -20,7 +20,7 @@ export function QtyStepper({
   value: string;
   onChange: (v: string) => void;
   id?: string;
-  /** Batas bawah. Dipakai Tambah Order untuk mengunci pengambilan pertama. */
+  /** Batas bawah jumlah yang dapat dipilih. */
   min?: number;
   max?: number;
   ariaLabel?: string;

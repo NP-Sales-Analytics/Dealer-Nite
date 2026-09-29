@@ -75,7 +75,7 @@ export function DetailCheckinDialog({
             <div className="min-w-0 flex-1">
               <p className="break-words text-base font-semibold leading-snug">{row.nama}</p>
               <p className="mt-0.5 text-sm tabular-nums text-muted-foreground">
-                {row.kodeSap ?? 'Tanpa kode SAP'}
+                {row.kodeSap ?? 'Tanpa MG Code'}
               </p>
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {row.region && <Badge variant="secondary">Region {row.region}</Badge>}
@@ -95,8 +95,8 @@ export function DetailCheckinDialog({
 
           <Seksi judul="Data Toko">
             <Baris label="Nama pemilik" nilai={row.namaPemilik} />
-            <Baris label="PIC RSM/ASM" nilai={row.picRsmAsm} />
-            <Baris label="Kode SAP" nilai={row.kodeSap} />
+            <Baris label="PIC" nilai={row.picRsmAsm} />
+            <Baris label="MG Code" nilai={row.kodeSap} />
           </Seksi>
 
           <Seksi judul="Wilayah">
@@ -125,7 +125,7 @@ export function DetailCheckinDialog({
               Edit Data
             </Button>
           ) : (
-            // RSM hanya memantau; tanpa aksi apa pun kaki dialog akan kosong.
+            // Akun baca-saja tetap mendapat aksi yang jelas untuk menutup dialog.
             <Button variant="outline" className="h-11 flex-1" onClick={() => onOpenChange(false)}>
               Tutup
             </Button>

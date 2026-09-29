@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
  */
 export function Brand({
   className,
-  subtitle = 'Launching Pylox Premium',
+  subtitle = 'Dealer Nite',
   size = 'md',
 }: {
   className?: string;

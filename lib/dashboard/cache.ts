@@ -9,8 +9,7 @@ const terdaftar = new Set<TtlCache<unknown>>();
  * Cache dashboard dengan dedup permintaan bersamaan.
  * Lihat lib/ttl-cache.ts untuk perilaku dan batas entrinya.
  *
- * @param ttlMs 15 detik untuk agregat (sama dengan interval polling klien),
- *              5 detik untuk daftar yang bisa diedit dari layar yang sama.
+ * @param ttlMs masa berlaku cache untuk agregat atau daftar operasional.
  */
 export function cacheDashboard<T>(
   fn: (key: string) => Promise<T>,

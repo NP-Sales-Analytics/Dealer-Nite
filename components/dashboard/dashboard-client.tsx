@@ -6,6 +6,8 @@ import { CapacityPieChart } from './capacity-pie-chart';
 import { DepotBarChart } from './depot-bar-chart';
 import { FilterBar, FILTER_KOSONG, paramFilter, type FilterState } from './filter-bar';
 import { KpiCards } from './kpi-cards';
+import { DealerNightSelect } from '@/components/target/dealer-night-select';
+import type { DealerNightOption } from '@/components/target/types';
 import type { FilterOptions } from '@/app/api/dashboard/filters/route';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { DepotRow } from '@/lib/dashboard/compute';
@@ -19,23 +21,34 @@ const fetcher = <T,>(url: string) => async (): Promise<T> => {
   return res.json();
 };
 
-const buildQuery = (f: FilterState) => {
-  const s = paramFilter(f).toString();
+const buildQuery = (f: FilterState, dealerNightId: string) => {
+  const params = paramFilter(f);
+  params.set('dealerNightId', dealerNightId);
+  const s = params.toString();
   return s ? `?${s}` : '';
 };
 
-// Endpoint di-cache 15 detik di server; polling 15 detik membuat layar ikut
-// segar tanpa menambah beban DB. keepPreviousData menahan angka lama saat
+// Polling 10 detik membuat layar ikut segar. keepPreviousData
+// menahan angka lama saat
 // filter berubah, jadi kartu tidak berkedip kosong sambil menunggu data baru.
-const POLL = { refetchInterval: 15_000, placeholderData: keepPreviousData } as const;
+const POLL = {
+  refetchInterval: () => document.visibilityState === 'visible' ? 10_000 : false,
+  placeholderData: keepPreviousData,
+} as const;
 
-export function DashboardClient() {
+export function DashboardClient({ dealerNights, initialDealerNightId, fixedDealerNight }: {
+  dealerNights: DealerNightOption[];
+  initialDealerNightId: string;
+  fixedDealerNight: boolean;
+}) {
   const [filter, setFilter] = useState<FilterState>(FILTER_KOSONG);
-  const qs = buildQuery(filter);
+  const [dealerNightId, setDealerNightId] = useState(initialDealerNightId);
+  const qs = buildQuery(filter, dealerNightId);
 
   const options = useQuery({
-    queryKey: ['filters'],
-    queryFn: fetcher<FilterOptions>('/api/dashboard/filters'),
+    queryKey: ['filters', dealerNightId],
+    queryFn: fetcher<FilterOptions>(`/api/dashboard/filters?dealerNightId=${encodeURIComponent(dealerNightId)}`),
+    enabled: !!dealerNightId,
     staleTime: 5 * 60_000,
   });
   const summary = useQuery({
@@ -54,13 +67,16 @@ export function DashboardClient() {
   if (summary.isError) {
     return (
       <p className="rounded-2xl border border-destructive/50 bg-card p-4 text-sm text-destructive">
-        Gagal memuat data dashboard. Halaman mencoba lagi otomatis setiap 15 detik.
+        Gagal memuat data dashboard. Halaman mencoba lagi otomatis setiap 10 detik.
       </p>
     );
   }
 
   return (
     <>
+      <div className="mb-4 flex justify-end">
+        <DealerNightSelect options={dealerNights} value={dealerNightId} onChange={setDealerNightId} fixed={fixedDealerNight} />
+      </div>
       <FilterBar value={filter} options={options.data} onChange={setFilter} />
 
       {!summary.data ? (

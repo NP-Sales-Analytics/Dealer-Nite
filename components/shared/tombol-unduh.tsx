@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 /**
- * Tombol unduh berkas Excel - dipakai Detail Toko Hadir dan Detail Order.
+ * Tombol unduh berkas Excel untuk halaman data operasional.
  *
  * Mengunduh lewat fetch, BUKAN <a download> biasa. Berkasnya butuh cookie sesi
  * dan bisa ditolak server (sesi habis, atau izin unduh dicabut); dengan <a>

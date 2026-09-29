@@ -140,7 +140,7 @@ export function AttendanceTable({
                         {r.isManualEntry && <Badge variant="outline" className="shrink-0">Manual</Badge>}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {r.kodeSap ?? 'Tanpa kode SAP'}
+                        {r.kodeSap ?? 'Tanpa MG Code'}
                       </p>
                     </div>
                   </div>

@@ -21,6 +21,7 @@ export type AttendanceRow = {
   checkedInAt: string;
   isManualEntry: boolean;
   depotDiubah: boolean;
+  dicatatOleh?: string | null;
 };
 
 export type AttendanceResponse = {

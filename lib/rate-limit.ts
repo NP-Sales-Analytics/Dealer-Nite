@@ -4,7 +4,7 @@ import { Redis } from '@upstash/redis';
 // Redis-nya di N. Virginia (batas free tier, tidak bisa dipindah), sementara
 // fungsi berjalan di Seoul. Itu biaya tetap yang harus dibayar tiap panggilan -
 // uji beban 250 VU membuktikannya justru menjadi bagian TERBESAR dari waktu
-// /api/order/adjust: ~325ms rata-rata di bawah beban serentak (sampai ~490ms
+// Endpoint mutasi: ~325ms rata-rata di bawah beban serentak (sampai ~490ms
 // saat banyak instance Vercel baru dinyalakan bersamaan dan masing-masing
 // membayar koneksi dingin penuh ke Upstash), turun ke ~195ms begitu instance-nya
 // hangat - tapi tidak pernah kembali ke ~227ms datar yang terukur tanpa beban.
@@ -23,7 +23,7 @@ const limiter = configured
   ? new Ratelimit({
       redis: Redis.fromEnv(),
       limiter: Ratelimit.slidingWindow(40, '10 s'),
-      prefix: 'pylox',
+      prefix: 'dealer-nite',
       analytics: false,
     })
   : null;

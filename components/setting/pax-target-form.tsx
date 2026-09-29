@@ -21,7 +21,7 @@ const cocokFilter = (row: DepotTargetPax, filter: FilterState) =>
   && (filter.region.length === 0 || (!!row.region && filter.region.includes(row.region)))
   && (filter.depot.length === 0 || filter.depot.includes(row.depot));
 
-export function PaxTargetForm({ depots }: { depots: DepotTargetPax[] }) {
+export function PaxTargetForm({ depots, dealerNightId }: { depots: DepotTargetPax[]; dealerNightId: string }) {
   const [nilai, setNilai] = useState<Record<string, string>>(
     () => Object.fromEntries(depots.map((row) => [row.depot, String(row.targetPax)])),
   );
@@ -89,6 +89,7 @@ export function PaxTargetForm({ depots }: { depots: DepotTargetPax[] }) {
           toast.success('Target pax seluruh depot berhasil disimpan.');
         })}
       >
+        <input type="hidden" name="dealerNightId" value={dealerNightId} />
         <div className="rounded-2xl border border-border bg-card shadow-xs">
           {/* Header menempel di bawah header aplikasi, jadi tombol simpan tetap
               terjangkau saat daftar panjang digulir. */}

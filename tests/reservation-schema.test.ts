@@ -1,4 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { randomUUID } from 'node:crypto';
+import { afterAll, describe, expect, it } from 'vitest';
+import { eq } from 'drizzle-orm';
+import { db, mysqlPool } from '@/lib/db';
+import { customers, dealerNights, reservations } from '@/lib/db/schema';
 import { reservationInputSchema, reservationPatchSchema } from '@/lib/validations/reservation';
 
 const uuid = '9f1e4c2a-7b3d-4e5f-8a1b-2c3d4e5f6a7b';
@@ -75,5 +79,42 @@ describe('reservationPatchSchema', () => {
 
   it('menolak patch kosong', () => {
     expect(reservationPatchSchema.safeParse({}).success).toBe(false);
+  });
+});
+
+describe('MySQL reservation constraints', () => {
+  const dealerNightId = '55555555-5555-4555-8555-555555555555';
+  const customerId = '66666666-6666-4666-8666-666666666666';
+
+  afterAll(async () => {
+    await db.delete(dealerNights).where(eq(dealerNights.id, dealerNightId));
+    await mysqlPool.end();
+  });
+
+  it('allows multiple manual reservations but one reservation per customer', async () => {
+    await db.delete(dealerNights).where(eq(dealerNights.id, dealerNightId));
+    await db.insert(dealerNights).values({ id: dealerNightId, slug: 'reservation-test', name: 'Reservation Test' });
+    await db.insert(customers).values({
+      id: customerId,
+      dealerNightId,
+      mgCode: 'MG-RES',
+      mgName: 'TOKO RESERVASI',
+      sotpCode: 'SOTP-RES',
+      sotpName: 'TOKO RESERVASI',
+      depotCode: '1S',
+      depotName: '1S Bogor',
+      targetDnAwal: 50_000_000,
+      qtyUndangan: 1,
+    });
+
+    await db.insert(reservations).values([
+      { id: randomUUID(), dealerNightId, isManualEntry: true, manualNamaCustomer: 'Tamu A', manualDepot: '1S Bogor', qtyHadir: 1 },
+      { id: randomUUID(), dealerNightId, isManualEntry: true, manualNamaCustomer: 'Tamu B', manualDepot: '1S Bogor', qtyHadir: 1 },
+    ]);
+    await db.insert(reservations).values({ id: randomUUID(), dealerNightId, customerId, isManualEntry: false, qtyHadir: 1 });
+
+    await expect(db.insert(reservations).values({
+      id: randomUUID(), dealerNightId, customerId, isManualEntry: false, qtyHadir: 1,
+    })).rejects.toMatchObject({ cause: { code: 'ER_DUP_ENTRY' } });
   });
 });

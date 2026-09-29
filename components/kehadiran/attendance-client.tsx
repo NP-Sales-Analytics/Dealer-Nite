@@ -3,6 +3,8 @@
 import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { AttendanceTable } from './attendance-table';
+import { DealerNightSelect } from '@/components/target/dealer-night-select';
+import type { DealerNightOption } from '@/components/target/types';
 import type { FilterOptions } from '@/app/api/dashboard/filters/route';
 import {
   adaFilterAktif, FilterBar, FILTER_KOSONG, paramFilter, type FilterState,
@@ -18,8 +20,8 @@ const fetcher = <T,>(url: string) => async (): Promise<T> => {
   return res.json();
 };
 
-const buildQuery = (f: FilterState, page: number, urut: 'asc' | 'desc') => {
-  const p = new URLSearchParams({ page: String(page) });
+const buildQuery = (f: FilterState, page: number, urut: 'asc' | 'desc', dealerNightId: string) => {
+  const p = new URLSearchParams({ page: String(page), dealerNightId });
   if (urut === 'asc') p.set('sort', 'asc');
   return paramFilter(f, p).toString();
 };
@@ -27,13 +29,20 @@ const buildQuery = (f: FilterState, page: number, urut: 'asc' | 'desc') => {
 export function AttendanceClient({
   bisaUbah,
   bisaUnduh,
+  dealerNights,
+  initialDealerNightId,
+  fixedDealerNight,
 }: {
   bisaUbah: boolean;
   bisaUnduh: boolean;
+  dealerNights: DealerNightOption[];
+  initialDealerNightId: string;
+  fixedDealerNight: boolean;
 }) {
   const [filter, setFilter] = useState<FilterState>(FILTER_KOSONG);
   const [page, setPage] = useState(1);
   const [urut, setUrut] = useState<'asc' | 'desc'>('desc');
+  const [dealerNightId, setDealerNightId] = useState(initialDealerNightId);
   const queryClient = useQueryClient();
 
   // Ketikan di-debounce; region/depot langsung berlaku karena sekali klik.
@@ -52,15 +61,16 @@ export function AttendanceClient({
   }, [filterEfektif.wilayah, filterEfektif.region, filterEfektif.depot, filterEfektif.q]);
 
   const options = useQuery({
-    queryKey: ['filters'],
-    queryFn: fetcher<FilterOptions>('/api/dashboard/filters'),
+    queryKey: ['filters', dealerNightId],
+    queryFn: fetcher<FilterOptions>(`/api/dashboard/filters?dealerNightId=${encodeURIComponent(dealerNightId)}`),
+    enabled: !!dealerNightId,
     staleTime: 5 * 60_000,
   });
 
   const data = useQuery({
-    queryKey: ['kehadiran', filterEfektif, page, urut],
-    queryFn: fetcher<AttendanceResponse>(`/api/dashboard/recent?${buildQuery(filterEfektif, page, urut)}`),
-    refetchInterval: 15_000,
+    queryKey: ['kehadiran', dealerNightId, filterEfektif, page, urut],
+    queryFn: fetcher<AttendanceResponse>(`/api/dashboard/recent?${buildQuery(filterEfektif, page, urut, dealerNightId)}`),
+    refetchInterval: () => document.visibilityState === 'visible' ? 10_000 : false,
     // Tahan hasil lama saat pindah halaman supaya tabel tidak berkedip kosong.
     placeholderData: keepPreviousData,
   });
@@ -72,6 +82,9 @@ export function AttendanceClient({
 
   return (
     <>
+      <div className="mb-4 flex justify-end">
+        <DealerNightSelect options={dealerNights} value={dealerNightId} onChange={setDealerNightId} fixed={fixedDealerNight} />
+      </div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-6">
         <p className="text-sm text-muted-foreground">
           {data.data ? (
@@ -87,8 +100,8 @@ export function AttendanceClient({
             depot, yang terunduh juga depot itu saja. */}
         {bisaUnduh && (
           <TombolUnduh
-            url={`/api/kehadiran/export?${buildQuery(filterEfektif, 1, urut)}`}
-            namaBawaan="Kehadiran-Pylox.xlsx"
+            url={`/api/kehadiran/export?${buildQuery(filterEfektif, 1, urut, dealerNightId)}`}
+            namaBawaan="Kehadiran-Dealer-Nite.xlsx"
             jumlah={jumlah}
             className="h-11 gap-2"
           />
@@ -105,7 +118,7 @@ export function AttendanceClient({
 
       {data.isError ? (
         <p className="rounded-2xl border border-destructive/50 bg-card p-4 text-sm text-destructive">
-          Gagal memuat daftar kehadiran. Halaman mencoba lagi otomatis setiap 15 detik.
+          Gagal memuat daftar kehadiran. Halaman mencoba lagi otomatis setiap 10 detik.
         </p>
       ) : !data.data ? (
         <Skeleton className="h-96 w-full rounded-2xl" />

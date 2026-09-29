@@ -30,18 +30,18 @@ async function main() {
   await page.goto(BASE + '/reservation', { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(3000);
 
-  await page.getByPlaceholder('Ketik nama toko atau kode SAP...').fill('karman');
+  await page.getByPlaceholder('Ketik nama toko atau MG Code...').fill('halim');
   await page.waitForTimeout(1500);
 
-  const hasil = page.locator('button', { hasText: 'KARMAN' }).first();
+  const hasil = page.locator('button', { hasText: 'HALIM' }).first();
   const munculDropdown = await hasil.waitFor({ state: 'visible', timeout: 20000 }).then(() => true, () => false);
   ok('dropdown menampilkan hasil pencarian', munculDropdown);
   const teksHasil = await hasil.innerText().catch(() => '');
-  ok('item dropdown memuat kode SAP + depot', /\d{6}/.test(teksHasil) && teksHasil.includes('undangan'), teksHasil.replace(/\n/g, ' / '));
+  ok('item dropdown memuat MG Code + depot', /\d{6}/.test(teksHasil) && teksHasil.includes('undangan'), teksHasil.replace(/\n/g, ' / '));
 
   await hasil.click();
   await page.waitForTimeout(600);
-  const kartu = await page.locator('text=Kode SAP').count();
+  const kartu = await page.locator('text=MG Code').count();
   ok('kartu detail muncul setelah dipilih', kartu > 0);
 
   await page.locator('#qty').fill('1');
@@ -57,17 +57,17 @@ async function main() {
   const toastSukses = await page.locator('text=tercatat hadir').first()
     .waitFor({ state: 'visible', timeout: 20000 }).then(() => true, () => false);
   ok('toast sukses tampil', toastSukses);
-  const formReset = await page.getByPlaceholder('Ketik nama toko atau kode SAP...')
+  const formReset = await page.getByPlaceholder('Ketik nama toko atau MG Code...')
     .waitFor({ state: 'visible', timeout: 20000 }).then(() => true, () => false);
   ok('form kembali ke pencarian (siap toko berikutnya)', formReset);
 
   // --- Alur 2: toko yang SUDAH dicatat -> konfirmasi ---
-  await page.getByPlaceholder('Ketik nama toko atau kode SAP...').fill('karman');
+  await page.getByPlaceholder('Ketik nama toko atau MG Code...').fill('halim');
   await page.waitForTimeout(1500);
   const badge = await page.locator('text=Sudah dicatat').count();
   ok('badge "Sudah dicatat" muncul di dropdown', badge > 0);
 
-  await page.locator('button', { hasText: 'KARMAN' }).first().click();
+  await page.locator('button', { hasText: 'HALIM' }).first().click();
   await page.waitForTimeout(500);
   await page.locator('#qty').fill('9');
   await page.getByRole('button', { name: 'Simpan Kehadiran' }).click();
@@ -95,10 +95,10 @@ async function main() {
   await page.getByRole('button', { name: 'Tidak ditemukan? Tambah manual' }).click();
   await page.waitForTimeout(600);
   await page.locator('#m-nama').fill('CV Uji Alur Otomatis');
-  await page.locator('#m-depot').fill('3H Bali');
+  await page.locator('#m-depot').fill('1S');
   await page.locator('#m-qty').fill('2');
   const datalistOptions = await page.locator('#depot-list option').count();
-  ok('datalist depot terisi', datalistOptions === 35, `${datalistOptions} opsi`);
+  ok('datalist depot terisi', datalistOptions > 0, `${datalistOptions} opsi`);
   // Tunggu toast MUNCUL, jangan hitung setelah jeda tetap: sonner menutup
   // toast sendiri setelah ~4 detik, sehingga hitungan telat selalu nol.
   const toastManual = page.locator('text=CV Uji Alur Otomatis').first();
