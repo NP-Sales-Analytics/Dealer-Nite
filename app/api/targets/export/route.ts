@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { bolehDepot } from '@/lib/access';
 import { getSessionUser } from '@/lib/auth';
 import { resolveDealerNightId } from '@/lib/target/access';
 import { listTargets } from '@/lib/target/service';
@@ -13,7 +14,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const dealerNightId = resolveDealerNightId(user, request.nextUrl.searchParams.get('dealerNightId'));
-    const rows = await listTargets(dealerNightId);
+    const rows = (await listTargets(dealerNightId)).filter((row) => bolehDepot(user, row.depotCode));
     const header = [
       'MG Code', 'MG Name', 'Depot', 'Target Pusat', 'Target Terverifikasi', 'Penambahan Setelah Verifikasi',
       'Target Saat Ini', 'Jumlah Penyesuaian', 'Status Verifikasi', 'Kehadiran (pax)', 'Nomor Undian',

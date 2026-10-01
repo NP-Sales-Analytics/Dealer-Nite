@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { bolehDepot } from '@/lib/access';
 import { listKupon } from '@/lib/kupon/service';
 import { prosesKupon } from '@/lib/target/kupon';
 import { izinKupon, kuponErrorResponse } from '../_auth';
@@ -16,7 +17,7 @@ export async function GET(request: NextRequest) {
   const user = await izinKupon(dealerNightId);
   if (user instanceof NextResponse) return user;
   try {
-    const rows = await listKupon(dealerNightId);
+    const rows = (await listKupon(dealerNightId)).filter((row) => bolehDepot(user, row.depotCode));
     const header = [
       'MG Code', 'MG Name', 'Depot', 'Target DN', 'Status',
       'Hak Pink', 'Hak Hijau', 'Dibuat Pink', 'Dibuat Hijau', 'Diberikan Pink', 'Diberikan Hijau',

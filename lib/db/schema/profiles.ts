@@ -21,6 +21,8 @@ export const profiles = mysqlTable('profiles', {
   allowedPages: json('allowed_pages').$type<string[]>().notNull(),
   // NULL = semua Dealer Night; superadmin selalu semua.
   dealerNightIds: json('dealer_night_ids').$type<string[] | null>(),
+  // NULL = semua depot di Dealer Night yang diizinkan.
+  depotCodes: json('depot_codes').$type<string[] | null>(),
   bolehUnduh: boolean('boleh_unduh').notNull().default(false),
   createdAt: datetime('created_at', { mode: 'date', fsp: 3 })
     .notNull()

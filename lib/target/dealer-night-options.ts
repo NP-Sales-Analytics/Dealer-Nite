@@ -1,5 +1,5 @@
 import { and, asc, eq, inArray, sql } from 'drizzle-orm';
-import { aksesSemuaDealerNight } from '@/lib/access';
+import { aksesSemuaDealerNight, bolehDepot } from '@/lib/access';
 import type { SessionUser } from '@/lib/auth';
 import { depotPerKode } from '@/lib/dashboard/hierarchy';
 import { db } from '@/lib/db';
@@ -53,7 +53,8 @@ export async function dealerNightOptionsFor(user: SessionUser) {
     .orderBy(sql`${dealerNights.eventDate} is null`, asc(dealerNights.eventDate), asc(dealerNights.name));
   const depots = await depotDealerNight(rows);
   return rows.map((row) => ({
-    id: row.id, name: row.name, targetPax: row.targetPax, targetDn: row.targetDn, eventDate: row.eventDate, depots: depots.get(row.id) ?? [],
+    id: row.id, name: row.name, targetPax: row.targetPax, targetDn: row.targetDn, eventDate: row.eventDate,
+    depots: (depots.get(row.id) ?? []).filter((item) => bolehDepot(user, item.kode)),
   }));
 }
 

@@ -30,7 +30,7 @@ const JUDUL: { awalan: string; judul: string; keterangan: string }[] = [
   {
     awalan: '/leaderboard',
     judul: 'Leaderboard Target DN',
-    keterangan: 'Peringkat toko berdasarkan nominal Target DN efektif terbesar.',
+    keterangan: 'Peringkat toko yang targetnya sudah diverifikasi, dari Target DN terbesar.',
   },
   {
     awalan: '/order/detail',

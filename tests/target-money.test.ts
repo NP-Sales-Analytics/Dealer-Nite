@@ -3,15 +3,12 @@ import { formatRupiah, formatRupiahRingkas } from '@/lib/target/money';
 import { validateTargetDn } from '@/lib/target/rules';
 
 describe('Target DN money', () => {
-  it('formats compact target values without wasting space', () => {
-    expect(formatRupiahRingkas(5_619_000_000)).toBe('Rp5,62 M');
-    expect(formatRupiahRingkas(820_000_000)).toBe('Rp820 jt');
+  it('formats compact values with exactly one decimal', () => {
+    expect(formatRupiahRingkas(5_619_000_000)).toBe('Rp5,6 M');
+    expect(formatRupiahRingkas(3_000_000_000)).toBe('Rp3,0 M');
+    expect(formatRupiahRingkas(820_000_000)).toBe('Rp820,0 jt');
+    expect(formatRupiahRingkas(-250_000_000)).toBe('Rp-250,0 jt');
     expect(formatRupiah(820_000_000)).toBe('Rp820.000.000');
-  });
-
-  it('keeps useful decimals and removes trailing zeroes', () => {
-    expect(formatRupiahRingkas(1_500_000_000)).toBe('Rp1,5 M');
-    expect(formatRupiahRingkas(53_000_000)).toBe('Rp53 jt');
   });
 
   it('accepts 50 million and rejects anything lower', () => {

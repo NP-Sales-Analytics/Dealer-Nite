@@ -10,7 +10,6 @@ import { InitialAvatar } from '@/components/shared/initial-avatar';
 import { PillHadir } from '@/components/target/pills';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { KuponRow, TahapKupon } from '@/lib/kupon/service';
 import { prosesKupon, totalKupon } from '@/lib/target/kupon';
@@ -45,8 +44,6 @@ export function KuponDialog({ row, canManage, onOpenChange, onChanged }: {
   const batas = tahap === 'dibuat' ? k.perluDibuat : k.siapDiberikan;
   const [pink, setPink] = useState(String(batas.pink));
   const [hijau, setHijau] = useState(String(batas.hijau));
-  const [penerima, setPenerima] = useState('');
-  const [catatan, setCatatan] = useState('');
   const [pending, start] = useTransition();
 
   const history = useQuery({
@@ -72,7 +69,7 @@ export function KuponDialog({ row, canManage, onOpenChange, onChanged }: {
     const response = await fetch('/api/kupon', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ customerId: row.customerId, tahap, ...jumlah, penerima: penerima || undefined, catatan: catatan || undefined }),
+      body: JSON.stringify({ customerId: row.customerId, tahap, ...jumlah }),
     }).catch(() => null);
     const body = await response?.json().catch(() => ({}));
     if (!response?.ok) {
@@ -80,8 +77,6 @@ export function KuponDialog({ row, canManage, onOpenChange, onChanged }: {
       return;
     }
     toast.success(`${jumlah.pink} pink & ${jumlah.hijau} hijau ${tahap === 'dibuat' ? 'tercatat dibuat' : 'tercatat diberikan'}.`);
-    setPenerima('');
-    setCatatan('');
     onChanged();
   });
 
@@ -220,7 +215,6 @@ export function KuponDialog({ row, canManage, onOpenChange, onChanged }: {
                         {item.recordedByName ?? 'Akun lama'} · {waktu(item.createdAt)}
                         {item.penerima && <> · diterima <span className="font-medium text-foreground">{item.penerima}</span></>}
                       </p>
-                      {item.catatan && <p className="mt-1 text-xs italic text-muted-foreground">&ldquo;{item.catatan}&rdquo;</p>}
                     </li>
                   ))}
                 </ol>
@@ -283,24 +277,12 @@ export function KuponDialog({ row, canManage, onOpenChange, onChanged }: {
                   </div>
                 ))}
 
-                {tahap === 'diberikan' && (
-                  <>
-                    {row.qtyHadir === null && (
-                      <p className="flex gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
-                        <AlertTriangle className="size-4 shrink-0" aria-hidden />
-                        Toko ini belum tercatat hadir.
-                      </p>
-                    )}
-                    <div className="space-y-2">
-                      <Label htmlFor="k-penerima">Diterima oleh</Label>
-                      <Input id="k-penerima" value={penerima} onChange={(e) => setPenerima(e.target.value)} placeholder="Nama penerima di toko" className="h-11 bg-card" maxLength={200} />
-                    </div>
-                  </>
+                {tahap === 'diberikan' && row.qtyHadir === null && (
+                  <p className="flex gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
+                    <AlertTriangle className="size-4 shrink-0" aria-hidden />
+                    Toko ini belum tercatat hadir.
+                  </p>
                 )}
-                <div className="space-y-2">
-                  <Label htmlFor="k-catatan">Catatan (opsional)</Label>
-                  <Input id="k-catatan" value={catatan} onChange={(e) => setCatatan(e.target.value)} className="h-11 bg-card" maxLength={1000} />
-                </div>
                 <Button type="submit" className="h-11 w-full gap-2" disabled={!valid || pending}>
                   {tahap === 'dibuat' ? <Printer className="size-4" /> : <PackageCheck className="size-4" />}
                   {pending ? 'Menyimpan...' : tahap === 'dibuat' ? 'Simpan Pembuatan' : 'Simpan Pemberian'}

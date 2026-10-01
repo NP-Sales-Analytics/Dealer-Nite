@@ -44,17 +44,30 @@ export function canReadDealerNight(user: DealerNightPrincipal, dealerNightId: st
 /** Mencatat pembuatan/pemberian kupon (selain izin halaman Detail Kupon). */
 export const bisaKelolaKupon = (user: { role: Role }) => user.role === 'superadmin' || user.role === 'admin';
 
+/** Kode depot yang boleh diakses; null = semua depot dalam DN yang diizinkan. */
+export function cakupanDepot(user: { role: Role; depotCodes?: readonly string[] | null }): readonly string[] | null {
+  return user.role === 'superadmin' || !user.depotCodes || user.depotCodes.length === 0 ? null : user.depotCodes;
+}
+
+export const bolehDepot = (user: { role: Role; depotCodes?: readonly string[] | null }, depotCode: string) => {
+  const cakupan = cakupanDepot(user);
+  return !cakupan || cakupan.includes(depotCode);
+};
+
 export function canAdjustTarget(user: DealerNightPrincipal, dealerNightId: string): boolean {
   return (user.role === 'superadmin' || user.role === 'admin')
     && canReadDealerNight(user, dealerNightId);
 }
 
 export function labelDealerNightAccess(
-  user: DealerNightPrincipal,
-  options: { id: string; name: string }[],
+  user: DealerNightPrincipal & { depotCodes?: readonly string[] | null },
+  options: { id: string; name: string; depots?: { kode: string; depot: string }[] }[],
 ): string {
   if (aksesSemuaDealerNight(user)) return 'Semua Dealer Night';
   if (user.dealerNightIds!.length === 0) return 'Belum ditentukan';
   const names = new Map(options.map((item) => [item.id, item.name]));
-  return user.dealerNightIds!.map((id) => names.get(id) ?? id).join(', ');
+  const dn = user.dealerNightIds!.map((id) => names.get(id) ?? id).join(', ');
+  if (!user.depotCodes?.length) return dn;
+  const depot = new Map(options.flatMap((item) => (item.depots ?? []).map((d) => [d.kode, d.depot] as const)));
+  return `${dn} · ${user.depotCodes.map((kode) => depot.get(kode) ?? kode).join(', ')}`;
 }

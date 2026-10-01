@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getSessionUser } from '@/lib/auth';
+import { batasiFilterDepot } from '@/lib/depot-scope';
 import { readFilter } from '@/lib/dashboard/filters';
 import { resolveDashboardDealerNight } from '@/lib/dashboard/scope';
 import { dashboardByDepot } from '@/lib/dashboard/service';
@@ -10,7 +11,7 @@ export async function GET(request: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Belum login' }, { status: 401 });
   try {
     const dealerNightId = resolveDashboardDealerNight(user, request.nextUrl.searchParams.get('dealerNightId'));
-    return NextResponse.json({ rows: await dashboardByDepot(dealerNightId, readFilter(request)) });
+    return NextResponse.json({ rows: await dashboardByDepot(dealerNightId, batasiFilterDepot(user, readFilter(request))) });
   } catch (error) {
     return targetErrorResponse(error);
   }

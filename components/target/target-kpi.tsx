@@ -24,15 +24,15 @@ function Kartu({ icon: Icon, label, children, aksen }: {
   icon: LucideIcon; label: string; children: React.ReactNode; aksen: string;
 }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-xs sm:p-5">
-      <div className={cn('pointer-events-none absolute -right-6 -top-6 size-24 rounded-full opacity-60 blur-2xl', aksen)} aria-hidden />
-      <div className="relative flex items-center gap-2.5">
-        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-secondary text-foreground/80" aria-hidden>
-          <Icon className="size-4.5" />
+    <div className="relative overflow-hidden rounded-2xl border border-border bg-card px-4 py-3.5 shadow-xs">
+      <div className={cn('pointer-events-none absolute -right-6 -top-6 size-20 rounded-full opacity-50 blur-2xl', aksen)} aria-hidden />
+      <div className="relative flex items-center gap-2">
+        <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-secondary text-foreground/80" aria-hidden>
+          <Icon className="size-3.5" />
         </span>
-        <p className="text-sm font-medium text-muted-foreground">{label}</p>
+        <p className="truncate text-xs font-medium text-muted-foreground">{label}</p>
       </div>
-      <div className="relative mt-3">{children}</div>
+      <div className="relative mt-2">{children}</div>
     </div>
   );
 }
@@ -42,16 +42,16 @@ export function TargetKpi({ kpi, bisaAtur }: { kpi: ReturnType<typeof hitungKpiT
   const naik = kpi.penambahan >= 0;
 
   return (
-    <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 xl:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       <Kartu icon={Target} label="Total Target DN" aksen="bg-primary/30">
         {kpi.targetDn > 0 ? (
           <>
-            <p className="text-2xl font-bold tracking-tight tabular-nums">{formatRupiahRingkas(kpi.targetDn)}</p>
-            <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">{formatRupiah(kpi.targetDn)}</p>
+            <p className="text-xl font-bold tracking-tight tabular-nums text-foreground">{formatRupiah(kpi.targetDn)}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">target seluruh Dealer Night</p>
           </>
         ) : (
           <>
-            <p className="text-2xl font-bold tracking-tight text-muted-foreground">Belum diatur</p>
+            <p className="text-xl font-bold tracking-tight text-muted-foreground">Belum diatur</p>
             {bisaAtur ? (
               <Link href="/setting/pax" className="mt-0.5 inline-block text-xs font-medium text-primary hover:underline">
                 Atur di Setting Target DN
@@ -64,29 +64,29 @@ export function TargetKpi({ kpi, bisaAtur }: { kpi: ReturnType<typeof hitungKpiT
       </Kartu>
 
       <Kartu icon={Trophy} label="Pencapaian Malam DN" aksen="bg-amber-300/40">
-        <p className="text-2xl font-bold tracking-tight tabular-nums">{formatRupiahRingkas(kpi.pencapaian)}</p>
+        <p className="text-xl font-bold tracking-tight tabular-nums">{formatRupiahRingkas(kpi.pencapaian)}</p>
         <p className="mt-0.5 text-xs text-muted-foreground">
           dari <span className="font-semibold text-foreground tabular-nums">{kpi.tokoVerified}</span>/{kpi.totalToko} toko terverifikasi
         </p>
       </Kartu>
 
       <Kartu icon={TrendingUp} label="Persentase Pencapaian" aksen="bg-emerald-300/40">
-        <p className="text-2xl font-bold tracking-tight tabular-nums">
+        <p className="text-xl font-bold tracking-tight tabular-nums">
           {persen === null ? '–' : `${persen.toLocaleString('id-ID')}%`}
         </p>
-        <div className="mt-2 h-2 overflow-hidden rounded-full bg-secondary" aria-hidden>
+        <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-secondary" aria-hidden>
           <div
             className={cn('h-full rounded-full transition-[width] duration-500', (persen ?? 0) >= 100 ? 'bg-emerald-500' : 'bg-primary')}
             style={{ width: `${Math.min(100, persen ?? 0)}%` }}
           />
         </div>
-        <p className="mt-1.5 text-xs text-muted-foreground">
+        <p className="mt-1 truncate text-xs text-muted-foreground">
           {persen === null ? 'Total Target DN belum diatur' : persen >= 100 ? 'Target tercapai' : 'Pencapaian terhadap Total Target DN'}
         </p>
       </Kartu>
 
       <Kartu icon={TrendingUp} label="Total Penambahan" aksen={naik ? 'bg-emerald-300/40' : 'bg-red-300/40'}>
-        <p className={cn('text-2xl font-bold tracking-tight tabular-nums', kpi.penambahan > 0 ? 'text-emerald-600' : kpi.penambahan < 0 ? 'text-destructive' : '')}>
+        <p className={cn('text-xl font-bold tracking-tight tabular-nums', kpi.penambahan > 0 ? 'text-emerald-600' : kpi.penambahan < 0 ? 'text-destructive' : '')}>
           {kpi.penambahan > 0 ? '+' : ''}{formatRupiahRingkas(kpi.penambahan)}
         </p>
         <p className="mt-0.5 text-xs text-muted-foreground">

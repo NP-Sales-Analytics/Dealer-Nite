@@ -1,15 +1,17 @@
 import { NextResponse } from 'next/server';
-import { canAdjustTarget } from '@/lib/access';
+import { bolehDepot, canAdjustTarget } from '@/lib/access';
 import { requireRoleApi, type SessionUser } from '@/lib/auth';
 import { MasterError } from '@/lib/target/master';
 
-/** Kelola master toko: superadmin/admin, hanya untuk DN dalam cakupannya. */
-export async function izinMaster(dealerNightId: string): Promise<SessionUser | NextResponse> {
+/** Kelola master toko: superadmin/admin, hanya untuk DN dan depot dalam cakupannya. */
+export async function izinMaster(dealerNightId: string, depotCodes: string[] = []): Promise<SessionUser | NextResponse> {
   const user = await requireRoleApi(['superadmin', 'admin']);
   if (user instanceof NextResponse) return user;
   if (!canAdjustTarget(user, dealerNightId)) {
     return NextResponse.json({ error: 'Tidak punya akses ke Dealer Night ini.' }, { status: 403 });
   }
+  const terlarang = depotCodes.find((kode) => !bolehDepot(user, kode));
+  if (terlarang) return NextResponse.json({ error: `Tidak punya akses ke depot ${terlarang}.` }, { status: 403 });
   return user;
 }
 

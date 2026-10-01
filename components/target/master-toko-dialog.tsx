@@ -1,6 +1,6 @@
 'use client';
 
-import { Store, X } from 'lucide-react';
+import { RotateCcw, Store, X } from 'lucide-react';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 import { DealerNightSelect } from './dealer-night-select';
@@ -53,6 +53,23 @@ export function MasterTokoDialog({
   const namaDepot = (kode: string) => depots.find((item) => item.kode === kode)?.depot ?? kode;
   const target = parseRupiahInput(form.target);
   const targetTerkunci = edit && !!row?.verifiedAt;
+  const [yakinReset, setYakinReset] = useState(false);
+
+  const resetVerifikasi = () => start(async () => {
+    const response = await fetch('/api/targets/reset', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ customerId: row!.customerId }),
+    }).catch(() => null);
+    const body = await response?.json().catch(() => ({}));
+    if (!response?.ok) {
+      toast.error(body?.error ?? 'Gagal mereset verifikasi.');
+      return;
+    }
+    toast.success(`Verifikasi ${row!.mgName} direset ke target pusat.`);
+    onSaved();
+    onOpenChange(false);
+  });
   const valid = !!dealerNightId && !!form.mgCode.trim() && !!form.mgName.trim() && !!form.sotpCode.trim()
     && !!form.sotpName.trim() && !!form.depotCode && Number.isFinite(target) && target >= MIN_TARGET_DN;
 
@@ -157,14 +174,31 @@ export function MasterTokoDialog({
             </div>
             <p className="text-xs text-muted-foreground">
               {targetTerkunci
-                ? 'Target sudah diverifikasi admin DN. Ubah lewat Sesuaikan Target.'
+                ? 'Target sudah diverifikasi admin DN. Ubah lewat penyesuaian, atau Reset Verifikasi di bawah.'
                 : 'Minimal Rp50.000.000. Admin DN akan memverifikasi target ini.'}
             </p>
           </div>
+
         </form>
 
         <footer className="flex gap-2 border-t border-border px-5 py-4">
           <Button type="button" variant="outline" className="h-11" onClick={() => onOpenChange(false)} disabled={pending}>Batal</Button>
+          {targetTerkunci && (
+            <Button
+              type="button"
+              variant="outline"
+              title="Kembalikan ke target pusat: verifikasi, penyesuaian, dan catatan kupon toko ini dihapus."
+              onBlur={() => setYakinReset(false)}
+              onClick={() => (yakinReset ? resetVerifikasi() : setYakinReset(true))}
+              disabled={pending}
+              className={yakinReset
+                ? 'h-11 gap-1.5 border-destructive bg-destructive text-white hover:bg-destructive/90 hover:text-white'
+                : 'h-11 gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive'}
+            >
+              <RotateCcw className="size-4" />
+              {yakinReset ? 'Yakin reset?' : 'Reset Verifikasi'}
+            </Button>
+          )}
           <Button type="submit" form="master-form" className="h-11 flex-1" disabled={!valid || pending}>
             {pending ? 'Menyimpan...' : edit ? 'Simpan Perubahan' : 'Tambah Toko'}
           </Button>

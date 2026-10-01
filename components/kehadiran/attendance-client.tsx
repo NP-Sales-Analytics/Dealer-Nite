@@ -112,7 +112,7 @@ export function AttendanceClient({
             options={dealerNights}
             value={dealerNightId}
             onChange={(id) => { setDealerNightId(id); setFilter(FILTER_KOSONG); }}
-            className="min-w-0 basis-full sm:basis-auto sm:w-44 sm:flex-none"
+            className="min-w-0 basis-full sm:basis-auto sm:w-40 sm:flex-none"
           />
         )}
       />

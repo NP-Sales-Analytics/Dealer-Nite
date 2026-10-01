@@ -1,11 +1,11 @@
 'use client';
 
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight, PackageCheck, Printer, X } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, ChevronRight, Clock3, PackageCheck, Printer, X } from 'lucide-react';
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 import { KuponDialog } from './kupon-dialog';
-import { BarProses, PillStatusKupon, RasioKupon, STATUS_KUPON, WARNA } from './status';
+import { BarProses, RasioKupon, STATUS_KUPON, WARNA } from './status';
 import type { FilterOptions } from '@/app/api/dashboard/filters/route';
 import { adaFilterAktif, FilterBar, FILTER_KOSONG, type FilterState } from '@/components/dashboard/filter-bar';
 import { InitialAvatar } from '@/components/shared/initial-avatar';
@@ -222,7 +222,7 @@ export function KuponClient({ dealerNights, canManage, canExport }: {
             options={dealerNights}
             value={dealerNightId}
             onChange={(id) => { setDealerNightId(id); setFilter(FILTER_KOSONG); setStatus('semua'); }}
-            className="min-w-0 basis-full sm:basis-auto sm:w-44 sm:flex-none"
+            className="min-w-0 basis-full sm:basis-auto sm:w-40 sm:flex-none"
           />
         )}
       />
@@ -266,7 +266,6 @@ export function KuponClient({ dealerNights, canManage, canExport }: {
                   <TableHead className="py-4 text-center">Hak Kupon</TableHead>
                   <TableHead className="py-4 text-center">Dibuat</TableHead>
                   <TableHead className="py-4 text-center">Diberikan</TableHead>
-                  <TableHead className="py-4 text-center">Status</TableHead>
                   <TableHead className="py-4 pr-5 text-center">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
@@ -319,7 +318,6 @@ export function KuponClient({ dealerNights, canManage, canExport }: {
                     </TableCell>
                     <TableCell className="py-4 text-center">{k.status === 'belum_verifikasi' ? <span className="text-muted-foreground">&mdash;</span> : <RasioKupon nilai={k.dibuat} dari={k.hak} />}</TableCell>
                     <TableCell className="py-4 text-center">{k.status === 'belum_verifikasi' ? <span className="text-muted-foreground">&mdash;</span> : <RasioKupon nilai={k.diberikan} dari={k.hak} />}</TableCell>
-                    <TableCell className="py-4 text-center"><PillStatusKupon status={k.status} /></TableCell>
                     <TableCell className="py-4 pr-5 text-center">
                       <Button
                         size="sm"
@@ -328,12 +326,15 @@ export function KuponClient({ dealerNights, canManage, canExport }: {
                           'h-9 gap-1.5 px-3',
                           canManage && k.status === 'perlu_dibuat' && 'border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-100 hover:text-sky-800 dark:bg-sky-500/10 dark:text-sky-300',
                           canManage && k.status === 'siap_diberikan' && 'border-violet-300 bg-violet-50 text-violet-700 hover:bg-violet-100 hover:text-violet-800 dark:bg-violet-500/10 dark:text-violet-300',
+                          k.status === 'selesai' && 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300',
+                          k.status === 'belum_verifikasi' && 'border-dashed text-muted-foreground',
                         )}
                         onClick={(event) => { event.stopPropagation(); setDetail(row.customerId); }}
                       >
-                        {canManage && k.status === 'perlu_dibuat' ? <><Printer className="size-4" />Buat</>
-                          : canManage && k.status === 'siap_diberikan' ? <><PackageCheck className="size-4" />Berikan</>
-                            : 'Detail'}
+                        {k.status === 'perlu_dibuat' ? <><Printer className="size-4" />{canManage ? 'Buat' : 'Perlu dibuat'}</>
+                          : k.status === 'siap_diberikan' ? <><PackageCheck className="size-4" />{canManage ? 'Berikan' : 'Siap diberikan'}</>
+                            : k.status === 'selesai' ? <><CheckCircle2 className="size-4" />Selesai</>
+                              : <><Clock3 className="size-4" />Belum verifikasi</>}
                       </Button>
                     </TableCell>
                   </TableRow>

@@ -16,6 +16,7 @@ export type SessionUser = {
   role: Role;
   allowedPages: string[];
   dealerNightIds: string[] | null;
+  depotCodes: string[] | null;
   bolehUnduh: boolean;
 };
 
@@ -47,6 +48,7 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
     role: profile.role,
     allowedPages: profile.allowedPages ?? [],
     dealerNightIds: profile.dealerNightIds ?? null,
+    depotCodes: profile.depotCodes?.length ? profile.depotCodes : null,
     bolehUnduh: profile.bolehUnduh,
   };
 });

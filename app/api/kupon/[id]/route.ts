@@ -8,7 +8,7 @@ export async function DELETE(_request: NextRequest, context: Context) {
   const { id } = await context.params;
   const event = await eventKupon(id);
   if (!event) return NextResponse.json({ error: 'Catatan kupon tidak ditemukan.' }, { status: 404 });
-  const user = await izinKupon(event.dealerNightId, true);
+  const user = await izinKupon(event.dealerNightId, true, event.depotCode);
   if (user instanceof NextResponse) return user;
   try {
     await batalkanKupon(id);

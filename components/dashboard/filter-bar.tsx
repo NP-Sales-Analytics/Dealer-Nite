@@ -85,7 +85,6 @@ export function FilterBar({
         .map((s) => s[tingkat]),
     );
 
-  const wilayahTampil = useMemo(() => isi('wilayah'), [simpul, value.region, value.depot]); // eslint-disable-line react-hooks/exhaustive-deps
   const regionTampil = useMemo(() => isi('region'), [simpul, value.wilayah, value.depot]); // eslint-disable-line react-hooks/exhaustive-deps
   const depotTampil = useMemo(() => isi('depot'), [simpul, value.wilayah, value.region]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -128,9 +127,10 @@ export function FilterBar({
   // menghapus jaraknya sama sekali.
   return (
     <div className="mb-4 rounded-2xl border border-border bg-card p-3 shadow-xs sm:mb-6 sm:p-4">
-      <div className="flex flex-col gap-2.5 xl:flex-row xl:items-center">
+      {/* Satu baris di laptop: pencarian melebar, kontrol lain berukuran tetap. */}
+      <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center">
         {withSearch && (
-          <div className="relative min-w-0 flex-1 xl:min-w-56">
+          <div className="relative min-w-0 lg:min-w-52 lg:flex-1">
             <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <input
               value={value.q}
@@ -153,20 +153,8 @@ export function FilterBar({
           </div>
         )}
 
-        {/* Dropdown membungkus di HP, sebaris di layar lebar. */}
-        <div className="flex flex-wrap gap-2.5">
+        <div className="flex flex-wrap gap-2.5 lg:flex-nowrap">
           {awal}
-          <PilihBanyak
-            items={wilayahTampil}
-            value={value.wilayah}
-            onChange={(v) => ubah('wilayah', v)}
-            labelSemua="Wilayah"
-            satuan="Wilayah"
-            cariPlaceholder="Cari wilayah..."
-            kosong="Wilayah tidak ditemukan."
-            className="min-w-0 flex-1 sm:w-40 sm:flex-none"
-          />
-
           <PilihBanyak
             items={regionTampil}
             value={value.region}
@@ -187,7 +175,7 @@ export function FilterBar({
             satuan="Depot"
             cariPlaceholder="Cari depot..."
             kosong="Depot tidak ditemukan."
-            className="min-w-0 flex-1 sm:w-44 sm:flex-none"
+            className="min-w-0 flex-1 sm:w-40 sm:flex-none"
           />
 
           {aktif && (
