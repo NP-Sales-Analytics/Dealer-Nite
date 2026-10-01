@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Data tidak valid.' }, { status: 400 });
   }
-  const user = await izinMaster(parsed.data.dealerNightId);
+  const user = await izinMaster(parsed.data.dealerNightId, [parsed.data.depotCode]);
   if (user instanceof NextResponse) return user;
   try {
     await createMaster(parsed.data);

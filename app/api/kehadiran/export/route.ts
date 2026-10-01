@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import writeExcelFile from 'write-excel-file/node';
 import { getSessionUser } from '@/lib/auth';
+import { batasiFilterDepot } from '@/lib/depot-scope';
 import { matchesDashboardFilter, readFilter } from '@/lib/dashboard/filters';
 import { resolveDashboardDealerNight } from '@/lib/dashboard/scope';
 import { loadAttendance } from '@/lib/dashboard/service';
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const dealerNightId = resolveDashboardDealerNight(user, request.nextUrl.searchParams.get('dealerNightId'));
-    const filter = readFilter(request);
+    const filter = batasiFilterDepot(user, readFilter(request));
     const ascending = request.nextUrl.searchParams.get('sort') === 'asc';
     const rows = (await loadAttendance(dealerNightId))
       .filter((row) => matchesDashboardFilter(row, filter))

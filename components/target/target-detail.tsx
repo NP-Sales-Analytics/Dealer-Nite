@@ -2,14 +2,13 @@
 
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  BadgeCheck, ChevronLeft, ChevronRight, FileUp, Pencil, Plus, SlidersHorizontal, Trash2,
+  ChevronLeft, ChevronRight, FileUp, Pencil, Plus, Trash2,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { DealerNightSelect } from './dealer-night-select';
 import { MasterTokoDialog } from './master-toko-dialog';
 import { PillHadir, PillStatus } from './pills';
-import { TargetAdjustmentDialog } from './target-adjustment-dialog';
 import { TargetDetailDialog } from './target-detail-dialog';
 import { hitungKpiTarget, TargetKpi } from './target-kpi';
 import type { DealerNightOption, TargetResponse, TargetRow } from './types';
@@ -42,44 +41,31 @@ const cocok = (row: TargetRow, f: FilterState, q: string) =>
     .toLowerCase().includes(q));
 
 /** Target yang disepakati admin DN saat verifikasi; sebelum itu yang ada hanya target pusat. */
-function KolomTerverifikasi({ row }: { row: TargetRow }) {
-  if (row.targetVerifikasi == null) {
-    return (
-      <div className="flex flex-col items-end gap-1">
-        <PillStatus verified={false} />
-        <span className="text-xs tabular-nums text-muted-foreground">Pusat {formatRupiahRingkas(row.targetAwal)}</span>
-      </div>
-    );
-  }
-  const ubah = row.targetVerifikasi - row.targetAwal;
+/** Target DN kumulatif: nilai verifikasi ditambah semua penyesuaian sesudahnya. */
+function KolomTargetDn({ row }: { row: TargetRow }) {
+  if (row.targetVerifikasi == null) return <PillStatus verified={false} />;
   return (
-    <div className="text-right">
-      <p className="font-bold tabular-nums" title={formatRupiah(row.targetVerifikasi)}>{formatRupiahRingkas(row.targetVerifikasi)}</p>
-      <p className="text-xs tabular-nums text-muted-foreground">
-        {ubah === 0 ? 'sama dengan pusat' : `${ubah > 0 ? '+' : ''}${formatRupiahRingkas(ubah)} dari pusat`}
-      </p>
-    </div>
+    <span className="font-bold tabular-nums" title={formatRupiah(row.targetEfektif)}>
+      {formatRupiahRingkas(row.targetEfektif)}
+    </span>
   );
 }
 
-/** Penambahan omset setelah verifikasi beserta target terakhirnya. */
+/** Penambahan omset setelah verifikasi. */
 function KolomPenambahan({ row }: { row: TargetRow }) {
   if (row.targetVerifikasi == null) return <span className="text-muted-foreground">&mdash;</span>;
   const tambah = row.targetEfektif - row.targetVerifikasi;
   if (tambah === 0) return <span className="text-sm text-muted-foreground">Belum ada</span>;
   return (
-    <div className="text-right">
-      <span
-        className={cn(
-          'inline-flex rounded-full px-2.5 py-1 text-sm font-bold tabular-nums',
-          tambah > 0 ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' : 'bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-300',
-        )}
-        title={formatRupiah(tambah)}
-      >
-        {tambah > 0 ? '+' : ''}{formatRupiahRingkas(tambah)}
-      </span>
-      <p className="mt-1 text-xs tabular-nums text-muted-foreground">jadi {formatRupiahRingkas(row.targetEfektif)}</p>
-    </div>
+    <span
+      className={cn(
+        'inline-flex rounded-full px-2.5 py-1 text-sm font-bold tabular-nums',
+        tambah > 0 ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' : 'bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-300',
+      )}
+      title={formatRupiah(tambah)}
+    >
+      {tambah > 0 ? '+' : ''}{formatRupiahRingkas(tambah)}
+    </span>
   );
 }
 
@@ -120,7 +106,6 @@ export function TargetDetail({
   const [status, setStatus] = useState<Status>('semua');
   const [page, setPage] = useState(1);
   const [detail, setDetail] = useState<TargetRow | null>(null);
-  const [adjust, setAdjust] = useState<TargetRow | null>(null);
   const [master, setMaster] = useState<TargetRow | 'baru' | null>(null);
   const [upload, setUpload] = useState(false);
   const [hapus, setHapus] = useState<TargetRow | null>(null);
@@ -226,7 +211,7 @@ export function TargetDetail({
             options={dealerNights}
             value={dealerNightId}
             onChange={(id) => { setDealerNightId(id); setFilter(FILTER_KOSONG); setStatus('semua'); }}
-            className="min-w-0 basis-full sm:basis-auto sm:w-44 sm:flex-none"
+            className="min-w-0 basis-full sm:basis-auto sm:w-40 sm:flex-none"
           />
         )}
       />
@@ -268,16 +253,16 @@ export function TargetDetail({
       ) : (
         <div className="min-w-0 rounded-2xl border border-border bg-card shadow-xs">
           <div className="overflow-x-auto">
-            <Table className="min-w-[68rem]">
+            <Table className="min-w-[56rem]">
               <TableHeader>
                 <TableRow>
                   <TableHead className="py-4 pl-5">Depot</TableHead>
                   <TableHead className="py-4">Nama Customer</TableHead>
                   <TableHead className="py-4 text-center">Kehadiran</TableHead>
-                  <TableHead className="py-4 text-right">Target DN Terverifikasi</TableHead>
-                  <TableHead className="py-4 text-right">Penambahan / Penyesuaian</TableHead>
-                  <TableHead className="py-4 text-center">Banyak Penyesuaian</TableHead>
-                  {(canAdjust || canManage) && <TableHead className="py-4 pr-5 text-center">Aksi</TableHead>}
+                  <TableHead className="py-4 text-right">Target DN</TableHead>
+                  <TableHead className="py-4 text-right">Penambahan</TableHead>
+                  <TableHead className="py-4 text-center">Total Penyesuaian</TableHead>
+                  {canManage && <TableHead className="py-4 pr-5 text-center">Aksi</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -304,7 +289,7 @@ export function TargetDetail({
                       </div>
                     </TableCell>
                     <TableCell className="py-4 text-center"><PillHadir qtyHadir={row.qtyHadir} /></TableCell>
-                    <TableCell className="py-4 text-right"><KolomTerverifikasi row={row} /></TableCell>
+                    <TableCell className="py-4 text-right"><KolomTargetDn row={row} /></TableCell>
                     <TableCell className="py-4 text-right"><KolomPenambahan row={row} /></TableCell>
                     <TableCell className="py-4 text-center">
                       <span
@@ -317,24 +302,9 @@ export function TargetDetail({
                         {row.jumlahPenyesuaian}x
                       </span>
                     </TableCell>
-                    {(canAdjust || canManage) && (
+                    {canManage && (
                       <TableCell className="py-4 pr-5">
                         <div className="flex items-center justify-center gap-1.5">
-                          {canAdjust && (row.verifiedAt ? (
-                            <IkonAksi label={`Sesuaikan target ${row.mgName}`} onClick={() => setAdjust(row)}>
-                              <SlidersHorizontal className="size-4" />
-                            </IkonAksi>
-                          ) : (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-9 gap-1.5 border-primary/30 bg-primary/5 px-3 text-primary hover:bg-primary/10 hover:text-primary"
-                              onClick={(event) => { event.stopPropagation(); setAdjust(row); }}
-                            >
-                              <BadgeCheck className="size-4" />
-                              Verifikasi
-                            </Button>
-                          ))}
                           {canManage && (
                             <>
                               <IkonAksi label={`Edit data ${row.mgName}`} onClick={() => setMaster(row)}>
@@ -389,15 +359,9 @@ export function TargetDetail({
           key={detail.customerId}
           row={semua.find((row) => row.customerId === detail.customerId) ?? detail}
           canAdjust={canAdjust}
-          canManage={canManage}
           onOpenChange={(open) => !open && setDetail(null)}
-          onAdjust={(row) => { setDetail(null); setAdjust(row); }}
-          onEdit={(row) => { setDetail(null); setMaster(row); }}
-          onHapus={(row) => { setDetail(null); setHapus(row); }}
+          onSaved={segarkan}
         />
-      )}
-      {adjust && (
-        <TargetAdjustmentDialog key={adjust.customerId} row={adjust} onOpenChange={(open) => !open && setAdjust(null)} onSaved={segarkan} />
       )}
       {master && (
         <MasterTokoDialog

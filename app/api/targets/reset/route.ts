@@ -1,24 +1,25 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { z } from 'zod';
 import { getSessionUser } from '@/lib/auth';
+import { bersihkanCacheDashboard } from '@/lib/dashboard/cache';
 import { requireTargetAdjustment } from '@/lib/target/access';
-import { adjustTarget, getCustomerScope } from '@/lib/target/service';
-import { targetAdjustmentSchema } from '@/lib/validations/target';
+import { getCustomerScope, resetVerifikasi } from '@/lib/target/service';
 import { targetErrorResponse } from '../_response';
+
+const schema = z.object({ customerId: z.string().uuid() }).strict();
 
 export async function POST(request: NextRequest) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: 'Belum login' }, { status: 401 });
-
+  const parsed = schema.safeParse(await request.json());
+  if (!parsed.success) return NextResponse.json({ error: 'Data tidak valid.' }, { status: 400 });
   try {
-    const parsed = targetAdjustmentSchema.safeParse(await request.json());
-    if (!parsed.success) {
-      return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Data tidak valid.' }, { status: 400 });
-    }
     const scope = await getCustomerScope(parsed.data.customerId);
     if (!scope) return NextResponse.json({ error: 'Toko tidak ditemukan.' }, { status: 404 });
     requireTargetAdjustment(user, scope.dealerNightId, scope.depotCode);
-    const result = await adjustTarget({ ...parsed.data, actorId: user.id });
-    return NextResponse.json(result);
+    await resetVerifikasi(parsed.data.customerId);
+    bersihkanCacheDashboard();
+    return NextResponse.json({ status: 'reset' });
   } catch (error) {
     return targetErrorResponse(error);
   }

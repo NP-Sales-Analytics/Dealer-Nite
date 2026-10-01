@@ -1,4 +1,4 @@
-import { aksesSemuaDealerNight, canAdjustTarget, canReadDealerNight } from '@/lib/access';
+import { aksesSemuaDealerNight, bolehDepot, canAdjustTarget, canReadDealerNight } from '@/lib/access';
 import type { SessionUser } from '@/lib/auth';
 
 export class TargetAccessError extends Error {
@@ -8,7 +8,7 @@ export class TargetAccessError extends Error {
   }
 }
 
-type Principal = Pick<SessionUser, 'role' | 'dealerNightIds'>;
+type Principal = Pick<SessionUser, 'role' | 'dealerNightIds'> & Partial<Pick<SessionUser, 'depotCodes'>>;
 
 export function resolveDealerNightId(user: Principal, requestedId: string | null): string {
   if (requestedId) {
@@ -22,13 +22,17 @@ export function resolveDealerNightId(user: Principal, requestedId: string | null
 export function requireTargetRead(
   user: Principal,
   dealerNightId: string,
+  depotCode?: string,
 ) {
   if (!canReadDealerNight(user, dealerNightId)) throw new TargetAccessError('FORBIDDEN');
+  if (depotCode !== undefined && !bolehDepot(user, depotCode)) throw new TargetAccessError('FORBIDDEN');
 }
 
 export function requireTargetAdjustment(
   user: Principal,
   dealerNightId: string,
+  depotCode?: string,
 ) {
   if (!canAdjustTarget(user, dealerNightId)) throw new TargetAccessError('FORBIDDEN');
+  if (depotCode !== undefined && !bolehDepot(user, depotCode)) throw new TargetAccessError('FORBIDDEN');
 }

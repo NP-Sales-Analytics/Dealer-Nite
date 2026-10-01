@@ -1,7 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { NextResponse, type NextRequest } from 'next/server';
+import { bolehDepot } from '@/lib/access';
 import { requireHalamanApi } from '@/lib/auth';
+import { bolehNamaDepot } from '@/lib/depot-scope';
 import { bersihkanCacheDashboard } from '@/lib/dashboard/cache';
 import { resolveDashboardDealerNight } from '@/lib/dashboard/scope';
 import { db } from '@/lib/db';
@@ -28,6 +30,9 @@ export async function POST(request: NextRequest) {
   const input = parsed.data;
 
   if (input.isManualEntry) {
+    if (!bolehNamaDepot(user, input.manualDepot)) {
+      return NextResponse.json({ error: 'Tidak punya akses ke depot ini.' }, { status: 403 });
+    }
     if (!(await depotSatuDn(dealerNightId)).some((item) => item.depot === input.manualDepot)) {
       return NextResponse.json({ error: 'Depot tidak termasuk Dealer Night ini.' }, { status: 400 });
     }
@@ -53,10 +58,12 @@ export async function POST(request: NextRequest) {
   }
 
   const [customer] = await db.select({
-    id: customers.id, namaToko: customers.mgName, dealerNightId: customers.dealerNightId,
+    id: customers.id, namaToko: customers.mgName, dealerNightId: customers.dealerNightId, depotCode: customers.depotCode,
   }).from(customers).where(eq(customers.id, input.customerId)).limit(1);
   if (!customer) return NextResponse.json({ code: 'NOT_FOUND' }, { status: 404 });
-  if (customer.dealerNightId !== dealerNightId) return NextResponse.json({ error: 'Tidak punya akses' }, { status: 403 });
+  if (customer.dealerNightId !== dealerNightId || !bolehDepot(user, customer.depotCode)) {
+    return NextResponse.json({ error: 'Tidak punya akses' }, { status: 403 });
+  }
 
   const [existing] = await db.select({
     id: reservations.id, qtyHadir: reservations.qtyHadir, checkedInAt: reservations.checkedInAt,

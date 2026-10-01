@@ -13,7 +13,7 @@ export async function PATCH(request: NextRequest, context: Context) {
   }
   const existing = await getMaster(id);
   if (!existing) return NextResponse.json({ error: 'Toko tidak ditemukan.' }, { status: 404 });
-  const user = await izinMaster(existing.dealerNightId);
+  const user = await izinMaster(existing.dealerNightId, [existing.depotCode, parsed.data.depotCode]);
   if (user instanceof NextResponse) return user;
   try {
     await updateMaster(id, parsed.data);
@@ -28,7 +28,7 @@ export async function DELETE(_request: NextRequest, context: Context) {
   const { id } = await context.params;
   const existing = await getMaster(id);
   if (!existing) return NextResponse.json({ error: 'Toko tidak ditemukan.' }, { status: 404 });
-  const user = await izinMaster(existing.dealerNightId);
+  const user = await izinMaster(existing.dealerNightId, [existing.depotCode]);
   if (user instanceof NextResponse) return user;
   await deleteMaster(id);
   bersihkanCacheDashboard();

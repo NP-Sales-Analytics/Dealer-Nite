@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm';
 import { db, mysqlPool } from '@/lib/db';
 import { customers, dealerNights, profiles, targetAdjustments } from '@/lib/db/schema';
 import { resolveDealerNightId } from '@/lib/target/access';
-import { adjustTarget, getTargetSnapshot, listTargets } from '@/lib/target/service';
+import { adjustTarget, getTargetSnapshot, listTargets, resetVerifikasi } from '@/lib/target/service';
 
 const ids = {
   dealerNight: '22222222-2222-4222-8222-222222222222',
@@ -81,6 +81,15 @@ describe('Target DN ledger', () => {
     const [ledger] = await db.select().from(targetAdjustments).where(eq(targetAdjustments.customerId, ids.customer));
     expect(ledger.jenis).toBe('penyesuaian');
     await db.delete(targetAdjustments).where(eq(targetAdjustments.customerId, ids.customer));
+  });
+
+  it('reset verifikasi mengembalikan toko ke target pusat', async () => {
+    await adjustTarget({ customerId: ids.customer, newTarget: 900_000_000, actorId: ids.actor });
+    await adjustTarget({ customerId: ids.customer, newTarget: 950_000_000, actorId: ids.actor });
+    await resetVerifikasi(ids.customer);
+    const [row] = await listTargets(ids.dealerNight);
+    expect(row).toMatchObject({ verifiedAt: null, targetVerifikasi: null, targetEfektif: 820_000_000, jumlahPenyesuaian: 0 });
+    expect(await db.select().from(targetAdjustments).where(eq(targetAdjustments.customerId, ids.customer))).toHaveLength(0);
   });
 
   it('allows decreases but not below Rp50 million', async () => {

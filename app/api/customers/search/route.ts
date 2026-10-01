@@ -1,5 +1,6 @@
-import { and, eq, like, or } from 'drizzle-orm';
+import { and, eq, inArray, like, or } from 'drizzle-orm';
 import { NextResponse, type NextRequest } from 'next/server';
+import { cakupanDepot } from '@/lib/access';
 import { requireHalamanApi } from '@/lib/auth';
 import { resolveDashboardDealerNight } from '@/lib/dashboard/scope';
 import { db } from '@/lib/db';
@@ -38,6 +39,7 @@ export async function GET(request: NextRequest) {
     .leftJoin(reservations, eq(reservations.customerId, customers.id))
     .where(and(
       eq(customers.dealerNightId, dealerNightId),
+      cakupanDepot(user) ? inArray(customers.depotCode, [...cakupanDepot(user)!]) : undefined,
       or(like(customers.mgName, needle), like(customers.mgCode, needle)),
     ))
     .orderBy(customers.mgName)

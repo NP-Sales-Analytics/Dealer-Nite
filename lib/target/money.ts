@@ -1,5 +1,6 @@
 const bulat = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 });
-const ringkas = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 });
+// Singkatan selalu satu desimal (Rp3,0 M, Rp820,0 jt) supaya konsisten di semua tampilan.
+const ringkas = new Intl.NumberFormat('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 export function formatRupiah(value: number): string {
   return `Rp${bulat.format(value)}`;

@@ -18,6 +18,7 @@ export type KuponRow = {
   customerId: string;
   mgCode: string;
   mgName: string;
+  depotCode: string;
   depotName: string;
   wilayah: string | null;
   region: string | null;
@@ -53,7 +54,7 @@ type Executor = Pick<typeof db, 'execute'>;
 /** Posisi kupon satu toko; dengan `kunci` baris toko dikunci untuk transaksi tulis. */
 async function posisiToko(ex: Executor, customerId: string, kunci = false) {
   const [customer] = rowsFrom<Record<string, unknown>>(await ex.execute(sql`
-    select c.id, c.dealer_night_id as dealerNightId, c.mg_name as mgName, c.verified_at as verifiedAt,
+    select c.id, c.dealer_night_id as dealerNightId, c.depot_code as depotCode, c.mg_name as mgName, c.verified_at as verifiedAt,
       c.target_dn_awal + coalesce((select sum(delta) from target_adjustments where customer_id = c.id), 0) as target
     from customers c where c.id = ${customerId}
     ${kunci ? sql`for update` : sql``}
@@ -69,6 +70,7 @@ async function posisiToko(ex: Executor, customerId: string, kunci = false) {
   `));
   return {
     dealerNightId: String(customer.dealerNightId),
+    depotCode: String(customer.depotCode),
     mgName: String(customer.mgName),
     proses: prosesKupon({
       verified: customer.verifiedAt != null,
@@ -79,13 +81,14 @@ async function posisiToko(ex: Executor, customerId: string, kunci = false) {
   };
 }
 
-export async function dealerNightKupon(customerId: string) {
-  return (await posisiToko(db, customerId)).dealerNightId;
+export async function scopeKupon(customerId: string) {
+  const { dealerNightId, depotCode } = await posisiToko(db, customerId);
+  return { dealerNightId, depotCode };
 }
 
 export async function listKupon(dealerNightId: string): Promise<KuponRow[]> {
   const rows = rowsFrom<Record<string, unknown>>(await db.execute(sql`
-    select c.id as customerId, c.mg_code as mgCode, c.mg_name as mgName, c.depot_name as depotName,
+    select c.id as customerId, c.mg_code as mgCode, c.mg_name as mgName, c.depot_code as depotCode, c.depot_name as depotName,
       c.wilayah, c.region, c.verified_at is not null as verified,
       c.target_dn_awal + coalesce(a.total, 0) as targetEfektif,
       r.qty_hadir as qtyHadir, r.nomor_undian as nomorUndian,
@@ -117,6 +120,7 @@ export async function listKupon(dealerNightId: string): Promise<KuponRow[]> {
     customerId: String(row.customerId),
     mgCode: String(row.mgCode),
     mgName: String(row.mgName),
+    depotCode: String(row.depotCode),
     depotName: String(row.depotName),
     wilayah: row.wilayah == null ? null : String(row.wilayah),
     region: row.region == null ? null : String(row.region),
@@ -179,13 +183,17 @@ export async function catatKupon(input: z.infer<typeof catatKuponSchema> & { act
 }
 
 /** Proses semua sisa kupon toko-toko terpilih sekaligus; toko tanpa sisa dilewati. */
-export async function catatKuponMassal(input: z.infer<typeof catatMassalSchema> & { actorId: string }) {
+export async function catatKuponMassal(input: z.infer<typeof catatMassalSchema> & {
+  actorId: string;
+  bolehDepot: (depotCode: string) => boolean;
+}) {
   return db.transaction(async (tx) => {
     let diproses = 0;
     let dilewati = 0;
     for (const customerId of input.customerIds) {
-      const { dealerNightId, proses } = await posisiToko(tx, customerId, true);
+      const { dealerNightId, depotCode, proses } = await posisiToko(tx, customerId, true);
       if (dealerNightId !== input.dealerNightId) throw new KuponError('Ada toko dari Dealer Night lain.', 403);
+      if (!input.bolehDepot(depotCode)) throw new KuponError('Ada toko dari depot di luar akses Anda.', 403);
       const jumlah = input.tahap === 'dibuat' ? proses.perluDibuat : proses.siapDiberikan;
       if (proses.status === 'belum_verifikasi' || totalKupon(jumlah) === 0) {
         dilewati += 1;
@@ -193,7 +201,7 @@ export async function catatKuponMassal(input: z.infer<typeof catatMassalSchema> 
       }
       await tx.insert(kuponProses).values({
         id: randomUUID(), dealerNightId, customerId, tahap: input.tahap, ...jumlah,
-        catatan: 'Diproses massal', recordedBy: input.actorId,
+        recordedBy: input.actorId,
       });
       diproses += 1;
     }
@@ -203,9 +211,12 @@ export async function catatKuponMassal(input: z.infer<typeof catatMassalSchema> 
 
 export async function eventKupon(id: string) {
   const [row] = rowsFrom<Record<string, unknown>>(await db.execute(sql`
-    select customer_id as customerId, dealer_night_id as dealerNightId from kupon_proses where id = ${id}
+    select k.customer_id as customerId, k.dealer_night_id as dealerNightId, c.depot_code as depotCode
+    from kupon_proses k join customers c on c.id = k.customer_id where k.id = ${id}
   `));
-  return row ? { customerId: String(row.customerId), dealerNightId: String(row.dealerNightId) } : null;
+  return row
+    ? { customerId: String(row.customerId), dealerNightId: String(row.dealerNightId), depotCode: String(row.depotCode) }
+    : null;
 }
 
 /** Membatalkan satu catatan. Pembuatan tidak bisa dibatalkan bila kuponnya sudah diberikan. */

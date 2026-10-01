@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { halamanEfektif, HALAMAN, ROLE_LABEL, SEMUA_ROLE } from '@/lib/access';
 import type { Role } from '@/lib/auth';
 
-export type DealerNightOption = { id: string; name: string };
+export type DealerNightOption = { id: string; name: string; depots?: { kode: string; depot: string }[] };
 export type UserRow = {
   id: string;
   email: string | null;
@@ -20,6 +20,7 @@ export type UserRow = {
   role: Role;
   allowedPages: string[];
   dealerNightIds: string[] | null;
+  depotCodes: string[] | null;
   bolehUnduh: boolean;
 };
 
@@ -73,6 +74,10 @@ export function UserFormDialog({
   const [pages, setPages] = useState(row ? halamanEfektif(row.role, row.allowedPages) : []);
   const [semuaDn, setSemuaDn] = useState(row ? row.dealerNightIds === null : false);
   const [dnIds, setDnIds] = useState<string[]>(row?.dealerNightIds ?? []);
+  const [depotIds, setDepotIds] = useState<string[]>(row?.depotCodes ?? []);
+  // Depot hanya relevan untuk DN yang dicentang; pilihan di DN lain diabaikan.
+  const dnTerpilih = semuaDn ? [] : dealerNightOptions.filter((item) => dnIds.includes(item.id));
+  const depotTersedia = new Set(dnTerpilih.flatMap((item) => (item.depots ?? []).map((d) => d.kode)));
   const [showPassword, setShowPassword] = useState(false);
 
   return (
@@ -182,6 +187,51 @@ export function UserFormDialog({
               </div>
               <p className="text-xs text-muted-foreground">
                 User hanya melihat dan mengelola data Dealer Night yang dipilih, di semua halaman yang diizinkan.
+              </p>
+            </div>
+          )}
+
+          {role !== 'superadmin' && dnTerpilih.length > 0 && (
+            <div className="space-y-2">
+              <Label className="flex items-baseline justify-between gap-2">
+                Akses Depot
+                <span className="text-xs font-normal text-muted-foreground">opsional</span>
+              </Label>
+              <div className="space-y-3 rounded-xl border border-border bg-background p-3">
+                {dnTerpilih.map((dn) => (
+                  <div key={dn.id}>
+                    <p className="px-1 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{dn.name}</p>
+                    <div className="flex flex-wrap gap-2">
+                      {(dn.depots ?? []).map((item) => {
+                        const aktif = depotIds.includes(item.kode);
+                        return (
+                          <label
+                            key={item.kode}
+                            className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${aktif ? 'border-primary bg-primary/5 font-medium text-primary' : 'border-border hover:bg-secondary'}`}
+                          >
+                            <input
+                              type="checkbox"
+                              name="depotCodes"
+                              value={item.kode}
+                              checked={aktif}
+                              onChange={() => setDepotIds((ids) => (
+                                ids.includes(item.kode) ? ids.filter((id) => id !== item.kode) : [...ids, item.kode]
+                              ))}
+                              className="size-4 accent-primary"
+                            />
+                            {item.depot}
+                          </label>
+                        );
+                      })}
+                      {(dn.depots ?? []).length === 0 && <p className="px-1 text-xs text-muted-foreground">DN ini belum punya depot.</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {depotIds.some((kode) => depotTersedia.has(kode))
+                  ? 'User hanya bisa mengakses data toko di depot yang dipilih.'
+                  : 'Kosongkan bila user boleh mengakses semua depot di Dealer Night tersebut.'}
               </p>
             </div>
           )}

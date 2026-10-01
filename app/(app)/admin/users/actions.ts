@@ -8,6 +8,7 @@ import { lupakanProfil, requireRole, type Role } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { dealerNights, profiles } from '@/lib/db/schema';
 import { hashPassword } from '@/lib/password';
+import { depotDealerNight } from '@/lib/target/dealer-night-options';
 
 const HREF_SAH = HALAMAN.map((item) => item.href);
 
@@ -16,6 +17,18 @@ function bacaHalaman(formData: FormData): string[] {
 }
 
 /** null = semua Dealer Night. Superadmin selalu semua. */
+/** Depot dalam DN terpilih; kosong atau DN "semua" = seluruh depot (null). */
+async function bacaCakupanDepot(formData: FormData, dealerNightIds: string[] | null): Promise<string[] | null> {
+  if (!dealerNightIds) return null;
+  const kode = [...new Set(formData.getAll('depotCodes').map((value) => String(value).trim()).filter(Boolean))];
+  if (kode.length === 0) return null;
+  const rows = await db.select({ id: dealerNights.id, depotCodes: dealerNights.depotCodes })
+    .from(dealerNights).where(inArray(dealerNights.id, dealerNightIds));
+  const sah = new Set([...(await depotDealerNight(rows)).values()].flat().map((item) => item.kode));
+  if (kode.some((k) => !sah.has(k))) throw new Error('Ada depot yang bukan bagian Dealer Night terpilih.');
+  return kode;
+}
+
 async function bacaCakupanDealerNight(formData: FormData, role: Role): Promise<string[] | null> {
   if (role === 'superadmin' || formData.get('dealerNightScope') === 'all') return null;
 
@@ -51,8 +64,10 @@ export async function createUser(_prev: string | null, formData: FormData): Prom
   if (await passwordDipakai(passwordHash)) return 'Password sudah dipakai user lain. Pakai yang berbeda.';
 
   let dealerNightIds: string[] | null;
+  let depotCodes: string[] | null;
   try {
     dealerNightIds = await bacaCakupanDealerNight(formData, role);
+    depotCodes = await bacaCakupanDepot(formData, dealerNightIds);
   } catch (error) {
     return error instanceof Error ? error.message : 'Dealer Night tidak valid.';
   }
@@ -65,6 +80,7 @@ export async function createUser(_prev: string | null, formData: FormData): Prom
     passwordHash,
     allowedPages: bacaHalaman(formData),
     dealerNightIds,
+    depotCodes,
     bolehUnduh: formData.get('bolehUnduh') === 'on',
   });
 
@@ -89,8 +105,10 @@ export async function updateUser(_prev: string | null, formData: FormData): Prom
   if (me.id === userId && role !== 'superadmin') return 'Tidak bisa mengubah role akun sendiri.';
 
   let dealerNightIds: string[] | null;
+  let depotCodes: string[] | null;
   try {
     dealerNightIds = await bacaCakupanDealerNight(formData, role);
+    depotCodes = await bacaCakupanDepot(formData, dealerNightIds);
   } catch (error) {
     return error instanceof Error ? error.message : 'Dealer Night tidak valid.';
   }
@@ -101,6 +119,7 @@ export async function updateUser(_prev: string | null, formData: FormData): Prom
     role: Role;
     allowedPages: string[];
     dealerNightIds: string[] | null;
+    depotCodes: string[] | null;
     bolehUnduh: boolean;
     passwordHash?: string;
   } = {
@@ -109,6 +128,7 @@ export async function updateUser(_prev: string | null, formData: FormData): Prom
     role,
     allowedPages: bacaHalaman(formData),
     dealerNightIds,
+    depotCodes,
     bolehUnduh: formData.get('bolehUnduh') === 'on',
   };
 

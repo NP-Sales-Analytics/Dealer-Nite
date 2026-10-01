@@ -140,6 +140,13 @@ export async function getTargetSnapshot(customerId: string): Promise<TargetSnaps
   return { customerId: row.customerId, targetAwal, targetEfektif, delta: targetEfektif - targetAwal };
 }
 
+export async function getCustomerScope(customerId: string): Promise<{ dealerNightId: string; depotCode: string } | null> {
+  const rows = rowsFrom<{ dealerNightId: string; depotCode: string }>(await db.execute(sql`
+    select dealer_night_id as dealerNightId, depot_code as depotCode from customers where id = ${customerId} limit 1
+  `));
+  return rows[0] ? { dealerNightId: String(rows[0].dealerNightId), depotCode: String(rows[0].depotCode) } : null;
+}
+
 export async function getCustomerDealerNightId(customerId: string): Promise<string | null> {
   const rows = rowsFrom<{ dealerNightId: string }>(await db.execute(sql`
     select dealer_night_id as dealerNightId from customers where id = ${customerId} limit 1
@@ -218,4 +225,20 @@ export async function getTargetHistory(customerId: string) {
     recordedByName: row.recordedByName == null ? null : String(row.recordedByName),
     createdAt: new Date(String(row.createdAt)),
   }));
+}
+
+/**
+ * Mengembalikan toko ke tahap awal (target pusat): seluruh penyesuaian,
+ * status verifikasi, dan catatan kupon toko itu dihapus. Dipakai untuk uji coba.
+ */
+export async function resetVerifikasi(customerId: string) {
+  await db.transaction(async (tx) => {
+    const rows = rowsFrom<{ id: string }>(await tx.execute(sql`select id from customers where id = ${customerId} for update`));
+    if (!rows[0]) throw new TargetServiceError('NOT_FOUND');
+    await tx.execute(sql`delete from target_adjustments where customer_id = ${customerId}`);
+    await tx.execute(sql`delete from kupon_proses where customer_id = ${customerId}`);
+    await tx.execute(sql`
+      update customers set verified_at = null, verified_by = null, target_verifikasi = null where id = ${customerId}
+    `);
+  });
 }

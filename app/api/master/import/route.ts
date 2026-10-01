@@ -47,6 +47,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'File tidak bisa dibaca.' }, { status: 400 });
   }
 
+  // Akun berbatas depot hanya boleh mengunggah toko di depotnya sendiri.
+  const izinDepot = await izinMaster(dealerNightId, [...new Set(rows.map((row) => row.depotCode))]);
+  if (izinDepot instanceof NextResponse) return izinDepot;
+
   try {
     const hasil = await importMaster(dealerNightId, rows);
     bersihkanCacheDashboard();

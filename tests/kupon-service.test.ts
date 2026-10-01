@@ -68,10 +68,10 @@ describe('Proses kupon', () => {
 
   it('memproses massal seluruh sisa dan melewati yang tidak punya sisa', async () => {
     await adjustTarget({ customerId: ids.customer, newTarget: 100_000_000, actorId: ids.actor });
-    const hasil = await catatKuponMassal({ dealerNightId: ids.dealerNight, customerIds: [ids.customer], tahap: 'dibuat', actorId: ids.actor });
+    const hasil = await catatKuponMassal({ dealerNightId: ids.dealerNight, customerIds: [ids.customer], tahap: 'dibuat', actorId: ids.actor, bolehDepot: () => true });
     expect(hasil).toEqual({ diproses: 1, dilewati: 0 });
     expect((await posisi()).status).toBe('siap_diberikan');
-    expect(await catatKuponMassal({ dealerNightId: ids.dealerNight, customerIds: [ids.customer], tahap: 'dibuat', actorId: ids.actor }))
+    expect(await catatKuponMassal({ dealerNightId: ids.dealerNight, customerIds: [ids.customer], tahap: 'dibuat', actorId: ids.actor, bolehDepot: () => true }))
       .toEqual({ diproses: 0, dilewati: 1 });
   });
 

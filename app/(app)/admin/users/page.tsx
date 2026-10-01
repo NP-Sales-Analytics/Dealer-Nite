@@ -1,8 +1,9 @@
-import { asc } from 'drizzle-orm';
+import { asc, sql } from 'drizzle-orm';
 import { UserTable } from '@/components/admin/user-table';
 import { requireHalaman } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { dealerNights, profiles } from '@/lib/db/schema';
+import { depotDealerNight } from '@/lib/target/dealer-night-options';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,14 +19,17 @@ export default async function UsersPage() {
       allowedPages: profiles.allowedPages,
       bolehUnduh: profiles.bolehUnduh,
       dealerNightIds: profiles.dealerNightIds,
+      depotCodes: profiles.depotCodes,
     })
     .from(profiles)
     .orderBy(asc(profiles.fullName));
 
-  const dealerNightOptions = await db
-    .select({ id: dealerNights.id, name: dealerNights.name })
+  const dnRows = await db
+    .select({ id: dealerNights.id, name: dealerNights.name, depotCodes: dealerNights.depotCodes })
     .from(dealerNights)
-    .orderBy(asc(dealerNights.name));
+    .orderBy(sql`${dealerNights.eventDate} is null`, asc(dealerNights.eventDate), asc(dealerNights.name));
+  const depots = await depotDealerNight(dnRows);
+  const dealerNightOptions = dnRows.map((row) => ({ id: row.id, name: row.name, depots: depots.get(row.id) ?? [] }));
 
   return (
     <div className="mx-auto w-full max-w-6xl">

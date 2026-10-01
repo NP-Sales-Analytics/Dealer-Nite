@@ -62,6 +62,7 @@ export async function getMaster(id: string) {
   const [row] = await db.select({
     id: customers.id,
     dealerNightId: customers.dealerNightId,
+    depotCode: customers.depotCode,
     targetDnAwal: customers.targetDnAwal,
     verifiedAt: customers.verifiedAt,
   }).from(customers).where(eq(customers.id, id)).limit(1);
