@@ -13,8 +13,6 @@ export type CustomerSearchResult = {
   depot: string | null;
   wilayah: string | null;
   region: string | null;
-  namaPemilik: string | null;
-  qtyUndangan: number;
   sudahHadir: boolean;
   qtyHadirSebelumnya: number | null;
 };
@@ -26,15 +24,21 @@ export function SearchBar({ dealerNightId, onSelect }: { dealerNightId: string; 
   const q = useDebounce(term, 300).trim();
   const cukupPanjang = q.length >= 2;
 
-  const { data, isFetching } = useQuery({
+  const { data, isFetching, error } = useQuery({
     queryKey: ['customer-search', dealerNightId, q],
     enabled: cukupPanjang,
     // Menghapus lalu mengetik ulang kata yang sama dalam 30 detik tidak menembak
     // server lagi - hasilnya diambil dari cache untuk kunci yang sama.
     staleTime: 30_000,
+    retry: false,
     queryFn: async (): Promise<{ results: CustomerSearchResult[] }> => {
       const res = await fetch(`/api/customers/search?q=${encodeURIComponent(q)}&dealerNightId=${encodeURIComponent(dealerNightId)}`);
-      if (!res.ok) throw new Error('Pencarian gagal');
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(res.status === 403
+          ? (body.error ?? 'Akun ini tidak punya akses pencatatan untuk Dealer Night ini.')
+          : 'Pencarian gagal. Coba lagi.');
+      }
       return res.json();
     },
   });
@@ -71,7 +75,10 @@ export function SearchBar({ dealerNightId, onSelect }: { dealerNightId: string; 
           {isFetching && results.length === 0 && (
             <p className="p-4 text-sm text-muted-foreground">Mencari...</p>
           )}
-          {!isFetching && results.length === 0 && (
+          {error && (
+            <p className="p-4 text-sm text-destructive">{error.message}</p>
+          )}
+          {!isFetching && !error && results.length === 0 && (
             <p className="p-4 text-sm text-muted-foreground">
               Tidak ada hasil. Coba kata lain, atau tambahkan manual.
             </p>
@@ -92,8 +99,6 @@ export function SearchBar({ dealerNightId, onSelect }: { dealerNightId: string; 
                   </span>
                   <span className="text-xs leading-relaxed text-muted-foreground">
                     {c.kodeSap} · {c.depot ?? '-'} · {c.wilayah ?? '-'} / {c.region ?? '-'}
-                    {' · '}
-                    <span className="font-medium text-foreground">undangan {c.qtyUndangan} orang</span>
                   </span>
                 </button>
               </li>

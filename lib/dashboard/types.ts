@@ -14,10 +14,8 @@ export type AttendanceRow = {
   kodeSap: string | null;
   region: string | null;
   wilayah: string | null;
-  namaPemilik: string | null;
-  picRsmAsm: string | null;
   qtyHadir: number;
-  qtyUndangan: number | null;
+  nomorUndian: string | null;
   checkedInAt: string;
   isManualEntry: boolean;
   depotDiubah: boolean;

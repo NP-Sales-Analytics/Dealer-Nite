@@ -10,11 +10,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="mx-auto w-full max-w-7xl">
-      <DashboardClient
-        dealerNights={dealerNights}
-        initialDealerNightId={user.dealerNightId ?? dealerNights[0]?.id ?? ''}
-        fixedDealerNight={user.role === 'dn_user'}
-      />
+      <DashboardClient dealerNights={dealerNights} />
     </div>
   );
 }

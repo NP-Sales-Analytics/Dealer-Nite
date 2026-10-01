@@ -13,6 +13,7 @@ import { TombolUnduh } from '@/components/shared/tombol-unduh';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDebounce } from '@/lib/use-debounce';
 import type { AttendanceResponse } from '@/lib/dashboard/types';
+import { dnBawaan } from '@/lib/target/dn-bawaan';
 
 const fetcher = <T,>(url: string) => async (): Promise<T> => {
   const res = await fetch(url);
@@ -30,19 +31,15 @@ export function AttendanceClient({
   bisaUbah,
   bisaUnduh,
   dealerNights,
-  initialDealerNightId,
-  fixedDealerNight,
 }: {
   bisaUbah: boolean;
   bisaUnduh: boolean;
   dealerNights: DealerNightOption[];
-  initialDealerNightId: string;
-  fixedDealerNight: boolean;
 }) {
   const [filter, setFilter] = useState<FilterState>(FILTER_KOSONG);
   const [page, setPage] = useState(1);
   const [urut, setUrut] = useState<'asc' | 'desc'>('desc');
-  const [dealerNightId, setDealerNightId] = useState(initialDealerNightId);
+  const [dealerNightId, setDealerNightId] = useState(() => dnBawaan(dealerNights));
   const queryClient = useQueryClient();
 
   // Ketikan di-debounce; region/depot langsung berlaku karena sekali klik.
@@ -82,9 +79,6 @@ export function AttendanceClient({
 
   return (
     <>
-      <div className="mb-4 flex justify-end">
-        <DealerNightSelect options={dealerNights} value={dealerNightId} onChange={setDealerNightId} fixed={fixedDealerNight} />
-      </div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-6">
         <p className="text-sm text-muted-foreground">
           {data.data ? (
@@ -113,6 +107,14 @@ export function AttendanceClient({
         options={options.data}
         onChange={setFilter}
         withSearch
+        awal={(
+          <DealerNightSelect
+            options={dealerNights}
+            value={dealerNightId}
+            onChange={(id) => { setDealerNightId(id); setFilter(FILTER_KOSONG); }}
+            className="min-w-0 basis-full sm:basis-auto sm:w-44 sm:flex-none"
+          />
+        )}
       />
 
 
@@ -131,6 +133,7 @@ export function AttendanceClient({
           pageSize={data.data.pageSize}
           adaFilter={adaFilter}
           bisaUbah={bisaUbah}
+          depots={(dealerNights.find((item) => item.id === dealerNightId)?.depots ?? []).map((item) => item.depot)}
           urut={urut}
           onPageChange={setPage}
           onUrutChange={(v) => { setUrut(v); setPage(1); }}

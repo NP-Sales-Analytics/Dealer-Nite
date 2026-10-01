@@ -2,7 +2,7 @@ import type { CustomerSearchResult } from './search-bar';
 import { InitialAvatar } from '@/components/shared/initial-avatar';
 import { Badge } from '@/components/ui/badge';
 
-const Row = ({ label, value }: { label: string; value: string | number | null }) => (
+const Row = ({ label, value }: { label: string; value: string | null }) => (
   <div className="flex items-start justify-between gap-4 py-2 text-sm">
     <span className="shrink-0 text-muted-foreground">{label}</span>
     <span className="text-right font-medium">{value ?? '-'}</span>
@@ -24,13 +24,9 @@ export function CustomerDetailCard({ customer }: { customer: CustomerSearchResul
       </div>
 
       <div className="divide-y divide-border border-t border-border">
+        <Row label="Wilayah" value={customer.wilayah} />
+        <Row label="Region" value={customer.region} />
         <Row label="Depot" value={customer.depot} />
-        <Row label="Wilayah / Region" value={`${customer.wilayah ?? '-'} / ${customer.region ?? '-'}`} />
-        <Row label="Pemilik yang datang" value={customer.namaPemilik || '-'} />
-        <Row label="Jumlah diundang" value={`${customer.qtyUndangan} orang`} />
-        {customer.sudahHadir && (
-          <Row label="Sudah tercatat hadir" value={`${customer.qtyHadirSebelumnya} orang`} />
-        )}
       </div>
     </div>
   );

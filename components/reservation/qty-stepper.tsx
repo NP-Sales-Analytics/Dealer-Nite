@@ -48,7 +48,7 @@ export function QtyStepper({
     'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none';
 
   return (
-    <div className="flex items-stretch gap-3">
+    <div className="flex min-w-0 items-stretch gap-3">
       <button
         type="button"
         onClick={() => (diBawah ? onBatas?.('bawah') : step(-1))}

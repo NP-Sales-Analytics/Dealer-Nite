@@ -1,0 +1,98 @@
+import { Target, TrendingUp, Trophy, type LucideIcon } from 'lucide-react';
+import Link from 'next/link';
+import type { TargetRow } from './types';
+import { formatRupiah, formatRupiahRingkas } from '@/lib/target/money';
+import { cn } from '@/lib/utils';
+
+/** Angka KPI Target DN untuk satu Dealer Night (tidak ikut filter tabel). */
+export function hitungKpiTarget(rows: TargetRow[], targetDn: number) {
+  const verified = rows.filter((row) => row.verifiedAt);
+  const pencapaian = verified.reduce((sum, row) => sum + row.targetEfektif, 0);
+  const penambahan = verified.reduce((sum, row) => sum + row.targetEfektif - (row.targetVerifikasi ?? row.targetEfektif), 0);
+  return {
+    targetDn,
+    pencapaian,
+    persen: targetDn > 0 ? (pencapaian / targetDn) * 100 : null,
+    penambahan,
+    tokoVerified: verified.length,
+    tokoMenyesuaikan: verified.filter((row) => row.targetEfektif !== row.targetVerifikasi).length,
+    totalToko: rows.length,
+  };
+}
+
+function Kartu({ icon: Icon, label, children, aksen }: {
+  icon: LucideIcon; label: string; children: React.ReactNode; aksen: string;
+}) {
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-xs sm:p-5">
+      <div className={cn('pointer-events-none absolute -right-6 -top-6 size-24 rounded-full opacity-60 blur-2xl', aksen)} aria-hidden />
+      <div className="relative flex items-center gap-2.5">
+        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-secondary text-foreground/80" aria-hidden>
+          <Icon className="size-4.5" />
+        </span>
+        <p className="text-sm font-medium text-muted-foreground">{label}</p>
+      </div>
+      <div className="relative mt-3">{children}</div>
+    </div>
+  );
+}
+
+export function TargetKpi({ kpi, bisaAtur }: { kpi: ReturnType<typeof hitungKpiTarget>; bisaAtur: boolean }) {
+  const persen = kpi.persen === null ? null : Math.round(kpi.persen * 10) / 10;
+  const naik = kpi.penambahan >= 0;
+
+  return (
+    <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 xl:grid-cols-4">
+      <Kartu icon={Target} label="Total Target DN" aksen="bg-primary/30">
+        {kpi.targetDn > 0 ? (
+          <>
+            <p className="text-2xl font-bold tracking-tight tabular-nums">{formatRupiahRingkas(kpi.targetDn)}</p>
+            <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">{formatRupiah(kpi.targetDn)}</p>
+          </>
+        ) : (
+          <>
+            <p className="text-2xl font-bold tracking-tight text-muted-foreground">Belum diatur</p>
+            {bisaAtur ? (
+              <Link href="/setting/pax" className="mt-0.5 inline-block text-xs font-medium text-primary hover:underline">
+                Atur di Setting Target DN
+              </Link>
+            ) : (
+              <p className="mt-0.5 text-xs text-muted-foreground">Menunggu diatur Super Admin</p>
+            )}
+          </>
+        )}
+      </Kartu>
+
+      <Kartu icon={Trophy} label="Pencapaian Malam DN" aksen="bg-amber-300/40">
+        <p className="text-2xl font-bold tracking-tight tabular-nums">{formatRupiahRingkas(kpi.pencapaian)}</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          dari <span className="font-semibold text-foreground tabular-nums">{kpi.tokoVerified}</span>/{kpi.totalToko} toko terverifikasi
+        </p>
+      </Kartu>
+
+      <Kartu icon={TrendingUp} label="Persentase Pencapaian" aksen="bg-emerald-300/40">
+        <p className="text-2xl font-bold tracking-tight tabular-nums">
+          {persen === null ? '–' : `${persen.toLocaleString('id-ID')}%`}
+        </p>
+        <div className="mt-2 h-2 overflow-hidden rounded-full bg-secondary" aria-hidden>
+          <div
+            className={cn('h-full rounded-full transition-[width] duration-500', (persen ?? 0) >= 100 ? 'bg-emerald-500' : 'bg-primary')}
+            style={{ width: `${Math.min(100, persen ?? 0)}%` }}
+          />
+        </div>
+        <p className="mt-1.5 text-xs text-muted-foreground">
+          {persen === null ? 'Total Target DN belum diatur' : persen >= 100 ? 'Target tercapai' : 'Pencapaian terhadap Total Target DN'}
+        </p>
+      </Kartu>
+
+      <Kartu icon={TrendingUp} label="Total Penambahan" aksen={naik ? 'bg-emerald-300/40' : 'bg-red-300/40'}>
+        <p className={cn('text-2xl font-bold tracking-tight tabular-nums', kpi.penambahan > 0 ? 'text-emerald-600' : kpi.penambahan < 0 ? 'text-destructive' : '')}>
+          {kpi.penambahan > 0 ? '+' : ''}{formatRupiahRingkas(kpi.penambahan)}
+        </p>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          setelah verifikasi · <span className="font-semibold text-foreground tabular-nums">{kpi.tokoMenyesuaikan}</span> toko menyesuaikan
+        </p>
+      </Kartu>
+    </div>
+  );
+}

@@ -15,7 +15,7 @@ export type SessionUser = {
   fullName: string;
   role: Role;
   allowedPages: string[];
-  dealerNightId: string | null;
+  dealerNightIds: string[] | null;
   bolehUnduh: boolean;
 };
 
@@ -40,15 +40,13 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
 
   const profile = await cacheProfil.get(session.id);
   if (!profile) return null;
-  if (profile.role === 'dn_user' && !profile.dealerNightId) return null;
-
   return {
     id: profile.id,
     email: profile.email ?? '',
     fullName: profile.fullName,
     role: profile.role,
     allowedPages: profile.allowedPages ?? [],
-    dealerNightId: profile.dealerNightId,
+    dealerNightIds: profile.dealerNightIds ?? null,
     bolehUnduh: profile.bolehUnduh,
   };
 });
@@ -56,7 +54,7 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
 export async function requireHalaman(href: string): Promise<SessionUser> {
   const user = await getSessionUser();
   if (!user) redirect('/login');
-  if (!halamanEfektif(user.role, user.allowedPages).includes(href)) redirect('/no-access');
+  if (!bolehHalaman(user, href)) redirect('/no-access');
   return user;
 }
 
@@ -64,6 +62,17 @@ export async function requireRole(allowed: Role[]): Promise<SessionUser> {
   const user = await getSessionUser();
   if (!user) redirect('/login');
   if (!allowed.includes(user.role)) redirect('/no-access');
+  return user;
+}
+
+export const bolehHalaman = (user: SessionUser, href: string) =>
+  halamanEfektif(user.role, user.allowedPages).includes(href);
+
+/** Izin API mengikuti halaman yang diberikan di User Management, bukan role. */
+export async function requireHalamanApi(href: string): Promise<SessionUser | NextResponse> {
+  const user = await getSessionUser();
+  if (!user) return NextResponse.json({ error: 'Belum login' }, { status: 401 });
+  if (!bolehHalaman(user, href)) return NextResponse.json({ error: 'Tidak punya akses' }, { status: 403 });
   return user;
 }
 

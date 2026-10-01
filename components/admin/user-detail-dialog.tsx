@@ -1,7 +1,7 @@
 'use client';
 
 import { Pencil, Trash2, X } from 'lucide-react';
-import type { UserRow } from './user-form-dialog';
+import type { DealerNightOption, UserRow } from './user-form-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogClose, DialogContent, DialogTitle } from '@/components/ui/dialog';
@@ -33,9 +33,10 @@ function Seksi({ judul, children }: { judul: string; children: React.ReactNode }
 }
 
 export function UserDetailDialog({
-  row, akunSendiri, onOpenChange, onEdit, onHapus,
+  row, dealerNightOptions, akunSendiri, onOpenChange, onEdit, onHapus,
 }: {
   row: UserRow | null;
+  dealerNightOptions: DealerNightOption[];
   akunSendiri: boolean;
   onOpenChange: (v: boolean) => void;
   onEdit: (row: UserRow) => void;
@@ -45,12 +46,13 @@ export function UserDetailDialog({
 
   const boleh = halamanEfektif(row.role, row.allowedPages);
   const bawaan = row.allowedPages.length === 0;
+  const cakupan = labelDealerNightAccess(row, dealerNightOptions);
 
   return (
     <Dialog open onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={false}
-        className="grid max-h-[76svh] w-full max-w-lg grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-2xl p-0 sm:max-h-[84svh]"
+        className="grid max-h-[76svh] w-full max-w-lg sm:max-w-lg grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-2xl p-0 sm:max-h-[84svh]"
       >
         <header className="flex items-center justify-between border-b border-border px-5 py-4">
           <DialogTitle className="text-base font-semibold">Detail User</DialogTitle>
@@ -77,9 +79,7 @@ export function UserDetailDialog({
               {row.email && <p className="mt-0.5 break-all text-sm text-muted-foreground">{row.email}</p>}
               <div className="mt-2 flex flex-wrap gap-1.5">
                 <Badge variant="secondary">{ROLE_LABEL[row.role]}</Badge>
-                <Badge variant="outline">
-                  {labelDealerNightAccess(row.role, row.dealerNightId, row.dealerNightName)}
-                </Badge>
+                <Badge variant="outline">{cakupan}</Badge>
                 {akunSendiri && <Badge variant="outline">Akun Anda</Badge>}
               </div>
             </div>
@@ -87,10 +87,7 @@ export function UserDetailDialog({
 
           <Seksi judul="Akses">
             <Baris label="Role" nilai={ROLE_LABEL[row.role]} />
-            <Baris
-              label="Dealer Night"
-              nilai={labelDealerNightAccess(row.role, row.dealerNightId, row.dealerNightName)}
-            />
+            <Baris label="Dealer Night" nilai={cakupan} />
           </Seksi>
 
           <section className="space-y-2">

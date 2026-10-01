@@ -1,11 +1,10 @@
 'use client';
 
 import { Search, X } from 'lucide-react';
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import type { FilterOptions } from '@/app/api/dashboard/filters/route';
 import { Button } from '@/components/ui/button';
 import { PilihBanyak } from '@/components/ui/combobox';
-import { KOMUNITAS_MEDIA } from '@/lib/dashboard/komunitas-media';
 
 /**
  * Ketiganya bisa dipilih lebih dari satu; daftar KOSONG berarti semua.
@@ -50,13 +49,15 @@ const cocok = (s: Simpul, w: string[], r: string[], d: string[]) =>
   && (d.length === 0 || d.includes(s.depot));
 
 export function FilterBar({
-  value, options, onChange, withSearch = false, searchPlaceholder = 'Cari nama toko atau MG Code...',
+  value, options, onChange, withSearch = false, searchPlaceholder = 'Cari nama toko atau MG Code...', awal,
 }: {
   value: FilterState;
   options: FilterOptions | undefined;
   onChange: (v: FilterState) => void;
   withSearch?: boolean;
   searchPlaceholder?: string;
+  /** Kontrol tambahan di depan dropdown, mis. pemilih Dealer Night. */
+  awal?: ReactNode;
 }) {
   // Satu daftar simpul wilayah>region>depot jadi sumber ketiga dropdown. Dari
   // sini penyempitannya bisa berjalan dua arah, bukan cuma menurun.
@@ -127,9 +128,9 @@ export function FilterBar({
   // menghapus jaraknya sama sekali.
   return (
     <div className="mb-4 rounded-2xl border border-border bg-card p-3 shadow-xs sm:mb-6 sm:p-4">
-      <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center">
+      <div className="flex flex-col gap-2.5 xl:flex-row xl:items-center">
         {withSearch && (
-          <div className="relative min-w-0 flex-1">
+          <div className="relative min-w-0 flex-1 xl:min-w-56">
             <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <input
               value={value.q}
@@ -152,8 +153,9 @@ export function FilterBar({
           </div>
         )}
 
-        {/* Tiga dropdown membungkus di HP, sebaris di layar lebar. */}
+        {/* Dropdown membungkus di HP, sebaris di layar lebar. */}
         <div className="flex flex-wrap gap-2.5">
+          {awal}
           <PilihBanyak
             items={wilayahTampil}
             value={value.wilayah}
@@ -162,7 +164,7 @@ export function FilterBar({
             satuan="Wilayah"
             cariPlaceholder="Cari wilayah..."
             kosong="Wilayah tidak ditemukan."
-            className="min-w-0 flex-1 sm:w-48 sm:flex-none"
+            className="min-w-0 flex-1 sm:w-40 sm:flex-none"
           />
 
           <PilihBanyak
@@ -171,12 +173,10 @@ export function FilterBar({
             onChange={(v) => ubah('region', v)}
             labelSemua="Region"
             satuan="Region"
-            // Komunitas & Media bukan kode region (2A, 3A, ...) - depot sintetis
-            // ini memakai namanya sendiri sebagai region, jadi tidak diberi awalan.
-            format={(r) => (r === KOMUNITAS_MEDIA ? r : `Region ${r}`)}
+            format={(r) => `Region ${r}`}
             cariPlaceholder="Cari region..."
             kosong="Region tidak ditemukan."
-            className="min-w-0 flex-1 sm:w-44 sm:flex-none"
+            className="min-w-0 flex-1 sm:w-36 sm:flex-none"
           />
 
           <PilihBanyak
@@ -187,7 +187,7 @@ export function FilterBar({
             satuan="Depot"
             cariPlaceholder="Cari depot..."
             kosong="Depot tidak ditemukan."
-            className="min-w-0 flex-1 sm:w-52 sm:flex-none"
+            className="min-w-0 flex-1 sm:w-44 sm:flex-none"
           />
 
           {aktif && (

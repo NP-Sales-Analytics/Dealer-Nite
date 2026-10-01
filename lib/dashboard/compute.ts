@@ -1,7 +1,6 @@
 export type DepotRow = {
   depot: string;
   region: string | null;
-  targetPax: number;
   qtyHadir: number;
   tokoDiundang: number;
   tokoHadir: number;

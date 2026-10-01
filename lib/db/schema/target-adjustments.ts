@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { bigint, datetime, index, mysqlTable, text, varchar } from 'drizzle-orm/mysql-core';
+import { bigint, datetime, index, mysqlEnum, mysqlTable, text, varchar } from 'drizzle-orm/mysql-core';
 import { customers } from './customers';
 import { profiles } from './profiles';
 
@@ -9,6 +9,7 @@ export const targetAdjustments = mysqlTable('target_adjustments', {
     .notNull()
     .references(() => customers.id, { onDelete: 'cascade' }),
   delta: bigint('delta', { mode: 'number' }).notNull(),
+  jenis: mysqlEnum('jenis', ['verifikasi', 'penyesuaian']).notNull().default('penyesuaian'),
   note: text('note'),
   recordedBy: varchar('recorded_by', { length: 36 })
     .references(() => profiles.id, { onDelete: 'set null' }),

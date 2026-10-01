@@ -21,25 +21,16 @@ function Avatar({ nama }: { nama: string }) {
   );
 }
 
-/** Pill jumlah pax; berubah merah kalau melebihi jumlah undangan. */
-function PillPax({ hadir, undangan }: { hadir: number; undangan: number | null }) {
-  const lebih = undangan !== null && hadir > undangan;
+function PillPax({ hadir }: { hadir: number }) {
   return (
-    <span
-      className={
-        lebih
-          ? 'inline-flex items-center rounded-full bg-[#FEF3F2] px-2.5 py-1 text-xs font-semibold tabular-nums text-[#B42318]'
-          : 'inline-flex items-center rounded-full bg-[#ECFDF3] px-2.5 py-1 text-xs font-semibold tabular-nums text-[#027A48]'
-      }
-      title={undangan !== null ? `Diundang ${undangan} orang` : undefined}
-    >
+    <span className="inline-flex items-center rounded-full bg-[#ECFDF3] px-2.5 py-1 text-xs font-semibold tabular-nums text-[#027A48]">
       {hadir} Pax
     </span>
   );
 }
 
 export function AttendanceTable({
-  rows, page, totalPages, total, pageSize, adaFilter, bisaUbah, urut,
+  rows, page, totalPages, total, pageSize, adaFilter, bisaUbah, depots, urut,
   onPageChange, onUrutChange, onChanged,
 }: {
   rows: AttendanceRow[];
@@ -49,6 +40,7 @@ export function AttendanceTable({
   pageSize: number;
   adaFilter: boolean;
   bisaUbah: boolean;
+  depots: string[];
   urut: 'asc' | 'desc';
   onPageChange: (p: number) => void;
   onUrutChange: (v: 'asc' | 'desc') => void;
@@ -80,12 +72,13 @@ export function AttendanceTable({
           bukan berubah jadi kartu, supaya susunan kolom yang dihafal admin tetap
           sama di laptop maupun HP. */}
       <div className="overflow-x-auto">
-        <Table className="min-w-[46rem]">
+        <Table className="min-w-[52rem]">
           <TableHeader>
             <TableRow>
               <TableHead className="py-4 pl-5">Depot</TableHead>
               <TableHead className="py-4">Nama Customer</TableHead>
               <TableHead className="py-4 text-center">Pax (Jumlah Orang)</TableHead>
+              <TableHead className="py-4 text-center">No. Undian</TableHead>
               <TableHead className="py-4 text-center">
                 <button
                   type="button"
@@ -146,7 +139,10 @@ export function AttendanceTable({
                   </div>
                 </TableCell>
                 <TableCell className="py-4 text-center">
-                  <PillPax hadir={r.qtyHadir} undangan={r.qtyUndangan} />
+                  <PillPax hadir={r.qtyHadir} />
+                </TableCell>
+                <TableCell className="py-4 text-center font-semibold tabular-nums">
+                  {r.nomorUndian ?? <span className="font-normal text-muted-foreground">&mdash;</span>}
                 </TableCell>
                 <TableCell className="py-4 text-center tabular-nums text-muted-foreground">
                   {jamJakarta(r.checkedInAt)}
@@ -221,11 +217,15 @@ export function AttendanceTable({
         onEdit={(r) => { setDetail(null); setEdit(r); }}
         onHapus={(r) => { setDetail(null); setHapus(r); }}
       />
-      <EditCheckinDialog
-        row={edit}
-        onOpenChange={(v) => !v && setEdit(null)}
-        onSaved={onChanged}
-      />
+      {edit && (
+        <EditCheckinDialog
+          key={edit.id}
+          row={edit}
+          depots={depots}
+          onOpenChange={(v) => !v && setEdit(null)}
+          onSaved={onChanged}
+        />
+      )}
       <HapusCheckinDialog
         row={hapus}
         onOpenChange={(v) => !v && setHapus(null)}

@@ -3,18 +3,16 @@ import { hierarkiDepot, lengkapiInduk, pilihanDepot } from '@/lib/dashboard/hier
 
 describe('hierarkiDepot', () => {
   it('membaca seluruh baris CSV', () => {
-    expect(hierarkiDepot().size).toBe(98);
+    expect(hierarkiDepot().size).toBe(97);
   });
 
-  it('memuat depot sintetis Komunitas & Media', () => {
-    expect(hierarkiDepot().get('Komunitas & Media')).toEqual({
-      region: 'Komunitas & Media', wilayah: 'Komunitas & Media',
-    });
+  it('tidak lagi memuat depot Komunitas & Media', () => {
+    expect(hierarkiDepot().has('Komunitas & Media')).toBe(false);
   });
 
   it('menyediakan pilihan depot lengkap dan terurut untuk form master', () => {
     const pilihan = pilihanDepot();
-    expect(pilihan).toHaveLength(98);
+    expect(pilihan).toHaveLength(97);
     expect(pilihan.find((item) => item.depot === '1P Semarang')).toEqual({
       depot: '1P Semarang', region: '3A', wilayah: 'Indonesia Barat',
     });

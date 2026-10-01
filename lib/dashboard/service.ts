@@ -4,7 +4,8 @@ import { matchesDashboardFilter, type DashboardFilter } from '@/lib/dashboard/fi
 import { lengkapiInduk } from '@/lib/dashboard/hierarchy';
 import type { AttendanceResponse, AttendanceRow, Summary } from '@/lib/dashboard/types';
 import { db } from '@/lib/db';
-import { customers, depotPaxTargets, profiles, reservations } from '@/lib/db/schema';
+import { customers, profiles, reservations } from '@/lib/db/schema';
+import { bacaTargetPax } from '@/lib/pax-targets';
 
 export async function loadCustomers(dealerNightId: string) {
   return db.select().from(customers).where(eq(customers.dealerNightId, dealerNightId));
@@ -20,13 +21,13 @@ export async function loadAttendance(dealerNightId: string): Promise<AttendanceR
       manualDepot: reservations.manualDepot,
       depotOverride: reservations.depotOverride,
       qtyHadir: reservations.qtyHadir,
+      nomorUndian: reservations.nomorUndian,
       checkedInAt: reservations.checkedInAt,
       mgName: customers.mgName,
       mgCode: customers.mgCode,
       depotName: customers.depotName,
       wilayah: customers.wilayah,
       region: customers.region,
-      qtyUndangan: customers.qtyUndangan,
       recordedByName: profiles.fullName,
     })
     .from(reservations)
@@ -44,10 +45,8 @@ export async function loadAttendance(dealerNightId: string): Promise<AttendanceR
       kodeSap: row.mgCode,
       region: hierarchy.region,
       wilayah: hierarchy.wilayah,
-      namaPemilik: null,
-      picRsmAsm: null,
       qtyHadir: row.qtyHadir,
-      qtyUndangan: row.qtyUndangan,
+      nomorUndian: row.nomorUndian,
       checkedInAt: row.checkedInAt.toISOString(),
       isManualEntry: row.isManualEntry,
       depotDiubah: !!row.depotOverride,
@@ -57,20 +56,15 @@ export async function loadAttendance(dealerNightId: string): Promise<AttendanceR
 }
 
 export async function dashboardSummary(dealerNightId: string, filter: DashboardFilter): Promise<Summary> {
-  const [customerRows, attendanceRows, targetRows] = await Promise.all([
+  const [customerRows, attendanceRows, targetPax] = await Promise.all([
     loadCustomers(dealerNightId),
     loadAttendance(dealerNightId),
-    db.select().from(depotPaxTargets).where(eq(depotPaxTargets.dealerNightId, dealerNightId)),
+    bacaTargetPax(dealerNightId),
   ]);
   const filteredCustomers = customerRows.filter((row) => matchesDashboardFilter({
     wilayah: row.wilayah, region: row.region, depot: row.depotName, kodeSap: row.mgCode, nama: row.mgName,
   }, filter));
   const filteredAttendance = attendanceRows.filter((row) => matchesDashboardFilter(row, filter));
-  const targetPax = targetRows
-    .filter((row) => matchesDashboardFilter({
-      wilayah: row.wilayah, region: row.region, depot: row.depotName,
-    }, filter))
-    .reduce((sum, row) => sum + row.targetPax, 0);
   const totalHadir = filteredAttendance.reduce((sum, row) => sum + row.qtyHadir, 0);
   return {
     targetPax,
@@ -83,25 +77,20 @@ export async function dashboardSummary(dealerNightId: string, filter: DashboardF
 }
 
 export async function dashboardByDepot(dealerNightId: string, filter: DashboardFilter): Promise<DepotRow[]> {
-  const [customerRows, attendanceRows, targetRows] = await Promise.all([
+  const [customerRows, attendanceRows] = await Promise.all([
     loadCustomers(dealerNightId), loadAttendance(dealerNightId),
-    db.select().from(depotPaxTargets).where(eq(depotPaxTargets.dealerNightId, dealerNightId)),
   ]);
   const map = new Map<string, DepotRow>();
   const ensure = (depot: string, region: string | null) => {
     const existing = map.get(depot);
     if (existing) return existing;
-    const row = { depot, region, targetPax: 0, qtyHadir: 0, tokoDiundang: 0, tokoHadir: 0 };
+    const row = { depot, region, qtyHadir: 0, tokoDiundang: 0, tokoHadir: 0 };
     map.set(depot, row);
     return row;
   };
   for (const customer of customerRows) {
     if (!matchesDashboardFilter({ wilayah: customer.wilayah, region: customer.region, depot: customer.depotName }, filter)) continue;
     ensure(customer.depotName, customer.region).tokoDiundang += 1;
-  }
-  for (const target of targetRows) {
-    if (!matchesDashboardFilter({ wilayah: target.wilayah, region: target.region, depot: target.depotName }, filter)) continue;
-    ensure(target.depotName, target.region).targetPax = target.targetPax;
   }
   for (const attendance of attendanceRows) {
     if (!matchesDashboardFilter(attendance, filter)) continue;

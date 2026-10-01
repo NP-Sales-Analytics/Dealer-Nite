@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { CustomerDetailCard } from './customer-detail-card';
 import { ManualEntryForm } from './manual-entry-form';
+import { NomorUndianInput, nomorUndianValid } from './nomor-undian-input';
 import { QtyStepper } from './qty-stepper';
 import { SearchBar, type CustomerSearchResult } from './search-bar';
 import {
@@ -15,31 +16,23 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { DealerNightSelect } from '@/components/target/dealer-night-select';
 import type { DealerNightOption } from '@/components/target/types';
+import { dnBawaan } from '@/lib/target/dn-bawaan';
 
-type Konfirmasi = {
-  judul: string;
-  isi: string;
-  labelAksi: string;
-  lanjut: () => void;
-};
+type Konfirmasi = { isi: string; lanjut: () => void };
 
-export function CheckinForm({ depots, dealerNights, initialDealerNightId, fixedDealerNight }: {
-  depots: string[];
-  dealerNights: DealerNightOption[];
-  initialDealerNightId: string;
-  fixedDealerNight: boolean;
-}) {
+export function CheckinForm({ dealerNights }: { dealerNights: DealerNightOption[] }) {
   const [selected, setSelected] = useState<CustomerSearchResult | null>(null);
   const [qty, setQty] = useState('1');
+  const [undian, setUndian] = useState('');
   const [manualOpen, setManualOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [konfirmasi, setKonfirmasi] = useState<Konfirmasi | null>(null);
   const queryClient = useQueryClient();
-  const [dealerNightId, setDealerNightId] = useState(initialDealerNightId);
+  const [dealerNightId, setDealerNightId] = useState(() => dnBawaan(dealerNights));
 
-  const reset = () => { setSelected(null); setQty('1'); };
+  const reset = () => { setSelected(null); setQty('1'); setUndian(''); };
 
-  async function submit(confirmOverwrite = false, confirmOverQuota = false) {
+  async function submit(confirmOverwrite = false) {
     if (!selected) return;
     setSubmitting(true);
     try {
@@ -50,39 +43,27 @@ export function CheckinForm({ depots, dealerNights, initialDealerNightId, fixedD
           isManualEntry: false,
           customerId: selected.id,
           qtyHadir: Number(qty),
+          nomorUndian: undian,
           confirmOverwrite,
-          confirmOverQuota,
         }),
       });
       const body = await res.json();
 
-      // Dua peringatan server dijawab lewat AlertDialog, bukan confirm() native:
-      // popup sistem di HP gampang ter-dismiss tak sengaja padahal isinya
-      // keputusan menimpa data kehadiran.
+      // AlertDialog, bukan confirm() native: popup sistem di HP gampang
+      // ter-dismiss tak sengaja padahal isinya keputusan menimpa data.
       if (res.status === 409 && body.code === 'ALREADY_CHECKED_IN') {
         setKonfirmasi({
-          judul: 'Toko ini sudah dicatat hadir',
-          isi: `"${body.namaToko}" sudah tercatat hadir ${body.existing.qtyHadir} orang. Ganti menjadi ${qty} orang?`,
-          labelAksi: 'Ya, ganti',
-          lanjut: () => submit(true, confirmOverQuota),
-        });
-        return;
-      }
-      if (res.status === 409 && body.code === 'OVER_QUOTA') {
-        setKonfirmasi({
-          judul: 'Melebihi jumlah undangan',
-          isi: `Jumlah hadir (${body.qtyHadir}) melebihi undangan (${body.qtyUndangan}). Tetap simpan?`,
-          labelAksi: 'Tetap simpan',
-          lanjut: () => submit(confirmOverwrite, true),
+          isi: `"${body.namaToko}" sudah tercatat hadir ${body.existing.qtyHadir} orang. Ganti menjadi ${qty} orang dengan nomor undian ${undian}?`,
+          lanjut: () => submit(true),
         });
         return;
       }
       if (!res.ok) {
-        toast.error('Gagal menyimpan. Coba lagi.');
+        toast.error(body.error ?? 'Gagal menyimpan. Coba lagi.');
         return;
       }
 
-      toast.success(`${selected.namaToko}: ${qty} orang tercatat hadir.`);
+      toast.success(`${selected.namaToko}: ${qty} orang tercatat hadir, undian ${undian}.`);
       // Buang cache pencarian supaya badge "Sudah dicatat" langsung akurat.
       queryClient.invalidateQueries({ queryKey: ['customer-search'] });
       reset();
@@ -93,16 +74,18 @@ export function CheckinForm({ depots, dealerNights, initialDealerNightId, fixedD
     }
   }
 
-  const qtyValid = qty !== '' && Number.isInteger(Number(qty)) && Number(qty) >= 0;
+  const valid = qty !== '' && Number.isInteger(Number(qty)) && Number(qty) >= 0 && nomorUndianValid(undian);
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <DealerNightSelect options={dealerNights} value={dealerNightId} onChange={(value) => { setDealerNightId(value); reset(); }} fixed={fixedDealerNight} />
-      </div>
+      <DealerNightSelect
+        options={dealerNights}
+        value={dealerNightId}
+        onChange={(value) => { setDealerNightId(value); reset(); }}
+      />
       {!selected ? (
         <>
-          <SearchBar dealerNightId={dealerNightId} onSelect={(c) => { setSelected(c); setQty(String(c.qtyUndangan || 1)); }} />
+          <SearchBar dealerNightId={dealerNightId} onSelect={setSelected} />
           <Button
             variant="link"
             className="h-11 px-0 text-base"
@@ -110,18 +93,29 @@ export function CheckinForm({ depots, dealerNights, initialDealerNightId, fixedD
           >
             Tidak ditemukan? Tambah manual
           </Button>
-          <ManualEntryForm open={manualOpen} depots={depots} dealerNightId={dealerNightId} onOpenChange={setManualOpen} />
+          <ManualEntryForm
+            key={dealerNightId}
+            open={manualOpen}
+            depots={(dealerNights.find((item) => item.id === dealerNightId)?.depots ?? []).map((item) => item.depot)}
+            dealerNightId={dealerNightId}
+            onOpenChange={setManualOpen}
+          />
         </>
       ) : (
         <>
           <CustomerDetailCard customer={selected} />
 
-          <div className="space-y-2.5 rounded-2xl border border-border bg-card p-4 shadow-xs">
-            <Label htmlFor="qty" className="text-base">Jumlah orang yang hadir</Label>
-            <QtyStepper value={qty} onChange={setQty} />
-            <p className="text-xs text-muted-foreground">
-              Terisi otomatis sesuai undangan. Ubah kalau jumlah yang datang berbeda.
-            </p>
+          {/* grid-cols-1 = minmax(0,1fr): tanpa itu kolom ikut melebar sebesar
+              lebar bawaan input text-2xl dan stepper terdorong keluar layar HP. */}
+          <div className="grid grid-cols-1 gap-4 rounded-2xl border border-border bg-card p-4 shadow-xs sm:grid-cols-2">
+            <div className="min-w-0 space-y-2.5">
+              <Label htmlFor="qty" className="text-base">Jumlah pax hadir</Label>
+              <QtyStepper value={qty} onChange={setQty} />
+            </div>
+            <div className="min-w-0 space-y-2.5">
+              <Label htmlFor="undian" className="text-base">Nomor undian</Label>
+              <NomorUndianInput id="undian" value={undian} onChange={setUndian} autoFocus />
+            </div>
           </div>
 
           {/* Aksi menempel di bawah layar supaya selalu terjangkau jempol,
@@ -138,7 +132,7 @@ export function CheckinForm({ depots, dealerNights, initialDealerNightId, fixedD
             <Button
               className="h-12 flex-[2] text-base md:flex-none md:px-8"
               onClick={() => submit()}
-              disabled={!qtyValid || submitting}
+              disabled={!valid || submitting}
             >
               {submitting ? 'Menyimpan...' : 'Simpan Kehadiran'}
             </Button>
@@ -149,7 +143,7 @@ export function CheckinForm({ depots, dealerNights, initialDealerNightId, fixedD
       <AlertDialog open={konfirmasi !== null} onOpenChange={(o) => !o && setKonfirmasi(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{konfirmasi?.judul}</AlertDialogTitle>
+            <AlertDialogTitle>Toko ini sudah dicatat hadir</AlertDialogTitle>
             <AlertDialogDescription>{konfirmasi?.isi}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -162,7 +156,7 @@ export function CheckinForm({ depots, dealerNights, initialDealerNightId, fixedD
                 next?.();
               }}
             >
-              {konfirmasi?.labelAksi}
+              Ya, ganti
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

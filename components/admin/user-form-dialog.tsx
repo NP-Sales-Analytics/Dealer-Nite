@@ -19,8 +19,7 @@ export type UserRow = {
   fullName: string;
   role: Role;
   allowedPages: string[];
-  dealerNightId: string | null;
-  dealerNightName: string | null;
+  dealerNightIds: string[] | null;
   bolehUnduh: boolean;
 };
 
@@ -72,12 +71,13 @@ export function UserFormDialog({
   const [pending, start] = useTransition();
   const [role, setRole] = useState<Role>(row?.role ?? 'admin');
   const [pages, setPages] = useState(row ? halamanEfektif(row.role, row.allowedPages) : []);
-  const [dealerNightId, setDealerNightId] = useState(row?.dealerNightId ?? '');
+  const [semuaDn, setSemuaDn] = useState(row ? row.dealerNightIds === null : false);
+  const [dnIds, setDnIds] = useState<string[]>(row?.dealerNightIds ?? []);
   const [showPassword, setShowPassword] = useState(false);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent showCloseButton={false} className="grid max-h-[86svh] max-w-lg grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-2xl p-0">
+      <DialogContent showCloseButton={false} className="grid max-h-[86svh] max-w-lg sm:max-w-lg grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-2xl p-0">
         <header className="flex items-center justify-between border-b border-border px-5 py-4">
           <div>
             <DialogTitle className="text-base">{edit ? 'Ubah User' : 'Tambah User'}</DialogTitle>
@@ -103,7 +103,6 @@ export function UserFormDialog({
         >
           {edit && <input type="hidden" name="userId" value={row?.id ?? ''} />}
           <input type="hidden" name="role" value={role} />
-          {role === 'dn_user' && <input type="hidden" name="dealerNightId" value={dealerNightId} />}
 
           <div className="space-y-2">
             <Label htmlFor="u-email">Email (opsional)</Label>
@@ -141,21 +140,50 @@ export function UserFormDialog({
             </Select>
           </div>
 
-          {role === 'dn_user' ? (
-            <div className="space-y-2">
-              <Label>Dealer Night</Label>
-              <Select value={dealerNightId} onValueChange={(value) => setDealerNightId(value ?? '')}>
-                <SelectTrigger className="h-11 w-full"><SelectValue placeholder="Pilih Dealer Night" /></SelectTrigger>
-                <SelectContent>
-                  {dealerNightOptions.map((item) => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">Akun ini hanya dapat melihat data Dealer Night yang dipilih.</p>
-            </div>
-          ) : (
+          {role === 'superadmin' ? (
             <p className="rounded-xl border border-border bg-secondary/30 px-3.5 py-3 text-xs text-muted-foreground">
-              {ROLE_LABEL[role]} dapat melihat seluruh Dealer Night.
+              Super Admin selalu dapat mengakses seluruh Dealer Night.
             </p>
+          ) : (
+            <div className="space-y-2">
+              <Label>Akses Dealer Night</Label>
+              <div className="space-y-1 rounded-xl border border-border bg-background p-2">
+                <label className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2 text-sm font-medium hover:bg-secondary">
+                  <input
+                    type="checkbox"
+                    name="dealerNightScope"
+                    value="all"
+                    checked={semuaDn}
+                    onChange={(event) => setSemuaDn(event.target.checked)}
+                    className="size-4 accent-primary"
+                  />
+                  Semua Dealer Night
+                </label>
+                <div className="border-t border-border" />
+                {dealerNightOptions.map((item) => (
+                  <label
+                    key={item.id}
+                    className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2 text-sm hover:bg-secondary has-disabled:cursor-default has-disabled:opacity-50"
+                  >
+                    <input
+                      type="checkbox"
+                      name="dealerNightIds"
+                      value={item.id}
+                      disabled={semuaDn}
+                      checked={semuaDn || dnIds.includes(item.id)}
+                      onChange={() => setDnIds((ids) => (
+                        ids.includes(item.id) ? ids.filter((id) => id !== item.id) : [...ids, item.id]
+                      ))}
+                      className="size-4 accent-primary"
+                    />
+                    {item.name}
+                  </label>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                User hanya melihat dan mengelola data Dealer Night yang dipilih, di semua halaman yang diizinkan.
+              </p>
+            </div>
           )}
 
           <div className="space-y-2">

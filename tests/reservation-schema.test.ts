@@ -10,14 +10,14 @@ const uuid = '9f1e4c2a-7b3d-4e5f-8a1b-2c3d4e5f6a7b';
 describe('reservationInputSchema', () => {
   it('menerima check-in customer terdaftar', () => {
     const r = reservationInputSchema.safeParse({
-      isManualEntry: false, customerId: uuid, qtyHadir: 3,
+      isManualEntry: false, customerId: uuid, qtyHadir: 3, nomorUndian: '0123',
     });
     expect(r.success).toBe(true);
   });
 
   it('menerima qty 0 (tamu batal datang)', () => {
     const r = reservationInputSchema.safeParse({
-      isManualEntry: false, customerId: uuid, qtyHadir: 0,
+      isManualEntry: false, customerId: uuid, qtyHadir: 0, nomorUndian: '1',
     });
     expect(r.success).toBe(true);
   });
@@ -45,7 +45,7 @@ describe('reservationInputSchema', () => {
 
   it('menerima manual entry lengkap', () => {
     const r = reservationInputSchema.safeParse({
-      isManualEntry: true, manualNamaCustomer: 'CV Tamu Baru', manualDepot: '1A Jakarta', qtyHadir: 2,
+      isManualEntry: true, manualNamaCustomer: 'CV Tamu Baru', manualDepot: '1A Jakarta', qtyHadir: 2, nomorUndian: '77',
     });
     expect(r.success).toBe(true);
   });
@@ -65,14 +65,43 @@ describe('reservationInputSchema', () => {
   });
 });
 
-describe('reservationPatchSchema', () => {
-  it('hanya menerima perubahan jumlah pax', () => {
-    expect(reservationPatchSchema.safeParse({ qtyHadir: 5 }).success).toBe(true);
+describe('nomor undian', () => {
+  it('wajib diisi saat check-in', () => {
+    expect(reservationInputSchema.safeParse({
+      isManualEntry: false, customerId: uuid, qtyHadir: 1,
+    }).success).toBe(false);
   });
 
-  it('menolak perubahan depot meskipun jumlah pax valid', () => {
+  it('hanya menerima angka dan mempertahankan nol di depan', () => {
+    const ok = reservationInputSchema.safeParse({
+      isManualEntry: false, customerId: uuid, qtyHadir: 1, nomorUndian: ' 007 ',
+    });
+    expect(ok.success && ok.data.nomorUndian).toBe('007');
+    expect(reservationInputSchema.safeParse({
+      isManualEntry: false, customerId: uuid, qtyHadir: 1, nomorUndian: 'A12',
+    }).success).toBe(false);
+  });
+
+  it('tidak lagi menerima konfirmasi melebihi undangan', () => {
+    expect(reservationInputSchema.safeParse({
+      isManualEntry: false, customerId: uuid, qtyHadir: 5, nomorUndian: '1', confirmOverQuota: true,
+    }).success).toBe(false);
+  });
+});
+
+describe('reservationPatchSchema', () => {
+  it('menerima perubahan jumlah pax dan nomor undian', () => {
+    expect(reservationPatchSchema.safeParse({ qtyHadir: 5, nomorUndian: '12' }).success).toBe(true);
+  });
+
+  it('menerima depot baru (route membatasinya ke tamu manual)', () => {
+    expect(reservationPatchSchema.safeParse({ qtyHadir: 5, nomorUndian: '12', manualDepot: '1S Bogor' }).success).toBe(true);
+  });
+
+  it('menolak depotOverride', () => {
     expect(reservationPatchSchema.safeParse({
       qtyHadir: 5,
+      nomorUndian: '12',
       depotOverride: 'Depot Lain',
     }).success).toBe(false);
   });

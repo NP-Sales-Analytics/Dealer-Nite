@@ -51,7 +51,7 @@ mysql://<user>:<password-yang-sudah-di-url-encode>@127.0.0.1:13306/pylox_dn
 | `npm start` | Menjalankan production build |
 | `npm test` | Menjalankan seluruh unit dan integration test |
 | `npm run lint` | Menjalankan ESLint |
-| `npm run db:migrate` | Menerapkan `mysql/migrations/0001_init.sql` |
+| `npm run db:migrate` | Menerapkan migrasi di `mysql/migrations/` yang belum tercatat di `schema_migrations` |
 | `npm run seed:dealer-night -- ...` | Mengimpor atau memperbarui master satu Dealer Night secara idempotent |
 | `npm run bootstrap:admin` | Membuat atau memperbarui superadmin pertama dari environment |
 
@@ -80,7 +80,7 @@ Jangan menyimpan `.env.local`, kredensial bootstrap, cookie pengujian, atau URL 
 | `management` | semua DN | lihat dan unduh | lihat dan unduh | tidak |
 | `dn_user` | tepat satu DN | lihat saja | lihat saja | tidak |
 
-Semua akun masuk memakai password unik. Tidak ada login toko. Untuk `dn_user`, `dealer_night_id` wajib terisi dan API tetap menegakkan scope walaupun URL dimanipulasi.
+Semua akun masuk memakai password unik. Tidak ada login toko. Setiap akun selain superadmin punya cakupan Dealer Night (`dealer_night_ids`; `NULL` = semua) yang diatur di User Management, dan API menegakkan scope itu walaupun URL dimanipulasi.
 
 ## Data DN Bogor
 
@@ -107,14 +107,13 @@ Form menerima nominal target baru. Service menghitung delta dalam transaksi MySQ
 
 ## Database
 
-Migration utama ada di `mysql/migrations/0001_init.sql`. Tabel penting:
+Migration ada di `mysql/migrations/` dan diterapkan berurutan satu kali. Tabel penting:
 
 - `dealer_nights`
 - `profiles`
 - `customers`
 - `target_adjustments`
 - `reservations`
-- `depot_pax_targets`
 - `app_settings`
 
 Gunakan akun aplikasi dengan privilege minimum pada database aplikasi: `SELECT`, `INSERT`, `UPDATE`, dan `DELETE`. Jalankan migration dengan akun operasional yang juga memiliki `CREATE`, `ALTER`, dan `INDEX`, lalu gunakan akun aplikasi untuk runtime.

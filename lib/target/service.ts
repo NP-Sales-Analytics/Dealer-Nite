@@ -15,12 +15,28 @@ export type TargetListRow = TargetSnapshot & {
   dealerNightId: string;
   mgCode: string;
   mgName: string;
+  sotpCode: string;
+  sotpName: string;
   depotCode: string;
   depotName: string;
+  wilayah: string | null;
+  region: string | null;
   salesman: string | null;
   spv: string | null;
-  lastAdjustedAt: Date | null;
+  jumlahPenyesuaian: number;
+  lastAdjustedAt: string | null;
+  verifiedAt: string | null;
+  verifiedByName: string | null;
+  targetVerifikasi: number | null;
+  qtyHadir: number | null;
+  nomorUndian: string | null;
+  checkedInAt: string | null;
 };
+
+const teksAtauNull = (value: unknown) => (value == null ? null : String(value));
+const isoAtauNull = (value: unknown) => (value == null
+  ? null
+  : (value instanceof Date ? value : new Date(String(value))).toISOString());
 
 export class TargetServiceError extends Error {
   constructor(public readonly code: 'NOT_FOUND' | 'BELOW_MINIMUM' | 'INVALID_TARGET') {
@@ -31,7 +47,7 @@ export class TargetServiceError extends Error {
   }
 }
 
-type CustomerRow = { id: string; dealerNightId: string; targetAwal: number | string };
+type CustomerRow = { id: string; dealerNightId: string; targetAwal: number | string; verifiedAt: unknown };
 type SumRow = { totalDelta: number | string | null };
 
 function rowsFrom<T>(result: unknown): T[] {
@@ -64,7 +80,7 @@ export async function adjustTarget({
 
   return db.transaction(async (tx) => {
     const customerRows = rowsFrom<CustomerRow>(await tx.execute(sql`
-      select id, dealer_night_id as dealerNightId, target_dn_awal as targetAwal
+      select id, dealer_night_id as dealerNightId, target_dn_awal as targetAwal, verified_at as verifiedAt
       from customers
       where id = ${customerId}
       for update
@@ -81,14 +97,25 @@ export async function adjustTarget({
     const targetEfektifSebelum = targetAwal + Number(sumRows[0]?.totalDelta ?? 0);
     const delta = newTarget - targetEfektifSebelum;
 
+    // Submit pertama oleh admin DN = verifikasi, walaupun nilainya sama.
+    // Nilainya dibekukan di target_verifikasi sebagai dasar kupon yang dicetak.
+    const verifikasi = customer.verifiedAt == null;
     if (delta !== 0) {
       await tx.insert(targetAdjustments).values({
         id: randomUUID(),
         customerId,
         delta,
+        jenis: verifikasi ? 'verifikasi' : 'penyesuaian',
         note: note?.trim() || null,
         recordedBy: actorId,
       });
+    }
+    if (verifikasi) {
+      await tx.execute(sql`
+        update customers
+        set verified_at = current_timestamp(3), verified_by = ${actorId}, target_verifikasi = ${newTarget}
+        where id = ${customerId}
+      `);
     }
 
     return { customerId, targetAwal, targetEfektif: newTarget, delta };
@@ -123,17 +150,25 @@ export async function getCustomerDealerNightId(customerId: string): Promise<stri
 export async function listTargets(dealerNightId: string): Promise<TargetListRow[]> {
   const rows = rowsFrom<Record<string, unknown>>(await db.execute(sql`
     select c.id as customerId, c.dealer_night_id as dealerNightId,
-      c.mg_code as mgCode, c.mg_name as mgName,
-      c.depot_code as depotCode, c.depot_name as depotName,
+      c.mg_code as mgCode, c.mg_name as mgName, c.sotp_code as sotpCode, c.sotp_name as sotpName,
+      c.depot_code as depotCode, c.depot_name as depotName, c.wilayah, c.region,
       c.salesman, c.spv, c.target_dn_awal as targetAwal,
-      c.target_dn_awal + coalesce(sum(a.delta), 0) as targetEfektif,
-      coalesce(sum(a.delta), 0) as delta,
-      max(a.created_at) as lastAdjustedAt
+      c.target_dn_awal + coalesce(a.total, 0) as targetEfektif,
+      coalesce(a.total, 0) as delta, coalesce(a.jumlah, 0) as jumlahPenyesuaian,
+      a.terakhir as lastAdjustedAt, c.verified_at as verifiedAt, p.full_name as verifiedByName,
+      c.target_verifikasi as targetVerifikasi,
+      r.qty_hadir as qtyHadir, r.nomor_undian as nomorUndian, r.checked_in_at as checkedInAt
     from customers c
-    left join target_adjustments a on a.customer_id = c.id
+    left join (
+      select t.customer_id, sum(t.delta) as total, sum(t.jenis = 'penyesuaian') as jumlah, max(t.created_at) as terakhir
+      from target_adjustments t
+      join customers c2 on c2.id = t.customer_id
+      where c2.dealer_night_id = ${dealerNightId}
+      group by t.customer_id
+    ) a on a.customer_id = c.id
+    left join profiles p on p.id = c.verified_by
+    left join reservations r on r.customer_id = c.id
     where c.dealer_night_id = ${dealerNightId}
-    group by c.id, c.dealer_night_id, c.mg_code, c.mg_name, c.depot_code,
-      c.depot_name, c.salesman, c.spv, c.target_dn_awal
     order by targetEfektif desc, lastAdjustedAt asc, c.mg_name asc
   `));
 
@@ -142,20 +177,31 @@ export async function listTargets(dealerNightId: string): Promise<TargetListRow[
     dealerNightId: String(row.dealerNightId),
     mgCode: String(row.mgCode),
     mgName: String(row.mgName),
+    sotpCode: String(row.sotpCode),
+    sotpName: String(row.sotpName),
     depotCode: String(row.depotCode),
     depotName: String(row.depotName),
-    salesman: row.salesman == null ? null : String(row.salesman),
-    spv: row.spv == null ? null : String(row.spv),
+    wilayah: teksAtauNull(row.wilayah),
+    region: teksAtauNull(row.region),
+    salesman: teksAtauNull(row.salesman),
+    spv: teksAtauNull(row.spv),
     targetAwal: Number(row.targetAwal),
     targetEfektif: Number(row.targetEfektif),
     delta: Number(row.delta),
-    lastAdjustedAt: row.lastAdjustedAt == null ? null : new Date(String(row.lastAdjustedAt)),
+    jumlahPenyesuaian: Number(row.jumlahPenyesuaian),
+    lastAdjustedAt: isoAtauNull(row.lastAdjustedAt),
+    verifiedAt: isoAtauNull(row.verifiedAt),
+    verifiedByName: teksAtauNull(row.verifiedByName),
+    targetVerifikasi: row.targetVerifikasi == null ? null : Number(row.targetVerifikasi),
+    qtyHadir: row.qtyHadir == null ? null : Number(row.qtyHadir),
+    nomorUndian: teksAtauNull(row.nomorUndian),
+    checkedInAt: isoAtauNull(row.checkedInAt),
   }));
 }
 
 export async function getTargetHistory(customerId: string) {
   const rows = rowsFrom<Record<string, unknown>>(await db.execute(sql`
-    select a.id, a.customer_id as customerId, a.delta, a.note,
+    select a.id, a.customer_id as customerId, a.delta, a.jenis, a.note,
       a.recorded_by as recordedBy, p.full_name as recordedByName, a.created_at as createdAt
     from target_adjustments a
     left join profiles p on p.id = a.recorded_by
@@ -166,6 +212,7 @@ export async function getTargetHistory(customerId: string) {
     id: String(row.id),
     customerId: String(row.customerId),
     delta: Number(row.delta),
+    jenis: String(row.jenis) as 'verifikasi' | 'penyesuaian',
     note: row.note == null ? null : String(row.note),
     recordedBy: row.recordedBy == null ? null : String(row.recordedBy),
     recordedByName: row.recordedByName == null ? null : String(row.recordedByName),

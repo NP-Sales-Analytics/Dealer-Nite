@@ -11,11 +11,16 @@ export function buildTargetAdjustment(customerId: string, value: string) {
   return { customerId, newTarget };
 }
 
-export function targetFormCopy({ currentTarget }: { currentTarget: number }) {
-  return {
+export function targetFormCopy({ currentTarget, verified = true }: { currentTarget: number; verified?: boolean }) {
+  return verified ? {
     title: 'Penyesuaian Target DN',
     current: `Target saat ini ${formatRupiah(currentTarget)}`,
     instruction: 'Masukkan nominal target akhir yang baru.',
     save: 'Simpan Penyesuaian',
+  } : {
+    title: 'Verifikasi Target DN',
+    current: `Target dari pusat ${formatRupiah(currentTarget)}`,
+    instruction: 'Cek target dari pusat. Ubah bila perlu, lalu simpan untuk memverifikasi.',
+    save: 'Simpan Verifikasi',
   };
 }

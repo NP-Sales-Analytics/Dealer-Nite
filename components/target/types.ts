@@ -1,18 +1,35 @@
-export type DealerNightOption = { id: string; name: string };
+export type DealerNightOption = {
+  id: string;
+  name: string;
+  targetDn?: number;
+  eventDate?: string | null;
+  depots?: { kode: string; depot: string }[];
+};
 
 export type TargetRow = {
   customerId: string;
   dealerNightId: string;
   mgCode: string;
   mgName: string;
+  sotpCode: string;
+  sotpName: string;
   depotCode: string;
   depotName: string;
+  wilayah: string | null;
+  region: string | null;
   salesman: string | null;
   spv: string | null;
   targetAwal: number;
   targetEfektif: number;
   delta: number;
+  jumlahPenyesuaian: number;
   lastAdjustedAt: string | null;
+  verifiedAt: string | null;
+  verifiedByName: string | null;
+  targetVerifikasi: number | null;
+  qtyHadir: number | null;
+  nomorUndian: string | null;
+  checkedInAt: string | null;
   rank?: number;
 };
 
