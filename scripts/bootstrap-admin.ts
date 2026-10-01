@@ -31,7 +31,7 @@ async function main() {
       fullName,
       passwordHash,
       role: 'superadmin',
-      dealerNightId: null,
+      dealerNightIds: null,
     }).where(eq(profiles.id, existingAdmin.id));
   } else {
     await db.insert(profiles).values({
@@ -41,7 +41,7 @@ async function main() {
       passwordHash,
       role: 'superadmin',
       allowedPages: [],
-      dealerNightId: null,
+      dealerNightIds: null,
       bolehUnduh: true,
     });
   }

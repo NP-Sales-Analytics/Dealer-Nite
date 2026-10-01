@@ -107,7 +107,7 @@ export function UserTable({
                       <Badge variant="secondary">{ROLE_LABEL[u.role]}</Badge>
                     </TableCell>
                     <TableCell className="py-4 text-muted-foreground">
-                      {labelDealerNightAccess(u.role, u.dealerNightId, u.dealerNightName)}
+                      {labelDealerNightAccess(u, dealerNightOptions)}
                     </TableCell>
                     <TableCell className="py-4 text-center">
                       <span
@@ -153,6 +153,7 @@ export function UserTable({
           bertumpuk membuat fokus keyboard terjebak di lapisan bawah. */}
       <UserDetailDialog
         row={detail}
+        dealerNightOptions={dealerNightOptions}
         akunSendiri={detail?.id === currentUserId}
         onOpenChange={(v) => !v && setDetail(null)}
         onEdit={(u) => { setDetail(null); setEdit(u); }}

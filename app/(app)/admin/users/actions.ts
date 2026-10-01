@@ -1,7 +1,7 @@
 'use server';
 
 import { randomUUID } from 'node:crypto';
-import { and, eq, ne } from 'drizzle-orm';
+import { and, eq, inArray, ne } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { HALAMAN, SEMUA_ROLE } from '@/lib/access';
 import { lupakanProfil, requireRole, type Role } from '@/lib/auth';
@@ -15,18 +15,15 @@ function bacaHalaman(formData: FormData): string[] {
   return formData.getAll('pages').map(String).filter((href) => HREF_SAH.includes(href));
 }
 
-async function bacaDealerNight(formData: FormData, role: Role): Promise<string | null> {
-  if (role !== 'dn_user') return null;
+/** null = semua Dealer Night. Superadmin selalu semua. */
+async function bacaCakupanDealerNight(formData: FormData, role: Role): Promise<string[] | null> {
+  if (role === 'superadmin' || formData.get('dealerNightScope') === 'all') return null;
 
-  const id = String(formData.get('dealerNightId') ?? '').trim();
-  if (!id) throw new Error('Dealer Night wajib dipilih untuk Akun DN.');
-  const [dealerNight] = await db
-    .select({ id: dealerNights.id })
-    .from(dealerNights)
-    .where(eq(dealerNights.id, id))
-    .limit(1);
-  if (!dealerNight) throw new Error('Dealer Night tidak valid.');
-  return dealerNight.id;
+  const ids = [...new Set(formData.getAll('dealerNightIds').map((value) => String(value).trim()).filter(Boolean))];
+  if (ids.length === 0) throw new Error('Pilih minimal satu Dealer Night, atau Semua Dealer Night.');
+  const found = await db.select({ id: dealerNights.id }).from(dealerNights).where(inArray(dealerNights.id, ids));
+  if (found.length !== ids.length) throw new Error('Dealer Night tidak valid.');
+  return ids;
 }
 
 async function passwordDipakai(hash: string, kecualiUserId?: string): Promise<boolean> {
@@ -53,9 +50,9 @@ export async function createUser(_prev: string | null, formData: FormData): Prom
   const passwordHash = hashPassword(password);
   if (await passwordDipakai(passwordHash)) return 'Password sudah dipakai user lain. Pakai yang berbeda.';
 
-  let dealerNightId: string | null;
+  let dealerNightIds: string[] | null;
   try {
-    dealerNightId = await bacaDealerNight(formData, role);
+    dealerNightIds = await bacaCakupanDealerNight(formData, role);
   } catch (error) {
     return error instanceof Error ? error.message : 'Dealer Night tidak valid.';
   }
@@ -67,7 +64,7 @@ export async function createUser(_prev: string | null, formData: FormData): Prom
     role,
     passwordHash,
     allowedPages: bacaHalaman(formData),
-    dealerNightId,
+    dealerNightIds,
     bolehUnduh: formData.get('bolehUnduh') === 'on',
   });
 
@@ -91,9 +88,9 @@ export async function updateUser(_prev: string | null, formData: FormData): Prom
   if (!SEMUA_ROLE.includes(role)) return 'Role tidak valid.';
   if (me.id === userId && role !== 'superadmin') return 'Tidak bisa mengubah role akun sendiri.';
 
-  let dealerNightId: string | null;
+  let dealerNightIds: string[] | null;
   try {
-    dealerNightId = await bacaDealerNight(formData, role);
+    dealerNightIds = await bacaCakupanDealerNight(formData, role);
   } catch (error) {
     return error instanceof Error ? error.message : 'Dealer Night tidak valid.';
   }
@@ -103,7 +100,7 @@ export async function updateUser(_prev: string | null, formData: FormData): Prom
     fullName: string;
     role: Role;
     allowedPages: string[];
-    dealerNightId: string | null;
+    dealerNightIds: string[] | null;
     bolehUnduh: boolean;
     passwordHash?: string;
   } = {
@@ -111,7 +108,7 @@ export async function updateUser(_prev: string | null, formData: FormData): Prom
     fullName,
     role,
     allowedPages: bacaHalaman(formData),
-    dealerNightId,
+    dealerNightIds,
     bolehUnduh: formData.get('bolehUnduh') === 'on',
   };
 

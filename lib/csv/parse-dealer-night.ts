@@ -29,7 +29,9 @@ const HEADERS = [
 
 const clean = (value: unknown) => String(value ?? '').trim().replace(/\s+/g, ' ');
 
-function hierarchyByCode(csv: string) {
+export type DepotByCode = Map<string, { depotName: string; wilayah: string; region: string }>;
+
+export function hierarchyByCode(csv: string): DepotByCode {
   const records = parse(csv, {
     columns: true,
     skip_empty_lines: true,
@@ -44,23 +46,24 @@ function hierarchyByCode(csv: string) {
   }]));
 }
 
-export function parseDealerNightCsv(csv: string, hierarchyCsv: string): DealerNightMasterRow[] {
-  const [headers = []] = parse(csv, { bom: true, to_line: 1 }) as string[][];
+export function checkHeaders(headers: string[]) {
+  const ada = new Set(headers.map(clean));
   for (const header of HEADERS) {
-    if (!headers.includes(header)) throw new Error(`Header wajib tidak ditemukan: ${header}`);
+    if (!ada.has(header)) throw new Error(`Header wajib tidak ditemukan: ${header}`);
   }
+}
 
-  const records = parse(csv, {
-    columns: true,
-    skip_empty_lines: true,
-    bom: true,
-    relax_column_count: false,
-  }) as Record<string, string>[];
-  const depots = hierarchyByCode(hierarchyCsv);
+/** Baris master (CSV maupun Excel) -> data toko tervalidasi. Gagal di baris pertama yang salah. */
+export function parseDealerNightRecords(
+  records: Record<string, unknown>[],
+  depots: DepotByCode,
+): DealerNightMasterRow[] {
   const seen = new Set<string>();
+  const rows = records.filter((record) => Object.values(record).some((value) => clean(value) !== ''));
+  if (rows.length === 0) throw new Error('File tidak berisi data toko.');
 
-  return records.map((record, index) => {
-    const rowNumber = index + 2;
+  return rows.map((record) => {
+    const rowNumber = records.indexOf(record) + 2;
     const mgCode = clean(record['MG Code']);
     if (!mgCode) throw new Error(`Baris ${rowNumber}: MG Code wajib diisi`);
     if (seen.has(mgCode)) throw new Error(`Baris ${rowNumber}: MG Code ${mgCode} duplikat`);
@@ -77,8 +80,7 @@ export function parseDealerNightCsv(csv: string, hierarchyCsv: string): DealerNi
     const depot = depots.get(depotCode);
     if (!depot) throw new Error(`Baris ${rowNumber}: Depot Code ${depotCode} tidak dikenal`);
 
-    const digits = clean(record['Target DN Pembulatan Inc. PPN']).replace(/[^0-9]/g, '');
-    const targetDnAwal = Number(digits);
+    const targetDnAwal = rupiahDariSel(record['Target DN Pembulatan Inc. PPN']);
     try {
       validateTargetDn(targetDnAwal);
     } catch (error) {
@@ -101,3 +103,21 @@ export function parseDealerNightCsv(csv: string, hierarchyCsv: string): DealerNi
   });
 }
 
+/** Excel menyimpan angka sebagai number; CSV sebagai teks berformat " 5,619,000,000 ". */
+function rupiahDariSel(value: unknown): number {
+  if (typeof value === 'number') return Math.round(value);
+  return Number(clean(value).replace(/[^0-9]/g, '') || Number.NaN);
+}
+
+export function parseDealerNightCsv(csv: string, hierarchyCsv: string): DealerNightMasterRow[] {
+  const [headers = []] = parse(csv, { bom: true, to_line: 1 }) as string[][];
+  checkHeaders(headers);
+
+  const records = parse(csv, {
+    columns: true,
+    skip_empty_lines: true,
+    bom: true,
+    relax_column_count: false,
+  }) as Record<string, string>[];
+  return parseDealerNightRecords(records, hierarchyByCode(hierarchyCsv));
+}

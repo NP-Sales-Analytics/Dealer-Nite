@@ -2,7 +2,7 @@
 
 import {
   ChevronLeft, ClipboardCheck, ClipboardList, Gauge, LayoutDashboard, ListChecks,
-  LogOut, Trophy, Users,
+  LogOut, Ticket, Trophy, Users,
 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -38,13 +38,14 @@ const GRUP: { label: string; links: NavLink[] }[] = [
     links: [
       { href: '/leaderboard', label: 'Leaderboard Target DN', icon: Trophy },
       { href: '/order/detail', label: 'Detail Target DN', icon: ClipboardList },
+      { href: '/kupon', label: 'Detail Kupon', icon: Ticket },
     ],
   },
   {
     label: 'Setting',
     links: [
       { href: '/admin/users', label: 'User Management', icon: Users },
-      { href: '/setting/pax', label: 'Setting Pax', icon: Gauge },
+      { href: '/setting/pax', label: 'Setting Target DN', icon: Gauge },
     ],
   },
 ];
@@ -145,7 +146,7 @@ export function AppSidebar({ user }: { user: SessionUser }) {
           <span
             className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-semibold text-accent-foreground"
             aria-hidden
-            title={user.email || user.dealerNightId || ''}
+            title={user.email}
           >
             {initials(user)}
           </span>
@@ -154,7 +155,7 @@ export function AppSidebar({ user }: { user: SessionUser }) {
               {user.fullName || 'Pengguna'}
             </span>
             <span className="block truncate text-xs leading-tight text-muted-foreground">
-              {user.email || user.dealerNightId}
+              {user.email}
             </span>
           </span>
           <form action={signOut} className="group-data-[collapsible=icon]:hidden">

@@ -19,7 +19,6 @@ describe.skipIf(!url)('MySQL schema', () => {
         'customers',
         'target_adjustments',
         'reservations',
-        'depot_pax_targets',
         'app_settings',
       ]));
     } finally {

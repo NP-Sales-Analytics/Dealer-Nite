@@ -20,18 +20,20 @@ describe('MySQL dashboard query helpers', () => {
 });
 
 describe('Dealer Night dashboard scope', () => {
-  it('keeps a DN account out of another event dashboard', () => {
+  it('keeps a scoped account out of another event dashboard', () => {
     expect(() => resolveDashboardDealerNight(
-      { role: 'dn_user', dealerNightId: 'bogor' },
+      { role: 'admin', dealerNightIds: ['bogor'] },
       'bandung',
     )).toThrow('Tidak punya akses');
   });
 
-  it('uses the assigned event for a DN account', () => {
-    expect(resolveDashboardDealerNight({ role: 'dn_user', dealerNightId: 'bogor' }, null)).toBe('bogor');
+  it('uses the only assigned event when none is requested', () => {
+    expect(resolveDashboardDealerNight({ role: 'dn_user', dealerNightIds: ['bogor'] }, null)).toBe('bogor');
   });
 
-  it('requires global roles to choose an event', () => {
-    expect(() => resolveDashboardDealerNight({ role: 'management', dealerNightId: null }, null)).toThrow('wajib dipilih');
+  it('requires a choice when several events are allowed', () => {
+    expect(() => resolveDashboardDealerNight({ role: 'admin', dealerNightIds: ['bogor', 'bandung'] }, null))
+      .toThrow('wajib dipilih');
+    expect(() => resolveDashboardDealerNight({ role: 'management', dealerNightIds: null }, null)).toThrow('wajib dipilih');
   });
 });

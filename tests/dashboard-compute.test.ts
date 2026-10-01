@@ -19,9 +19,9 @@ describe('attendanceRate', () => {
 
 describe('sortDepots', () => {
   const rows = [
-    { depot: '1A Jakarta', region: '2A', targetPax: 10, qtyHadir: 1, tokoDiundang: 4, tokoHadir: 1 },
-    { depot: '3E Malang', region: '6A', targetPax: 10, qtyHadir: 9, tokoDiundang: 5, tokoHadir: 3 },
-    { depot: '1V Purwokerto', region: '3B', targetPax: 20, qtyHadir: 9, tokoDiundang: 6, tokoHadir: 4 },
+    { depot: '1A Jakarta', region: '2A', qtyHadir: 1, tokoDiundang: 4, tokoHadir: 1 },
+    { depot: '3E Malang', region: '6A', qtyHadir: 9, tokoDiundang: 5, tokoHadir: 3 },
+    { depot: '1V Purwokerto', region: '3B', qtyHadir: 9, tokoDiundang: 6, tokoHadir: 4 },
   ];
 
   it('mengurutkan dari kehadiran toko terbanyak', () => {

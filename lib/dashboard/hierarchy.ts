@@ -3,10 +3,11 @@ import path from 'node:path';
 
 export type IndukDepot = { region: string; wilayah: string };
 export type PilihanDepot = IndukDepot & { depot: string };
+export type DepotKode = IndukDepot & { depot: string; kode: string };
 
 /**
  * Hierarki resmi Wilayah > Region > Depot, dibaca dari
- * public/Hierarchy Depot.csv (termasuk depot sintetis Komunitas & Media).
+ * public/Hierarchy Depot.csv.
  *
  * Dibaca dari berkas, bukan ditulis ulang sebagai konstanta TypeScript, supaya
  * daftar depot bisa diperbarui tanpa menyentuh kode. Konsekuensinya berkas itu
@@ -16,10 +17,12 @@ export type PilihanDepot = IndukDepot & { depot: string };
  * Dibaca sekali per proses: isinya beberapa kilobyte dan praktis tidak berubah.
  */
 let tersimpan: Map<string, IndukDepot> | null = null;
+let perKode: Map<string, DepotKode> | null = null;
 
 function muat(): Map<string, IndukDepot> {
   const berkas = path.join(process.cwd(), 'public', 'Hierarchy Depot.csv');
   const peta = new Map<string, IndukDepot>();
+  perKode = new Map();
 
   let isi: string;
   try {
@@ -35,9 +38,10 @@ function muat(): Map<string, IndukDepot> {
   const baris = isi.replace(/^﻿/, '').split(/\r?\n/).slice(1);
   for (const b of baris) {
     if (!b.trim()) continue;
-    const [wilayah, region, , depot] = b.split(',').map((v) => v.trim());
+    const [wilayah, region, kode, depot] = b.split(',').map((v) => v.trim());
     if (!depot || !region) continue;
     peta.set(depot, { region, wilayah: wilayah || '' });
+    if (kode) perKode.set(kode, { kode, depot, region, wilayah: wilayah || '' });
   }
   return peta;
 }
@@ -45,6 +49,12 @@ function muat(): Map<string, IndukDepot> {
 export function hierarkiDepot(): Map<string, IndukDepot> {
   tersimpan ??= muat();
   return tersimpan;
+}
+
+/** Depot resmi per kode depot (mis. '1S' -> 1S Bogor). */
+export function depotPerKode(): Map<string, DepotKode> {
+  hierarkiDepot();
+  return perKode!;
 }
 
 /**

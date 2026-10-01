@@ -1,4 +1,4 @@
-import { asc, eq } from 'drizzle-orm';
+import { asc } from 'drizzle-orm';
 import { UserTable } from '@/components/admin/user-table';
 import { requireHalaman } from '@/lib/auth';
 import { db } from '@/lib/db';
@@ -17,11 +17,9 @@ export default async function UsersPage() {
       role: profiles.role,
       allowedPages: profiles.allowedPages,
       bolehUnduh: profiles.bolehUnduh,
-      dealerNightId: profiles.dealerNightId,
-      dealerNightName: dealerNights.name,
+      dealerNightIds: profiles.dealerNightIds,
     })
     .from(profiles)
-    .leftJoin(dealerNights, eq(profiles.dealerNightId, dealerNights.id))
     .orderBy(asc(profiles.fullName));
 
   const dealerNightOptions = await db

@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm';
 import { db, mysqlPool } from '@/lib/db';
 import { customers, dealerNights, profiles, targetAdjustments } from '@/lib/db/schema';
 import { resolveDealerNightId } from '@/lib/target/access';
-import { adjustTarget, getTargetSnapshot } from '@/lib/target/service';
+import { adjustTarget, getTargetSnapshot, listTargets } from '@/lib/target/service';
 
 const ids = {
   dealerNight: '22222222-2222-4222-8222-222222222222',
@@ -22,7 +22,7 @@ async function resetFixture() {
     passwordHash: randomUUID().replaceAll('-', ''),
     role: 'admin',
     allowedPages: [],
-    dealerNightId: null,
+    dealerNightIds: null,
     bolehUnduh: false,
   });
   await db.insert(customers).values({
@@ -62,6 +62,27 @@ describe('Target DN ledger', () => {
     expect(await db.select().from(targetAdjustments).where(eq(targetAdjustments.customerId, ids.customer))).toHaveLength(1);
   });
 
+  it('verifies the target on the first submit even without a value change', async () => {
+    const before = await listTargets(ids.dealerNight);
+    expect(before[0].verifiedAt).toBeNull();
+
+    await adjustTarget({ customerId: ids.customer, newTarget: 820_000_000, actorId: ids.actor });
+
+    const [after] = await listTargets(ids.dealerNight);
+    expect(after.verifiedAt).not.toBeNull();
+    expect(after.verifiedByName).toBe('Test Admin');
+    expect(after.jumlahPenyesuaian).toBe(0);
+    expect(after.targetVerifikasi).toBe(820_000_000);
+
+    await adjustTarget({ customerId: ids.customer, newTarget: 900_000_000, actorId: ids.actor });
+    const [adjusted] = await listTargets(ids.dealerNight);
+    expect(adjusted.targetVerifikasi).toBe(820_000_000);
+    expect(adjusted.targetEfektif).toBe(900_000_000);
+    const [ledger] = await db.select().from(targetAdjustments).where(eq(targetAdjustments.customerId, ids.customer));
+    expect(ledger.jenis).toBe('penyesuaian');
+    await db.delete(targetAdjustments).where(eq(targetAdjustments.customerId, ids.customer));
+  });
+
   it('allows decreases but not below Rp50 million', async () => {
     await expect(adjustTarget({
       customerId: ids.customer,
@@ -93,12 +114,12 @@ describe('Target DN ledger', () => {
 describe('Target DN Dealer Night scope', () => {
   it('rejects a DN account that requests another event', () => {
     expect(() => resolveDealerNightId(
-      { role: 'dn_user', dealerNightId: 'dn-bogor' },
+      { role: 'dn_user', dealerNightIds: ['dn-bogor'] },
       'dn-bandung',
     )).toThrow('Tidak punya akses');
   });
 
   it('forces a DN account to its assignment when no query is supplied', () => {
-    expect(resolveDealerNightId({ role: 'dn_user', dealerNightId: 'dn-bogor' }, null)).toBe('dn-bogor');
+    expect(resolveDealerNightId({ role: 'dn_user', dealerNightIds: ['dn-bogor'] }, null)).toBe('dn-bogor');
   });
 });

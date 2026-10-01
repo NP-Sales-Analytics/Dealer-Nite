@@ -50,7 +50,7 @@ export function DetailCheckinDialog({
           ketika detailnya panjang. */}
       <DialogContent
         showCloseButton={false}
-        className="grid max-h-[76svh] w-full max-w-lg grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-2xl p-0 sm:max-h-[84svh]"
+        className="grid max-h-[76svh] w-full max-w-lg sm:max-w-lg grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-2xl p-0 sm:max-h-[84svh]"
       >
         <header className="flex items-center justify-between border-b border-border px-5 py-4">
           <DialogTitle className="text-base font-semibold">Detail Toko Hadir</DialogTitle>
@@ -86,23 +86,17 @@ export function DetailCheckinDialog({
             </div>
           </div>
 
-          <Seksi judul="Kehadiran">
-            <Baris label="Jumlah hadir" nilai={`${row.qtyHadir} pax`} />
-            <Baris label="Jumlah diundang" nilai={row.qtyUndangan === null ? null : `${row.qtyUndangan} pax`} />
-            <Baris label="Jam check-in" nilai={jamJakarta(row.checkedInAt)} />
-            <Baris label="Tanggal" nilai={tanggalJakarta(row.checkedInAt)} />
-          </Seksi>
-
-          <Seksi judul="Data Toko">
-            <Baris label="Nama pemilik" nilai={row.namaPemilik} />
-            <Baris label="PIC" nilai={row.picRsmAsm} />
-            <Baris label="MG Code" nilai={row.kodeSap} />
-          </Seksi>
-
           <Seksi judul="Wilayah">
             <Baris label="Wilayah" nilai={row.wilayah} />
             <Baris label="Region" nilai={row.region} />
             <Baris label="Depot" nilai={row.depot} />
+          </Seksi>
+
+          <Seksi judul="Kehadiran">
+            <Baris label="Jumlah hadir" nilai={`${row.qtyHadir} pax`} />
+            <Baris label="Nomor undian" nilai={row.nomorUndian} />
+            <Baris label="Jam check-in" nilai={jamJakarta(row.checkedInAt)} />
+            <Baris label="Tanggal" nilai={tanggalJakarta(row.checkedInAt)} />
           </Seksi>
         </div>
 

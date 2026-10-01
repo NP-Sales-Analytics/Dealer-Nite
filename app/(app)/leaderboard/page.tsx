@@ -8,10 +8,6 @@ export default async function LeaderboardPage() {
   const user = await requireHalaman('/leaderboard');
   const dealerNights = await dealerNightOptionsFor(user);
   return (
-    <TargetLeaderboard
-      dealerNights={dealerNights}
-      initialDealerNightId={user.dealerNightId ?? dealerNights[0]?.id ?? ''}
-      fixedDealerNight={user.role === 'dn_user'}
-    />
+    <TargetLeaderboard dealerNights={dealerNights} />
   );
 }

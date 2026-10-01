@@ -1,13 +1,13 @@
 import { and, eq, like, or } from 'drizzle-orm';
 import { NextResponse, type NextRequest } from 'next/server';
-import { requireRoleApi } from '@/lib/auth';
+import { requireHalamanApi } from '@/lib/auth';
 import { resolveDashboardDealerNight } from '@/lib/dashboard/scope';
 import { db } from '@/lib/db';
 import { customers, reservations } from '@/lib/db/schema';
 import { rateLimit } from '@/lib/rate-limit';
 
 export async function GET(request: NextRequest) {
-  const user = await requireRoleApi(['superadmin', 'admin']);
+  const user = await requireHalamanApi('/reservation');
   if (user instanceof NextResponse) return user;
   const { ok } = await rateLimit(`search:${user.id}`);
   if (!ok) return NextResponse.json({ error: 'Terlalu banyak permintaan' }, { status: 429 });
@@ -31,7 +31,6 @@ export async function GET(request: NextRequest) {
       depot: customers.depotName,
       wilayah: customers.wilayah,
       region: customers.region,
-      qtyUndangan: customers.qtyUndangan,
       reservationId: reservations.id,
       qtyHadirSebelumnya: reservations.qtyHadir,
     })
@@ -46,7 +45,6 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({ results: rows.map((row) => ({
     ...row,
-    namaPemilik: null,
     sudahHadir: !!row.reservationId,
     reservationId: undefined,
   })) });

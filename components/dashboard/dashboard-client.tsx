@@ -12,6 +12,7 @@ import type { FilterOptions } from '@/app/api/dashboard/filters/route';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { DepotRow } from '@/lib/dashboard/compute';
 import type { Summary } from '@/lib/dashboard/types';
+import { dnBawaan } from '@/lib/target/dn-bawaan';
 
 export type { DepotRow };
 
@@ -36,13 +37,9 @@ const POLL = {
   placeholderData: keepPreviousData,
 } as const;
 
-export function DashboardClient({ dealerNights, initialDealerNightId, fixedDealerNight }: {
-  dealerNights: DealerNightOption[];
-  initialDealerNightId: string;
-  fixedDealerNight: boolean;
-}) {
+export function DashboardClient({ dealerNights }: { dealerNights: DealerNightOption[] }) {
   const [filter, setFilter] = useState<FilterState>(FILTER_KOSONG);
-  const [dealerNightId, setDealerNightId] = useState(initialDealerNightId);
+  const [dealerNightId, setDealerNightId] = useState(() => dnBawaan(dealerNights));
   const qs = buildQuery(filter, dealerNightId);
 
   const options = useQuery({
@@ -74,10 +71,19 @@ export function DashboardClient({ dealerNights, initialDealerNightId, fixedDeale
 
   return (
     <>
-      <div className="mb-4 flex justify-end">
-        <DealerNightSelect options={dealerNights} value={dealerNightId} onChange={setDealerNightId} fixed={fixedDealerNight} />
-      </div>
-      <FilterBar value={filter} options={options.data} onChange={setFilter} />
+      <FilterBar
+        value={filter}
+        options={options.data}
+        onChange={setFilter}
+        awal={(
+          <DealerNightSelect
+            options={dealerNights}
+            value={dealerNightId}
+            onChange={(id) => { setDealerNightId(id); setFilter(FILTER_KOSONG); }}
+            className="min-w-0 basis-full sm:basis-auto sm:w-44 sm:flex-none"
+          />
+        )}
+      />
 
       {!summary.data ? (
         <Skeleton className="h-64 w-full rounded-2xl" />

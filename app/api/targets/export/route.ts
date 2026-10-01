@@ -14,9 +14,15 @@ export async function GET(request: NextRequest) {
   try {
     const dealerNightId = resolveDealerNightId(user, request.nextUrl.searchParams.get('dealerNightId'));
     const rows = await listTargets(dealerNightId);
-    const header = ['MG Code', 'MG Name', 'Depot', 'Target Awal', 'Penyesuaian', 'Target Efektif'];
+    const header = [
+      'MG Code', 'MG Name', 'Depot', 'Target Pusat', 'Target Terverifikasi', 'Penambahan Setelah Verifikasi',
+      'Target Saat Ini', 'Jumlah Penyesuaian', 'Status Verifikasi', 'Kehadiran (pax)', 'Nomor Undian',
+    ];
     const csv = [header, ...rows.map((row) => [
-      row.mgCode, row.mgName, row.depotName, row.targetAwal, row.delta, row.targetEfektif,
+      row.mgCode, row.mgName, row.depotName, row.targetAwal, row.targetVerifikasi ?? '',
+      row.targetVerifikasi == null ? '' : row.targetEfektif - row.targetVerifikasi, row.targetEfektif,
+      row.jumlahPenyesuaian, row.verifiedAt ? 'Terverifikasi' : 'Belum diverifikasi',
+      row.qtyHadir ?? '', row.nomorUndian ?? '',
     ])].map((row) => row.map(csvCell).join(',')).join('\r\n');
 
     return new NextResponse(`\uFEFF${csv}`, {

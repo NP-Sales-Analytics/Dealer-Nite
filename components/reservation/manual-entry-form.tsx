@@ -3,6 +3,7 @@
 import { UserPlus, X } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { NomorUndianInput, nomorUndianValid } from './nomor-undian-input';
 import { QtyStepper } from './qty-stepper';
 import { Button } from '@/components/ui/button';
 import { PilihSatu } from '@/components/ui/combobox';
@@ -16,10 +17,11 @@ export function ManualEntryForm({
   const [nama, setNama] = useState('');
   const [depot, setDepot] = useState('');
   const [qty, setQty] = useState('1');
+  const [undian, setUndian] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const valid = nama.trim().length >= 2 && depot !== ''
-    && qty !== '' && Number.isInteger(Number(qty)) && Number(qty) >= 0;
+    && qty !== '' && Number.isInteger(Number(qty)) && Number(qty) >= 0 && nomorUndianValid(undian);
 
   async function submit() {
     setSubmitting(true);
@@ -32,11 +34,16 @@ export function ManualEntryForm({
           manualNamaCustomer: nama.trim(),
           manualDepot: depot,
           qtyHadir: Number(qty),
+          nomorUndian: undian,
         }),
       });
-      if (!res.ok) { toast.error('Gagal menyimpan. Coba lagi.'); return; }
-      toast.success(`${nama.trim()}: ${qty} orang tercatat hadir.`);
-      setNama(''); setDepot(''); setQty('1');
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        toast.error(body.error ?? 'Gagal menyimpan. Coba lagi.');
+        return;
+      }
+      toast.success(`${nama.trim()}: ${qty} orang tercatat hadir, undian ${undian}.`);
+      setNama(''); setDepot(''); setQty('1'); setUndian('');
       onOpenChange(false);
     } catch {
       toast.error('Koneksi bermasalah. Coba lagi.');
@@ -51,7 +58,7 @@ export function ManualEntryForm({
           tetap di tempat, tombol Simpan selalu terjangkau. */}
       <DialogContent
         showCloseButton={false}
-        className="grid max-h-[88svh] w-full max-w-lg grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-2xl p-0"
+        className="grid max-h-[88svh] w-full max-w-lg sm:max-w-lg grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-2xl p-0"
       >
         <header className="flex items-center justify-between border-b border-border px-5 py-4">
           <div className="flex items-center gap-3">
@@ -107,13 +114,17 @@ export function ManualEntryForm({
           <div className="space-y-2">
             {/* QtyStepper, bukan input number polos: menyamakan cara mengisi
                 jumlah dengan halaman pencatatan utama. */}
-            <Label htmlFor="m-qty">Jumlah Orang yang Hadir</Label>
+            <Label htmlFor="m-qty">Jumlah Pax Hadir</Label>
             <QtyStepper id="m-qty" value={qty} onChange={setQty} />
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="m-undian">Nomor Undian</Label>
+            <NomorUndianInput id="m-undian" value={undian} onChange={setUndian} />
+          </div>
+
           <p className="rounded-xl border border-border bg-secondary/30 px-3.5 py-3 text-xs leading-relaxed text-muted-foreground">
-            Wilayah dan region tamu manual mengikuti depot yang dipilih. Gunakan
-            depot Komunitas &amp; Media untuk tamu yang hadir bukan sebagai customer.
+            Wilayah dan region tamu manual mengikuti depot yang dipilih.
           </p>
         </div>
 

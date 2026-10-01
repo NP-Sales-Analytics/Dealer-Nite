@@ -8,7 +8,6 @@ import {
   uniqueIndex,
   varchar,
 } from 'drizzle-orm/mysql-core';
-import { dealerNights } from './dealer-nights';
 
 export const roles = ['superadmin', 'admin', 'marketing', 'management', 'dn_user'] as const;
 export type DbRole = (typeof roles)[number];
@@ -20,8 +19,8 @@ export const profiles = mysqlTable('profiles', {
   passwordHash: varchar('password_hash', { length: 64 }),
   role: mysqlEnum('role', roles).notNull().default('dn_user'),
   allowedPages: json('allowed_pages').$type<string[]>().notNull(),
-  dealerNightId: varchar('dealer_night_id', { length: 36 })
-    .references(() => dealerNights.id, { onDelete: 'set null' }),
+  // NULL = semua Dealer Night; superadmin selalu semua.
+  dealerNightIds: json('dealer_night_ids').$type<string[] | null>(),
   bolehUnduh: boolean('boleh_unduh').notNull().default(false),
   createdAt: datetime('created_at', { mode: 'date', fsp: 3 })
     .notNull()

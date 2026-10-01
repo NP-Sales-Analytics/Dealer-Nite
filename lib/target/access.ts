@@ -1,4 +1,4 @@
-import { canAdjustTarget, canReadDealerNight } from '@/lib/access';
+import { aksesSemuaDealerNight, canAdjustTarget, canReadDealerNight } from '@/lib/access';
 import type { SessionUser } from '@/lib/auth';
 
 export class TargetAccessError extends Error {
@@ -8,28 +8,26 @@ export class TargetAccessError extends Error {
   }
 }
 
-export function resolveDealerNightId(
-  user: Pick<SessionUser, 'role' | 'dealerNightId'>,
-  requestedId: string | null,
-): string {
-  if (user.role === 'dn_user') {
-    if (!user.dealerNightId) throw new TargetAccessError('FORBIDDEN');
-    if (requestedId && requestedId !== user.dealerNightId) throw new TargetAccessError('FORBIDDEN');
-    return user.dealerNightId;
+type Principal = Pick<SessionUser, 'role' | 'dealerNightIds'>;
+
+export function resolveDealerNightId(user: Principal, requestedId: string | null): string {
+  if (requestedId) {
+    if (!canReadDealerNight(user, requestedId)) throw new TargetAccessError('FORBIDDEN');
+    return requestedId;
   }
-  if (!requestedId) throw new TargetAccessError('DEALER_NIGHT_REQUIRED');
-  return requestedId;
+  if (!aksesSemuaDealerNight(user) && user.dealerNightIds!.length === 1) return user.dealerNightIds![0];
+  throw new TargetAccessError('DEALER_NIGHT_REQUIRED');
 }
 
 export function requireTargetRead(
-  user: Pick<SessionUser, 'role' | 'dealerNightId'>,
+  user: Principal,
   dealerNightId: string,
 ) {
   if (!canReadDealerNight(user, dealerNightId)) throw new TargetAccessError('FORBIDDEN');
 }
 
 export function requireTargetAdjustment(
-  user: Pick<SessionUser, 'role' | 'dealerNightId'>,
+  user: Principal,
   dealerNightId: string,
 ) {
   if (!canAdjustTarget(user, dealerNightId)) throw new TargetAccessError('FORBIDDEN');

@@ -38,9 +38,14 @@ const JUDUL: { awalan: string; judul: string; keterangan: string }[] = [
     keterangan: 'Master toko, target awal, target efektif, dan riwayat penyesuaian.',
   },
   {
+    awalan: '/kupon',
+    judul: 'Detail Kupon',
+    keterangan: 'Hak, pembuatan, dan pemberian kupon undian untuk setiap toko.',
+  },
+  {
     awalan: '/setting/pax',
-    judul: 'Setting Pax',
-    keterangan: 'Atur target maksimum orang hadir untuk setiap depot.',
+    judul: 'Setting Target DN',
+    keterangan: 'Atur Total Target DN dan target pax untuk setiap Dealer Night.',
   },
   {
     awalan: '/admin/users',

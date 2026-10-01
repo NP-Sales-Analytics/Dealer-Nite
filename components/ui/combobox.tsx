@@ -83,6 +83,7 @@ export function PilihSatu({
   placeholder,
   cariPlaceholder = 'Ketik untuk mencari...',
   kosong = 'Tidak ada yang cocok.',
+  format,
   id,
   className,
 }: {
@@ -92,6 +93,8 @@ export function PilihSatu({
   placeholder: string;
   cariPlaceholder?: string;
   kosong?: string;
+  /** Teks tampilan untuk nilai, mis. id -> nama. */
+  format?: (v: string) => string;
   id?: string;
   className?: string;
 }) {
@@ -103,13 +106,13 @@ export function PilihSatu({
     >
       <Combobox.Trigger id={id} className={cn(GAYA_PEMICU, 'w-full', className)}>
         <span className={cn('truncate', !value && 'text-muted-foreground')}>
-          {value || placeholder}
+          {value ? (format ? format(value) : value) : placeholder}
         </span>
         <Combobox.Icon className="shrink-0 text-muted-foreground">
           <ChevronDown className="size-4" />
         </Combobox.Icon>
       </Combobox.Trigger>
-      <IsiPopup placeholder={cariPlaceholder} kosong={kosong} />
+      <IsiPopup placeholder={cariPlaceholder} kosong={kosong} format={format} />
     </Combobox.Root>
   );
 }

@@ -16,8 +16,9 @@ export const HALAMAN: { href: string; label: string }[] = [
   { href: '/kehadiran', label: 'Detail Toko Hadir' },
   { href: '/leaderboard', label: 'Leaderboard Target DN' },
   { href: '/order/detail', label: 'Detail Target DN' },
+  { href: '/kupon', label: 'Detail Kupon' },
   { href: '/admin/users', label: 'User Management' },
-  { href: '/setting/pax', label: 'Setting Pax' },
+  { href: '/setting/pax', label: 'Setting Target DN' },
 ];
 
 export const HALAMAN_BAWAAN: Record<Role, string[]> = {
@@ -31,11 +32,17 @@ export const HALAMAN_BAWAAN: Record<Role, string[]> = {
 export const halamanEfektif = (role: Role, allowedPages: string[]) =>
   allowedPages.length > 0 ? allowedPages : HALAMAN_BAWAAN[role];
 
-type DealerNightPrincipal = { role: Role; dealerNightId: string | null };
+type DealerNightPrincipal = { role: Role; dealerNightIds: readonly string[] | null };
+
+export const aksesSemuaDealerNight = (user: DealerNightPrincipal) =>
+  user.role === 'superadmin' || user.dealerNightIds === null;
 
 export function canReadDealerNight(user: DealerNightPrincipal, dealerNightId: string): boolean {
-  return user.role === 'dn_user' ? user.dealerNightId === dealerNightId : true;
+  return aksesSemuaDealerNight(user) || user.dealerNightIds!.includes(dealerNightId);
 }
+
+/** Mencatat pembuatan/pemberian kupon (selain izin halaman Detail Kupon). */
+export const bisaKelolaKupon = (user: { role: Role }) => user.role === 'superadmin' || user.role === 'admin';
 
 export function canAdjustTarget(user: DealerNightPrincipal, dealerNightId: string): boolean {
   return (user.role === 'superadmin' || user.role === 'admin')
@@ -43,11 +50,11 @@ export function canAdjustTarget(user: DealerNightPrincipal, dealerNightId: strin
 }
 
 export function labelDealerNightAccess(
-  role: Role,
-  dealerNightId: string | null,
-  dealerNightName: string | null,
+  user: DealerNightPrincipal,
+  options: { id: string; name: string }[],
 ): string {
-  if (role !== 'dn_user') return 'Semua Dealer Night';
-  if (!dealerNightId) return 'Belum ditentukan';
-  return dealerNightName || dealerNightId;
+  if (aksesSemuaDealerNight(user)) return 'Semua Dealer Night';
+  if (user.dealerNightIds!.length === 0) return 'Belum ditentukan';
+  const names = new Map(options.map((item) => [item.id, item.name]));
+  return user.dealerNightIds!.map((id) => names.get(id) ?? id).join(', ');
 }

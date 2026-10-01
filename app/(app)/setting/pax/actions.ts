@@ -1,34 +1,33 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { canReadDealerNight } from '@/lib/access';
 import { requireRole } from '@/lib/auth';
 import { simpanTargetPax } from '@/lib/pax-targets';
 
 export async function simpanSettingPax(formData: FormData): Promise<string | null> {
-  await requireRole(['superadmin']);
+  const user = await requireRole(['superadmin', 'admin']);
 
-  const depots = formData.getAll('depot').map((value) => String(value).trim());
+  const ids = formData.getAll('dealerNightId').map((value) => String(value).trim());
   const nilai = formData.getAll('targetPax').map((value) => String(value).trim());
+  const targetDn = formData.getAll('targetDn').map((value) => String(value).replace(/[^0-9]/g, ''));
 
-  if (depots.length === 0 || depots.length !== nilai.length) {
-    return 'Daftar depot tidak lengkap. Muat ulang halaman lalu coba lagi.';
+  if (ids.length === 0 || ids.length !== nilai.length || ids.length !== targetDn.length) {
+    return 'Daftar Dealer Night tidak lengkap. Muat ulang halaman lalu coba lagi.';
   }
-
-  const items = depots.map((depot, index) => ({
-    depot,
-    targetPax: nilai[index] === '' ? Number.NaN : Number(nilai[index]),
-  }));
+  if (ids.some((id) => !canReadDealerNight(user, id))) return 'Tidak punya akses ke Dealer Night ini.';
 
   try {
-    const dealerNightId = String(formData.get('dealerNightId') ?? '');
-    if (!dealerNightId) return 'Dealer Night wajib dipilih.';
-    await simpanTargetPax(dealerNightId, items);
-  } catch (error) {
-    return error instanceof Error ? error.message : 'Target pax gagal disimpan.';
+    await simpanTargetPax(ids.map((dealerNightId, index) => ({
+      dealerNightId,
+      targetPax: nilai[index] === '' ? Number.NaN : Number(nilai[index]),
+      targetDn: Number(targetDn[index] || 0),
+    })));
+  } catch {
+    return 'Target pax harus 0 sampai 1.000.000 dan Target DN berupa rupiah bulat.';
   }
 
   revalidatePath('/setting/pax');
   revalidatePath('/dashboard');
   return null;
 }
-

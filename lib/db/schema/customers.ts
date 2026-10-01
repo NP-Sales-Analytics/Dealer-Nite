@@ -27,6 +27,9 @@ export const customers = mysqlTable('customers', {
   spv: varchar('spv', { length: 200 }),
   targetDnAwal: bigint('target_dn_awal', { mode: 'number' }).notNull(),
   qtyUndangan: int('qty_undangan').notNull().default(1),
+  verifiedAt: datetime('verified_at', { mode: 'date', fsp: 3 }),
+  targetVerifikasi: bigint('target_verifikasi', { mode: 'number' }),
+  verifiedBy: varchar('verified_by', { length: 36 }),
   createdAt: datetime('created_at', { mode: 'date', fsp: 3 })
     .notNull()
     .default(sql`CURRENT_TIMESTAMP(3)`),
