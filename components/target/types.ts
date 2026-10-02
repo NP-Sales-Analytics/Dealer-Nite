@@ -27,6 +27,8 @@ export type TargetRow = {
   verifiedAt: string | null;
   verifiedByName: string | null;
   targetVerifikasi: number | null;
+  formVerifikasi: number | null;
+  formTerakhir: number | null;
   qtyHadir: number | null;
   nomorUndian: string | null;
   checkedInAt: string | null;

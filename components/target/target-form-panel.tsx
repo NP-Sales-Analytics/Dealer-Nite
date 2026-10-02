@@ -1,6 +1,7 @@
 'use client';
 
-import { BadgeCheck, SlidersHorizontal } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { BadgeCheck, FileText, SlidersHorizontal } from 'lucide-react';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 import type { TargetRow } from './types';
@@ -25,6 +26,21 @@ export function TargetFormPanel({ row, onSaved }: { row: TargetRow; onSaved: () 
   const delta = valid ? parsed - row.targetEfektif : 0;
   const copy = targetFormCopy({ currentTarget: verified ? row.targetEfektif : row.targetAwal, verified });
   const Ikon = verified ? SlidersHorizontal : BadgeCheck;
+  // Penyesuaian tanpa perubahan nilai tidak disimpan, jadi tidak memakan nomor formulir.
+  const bisaSimpan = valid && (!verified || delta !== 0);
+
+  // Pratinjau nomor formulir; disegarkan berkala karena admin lain bisa menyimpan lebih dulu.
+  const formBerikut = useQuery({
+    queryKey: ['targets', 'form-berikut', row.dealerNightId],
+    queryFn: async (): Promise<{ nomor: number }> => {
+      const response = await fetch(`/api/targets/form-berikut?dealerNightId=${encodeURIComponent(row.dealerNightId)}`);
+      if (!response.ok) throw new Error('Gagal memuat nomor formulir.');
+      return response.json();
+    },
+    refetchInterval: 5_000,
+    staleTime: 0,
+  });
+  const nomorPratinjau = formBerikut.data?.nomor;
 
   const simpan = () => startTransition(async () => {
     try {
@@ -35,7 +51,14 @@ export function TargetFormPanel({ row, onSaved }: { row: TargetRow; onSaved: () 
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Gagal menyimpan.');
-      toast.success(verified ? 'Target DN diperbarui.' : `Target ${row.mgName} terverifikasi.`);
+      const nomor = Number(result.noFormulir);
+      toast.success(`${verified ? 'Penyesuaian' : 'Verifikasi'} tersimpan dengan No. Formulir ${nomor}.`);
+      if (nomorPratinjau !== undefined && nomor !== nomorPratinjau) {
+        toast.warning(
+          `No. Formulir berubah dari ${nomorPratinjau} menjadi ${nomor} karena admin lain menyimpan lebih dulu. Tulis nomor ${nomor} di formulir.`,
+          { duration: 15_000 },
+        );
+      }
       onSaved();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Gagal menyimpan.');
@@ -43,7 +66,7 @@ export function TargetFormPanel({ row, onSaved }: { row: TargetRow; onSaved: () 
   });
 
   return (
-    <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); if (valid) simpan(); }}>
+    <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); if (bisaSimpan) simpan(); }}>
       <div className="flex items-center gap-2.5">
         <span className={cn('grid size-8 shrink-0 place-items-center rounded-lg', verified ? 'bg-primary/10 text-primary' : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15')} aria-hidden>
           <Ikon className="size-4" />
@@ -89,7 +112,18 @@ export function TargetFormPanel({ row, onSaved }: { row: TargetRow; onSaved: () 
         ))}
       </div>
 
-      <Button type="submit" className="h-11 w-full gap-2" disabled={!valid || pending}>
+      <div className="flex items-center gap-3 rounded-xl border border-dashed border-primary/40 bg-primary/5 px-3.5 py-2.5">
+        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary" aria-hidden>
+          <FileText className="size-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-semibold">No. Formulir</p>
+          <p className="text-[11px] text-muted-foreground">Tulis nomor ini di formulir fisik</p>
+        </div>
+        <span className="text-2xl font-bold tabular-nums text-primary">{nomorPratinjau ?? '…'}</span>
+      </div>
+
+      <Button type="submit" className="h-11 w-full gap-2" disabled={!bisaSimpan || pending}>
         <Ikon className="size-4" />
         {pending ? 'Menyimpan...' : copy.save}
       </Button>

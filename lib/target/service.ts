@@ -28,6 +28,8 @@ export type TargetListRow = TargetSnapshot & {
   verifiedAt: string | null;
   verifiedByName: string | null;
   targetVerifikasi: number | null;
+  formVerifikasi: number | null;
+  formTerakhir: number | null;
   qtyHadir: number | null;
   nomorUndian: string | null;
   checkedInAt: string | null;
@@ -38,11 +40,16 @@ const isoAtauNull = (value: unknown) => (value == null
   ? null
   : (value instanceof Date ? value : new Date(String(value))).toISOString());
 
+const PESAN_GALAT = {
+  NOT_FOUND: 'Toko tidak ditemukan.',
+  BELOW_MINIMUM: 'Target DN minimal Rp50.000.000.',
+  INVALID_TARGET: 'Target DN tidak valid.',
+  NO_CHANGE: 'Target baru sama dengan target saat ini, tidak ada yang disesuaikan.',
+} as const;
+
 export class TargetServiceError extends Error {
-  constructor(public readonly code: 'NOT_FOUND' | 'BELOW_MINIMUM' | 'INVALID_TARGET') {
-    super(code === 'NOT_FOUND' ? 'Toko tidak ditemukan.' : code === 'BELOW_MINIMUM'
-      ? 'Target DN minimal Rp50.000.000.'
-      : 'Target DN tidak valid.');
+  constructor(public readonly code: keyof typeof PESAN_GALAT) {
+    super(PESAN_GALAT[code]);
     this.name = 'TargetServiceError';
   }
 }
@@ -65,6 +72,29 @@ function checkedTarget(value: number) {
   }
 }
 
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/**
+ * Nomor formulir berikutnya untuk satu DN. UPDATE ... LAST_INSERT_ID() menaikkan
+ * penghitung secara atomik dan mengunci baris DN sampai transaksi selesai, jadi
+ * dua admin yang menyimpan bersamaan tidak pernah mendapat nomor yang sama.
+ */
+async function ambilNoFormulir(tx: Tx, dealerNightId: string): Promise<number> {
+  await tx.execute(sql`
+    update dealer_nights set form_terakhir = last_insert_id(form_terakhir + 1) where id = ${dealerNightId}
+  `);
+  const [row] = rowsFrom<{ nomor: number | string }>(await tx.execute(sql`select last_insert_id() as nomor`));
+  return Number(row.nomor);
+}
+
+/** Nomor yang akan dipakai penyimpanan berikutnya di DN ini (pratinjau, belum dipesan). */
+export async function noFormulirBerikut(dealerNightId: string): Promise<number> {
+  const [row] = rowsFrom<{ nomor: number | string }>(await db.execute(sql`
+    select form_terakhir + 1 as nomor from dealer_nights where id = ${dealerNightId}
+  `));
+  return Number(row?.nomor ?? 1);
+}
+
 export async function adjustTarget({
   customerId,
   newTarget,
@@ -75,7 +105,7 @@ export async function adjustTarget({
   newTarget: number;
   actorId: string;
   note?: string;
-}): Promise<TargetSnapshot> {
+}): Promise<TargetSnapshot & { noFormulir: number }> {
   checkedTarget(newTarget);
 
   return db.transaction(async (tx) => {
@@ -100,16 +130,19 @@ export async function adjustTarget({
     // Submit pertama oleh admin DN = verifikasi, walaupun nilainya sama.
     // Nilainya dibekukan di target_verifikasi sebagai dasar kupon yang dicetak.
     const verifikasi = customer.verifiedAt == null;
-    if (delta !== 0) {
-      await tx.insert(targetAdjustments).values({
-        id: randomUUID(),
-        customerId,
-        delta,
-        jenis: verifikasi ? 'verifikasi' : 'penyesuaian',
-        note: note?.trim() || null,
-        recordedBy: actorId,
-      });
-    }
+    if (!verifikasi && delta === 0) throw new TargetServiceError('NO_CHANGE');
+
+    const noFormulir = await ambilNoFormulir(tx, customer.dealerNightId);
+    await tx.insert(targetAdjustments).values({
+      id: randomUUID(),
+      customerId,
+      dealerNightId: customer.dealerNightId,
+      noFormulir,
+      delta,
+      jenis: verifikasi ? 'verifikasi' : 'penyesuaian',
+      note: note?.trim() || null,
+      recordedBy: actorId,
+    });
     if (verifikasi) {
       await tx.execute(sql`
         update customers
@@ -118,7 +151,7 @@ export async function adjustTarget({
       `);
     }
 
-    return { customerId, targetAwal, targetEfektif: newTarget, delta };
+    return { customerId, targetAwal, targetEfektif: newTarget, delta, noFormulir };
   });
 }
 
@@ -163,11 +196,12 @@ export async function listTargets(dealerNightId: string): Promise<TargetListRow[
       c.target_dn_awal + coalesce(a.total, 0) as targetEfektif,
       coalesce(a.total, 0) as delta, coalesce(a.jumlah, 0) as jumlahPenyesuaian,
       a.terakhir as lastAdjustedAt, c.verified_at as verifiedAt, p.full_name as verifiedByName,
-      c.target_verifikasi as targetVerifikasi,
+      c.target_verifikasi as targetVerifikasi, a.formVerifikasi, a.formTerakhir,
       r.qty_hadir as qtyHadir, r.nomor_undian as nomorUndian, r.checked_in_at as checkedInAt
     from customers c
     left join (
-      select t.customer_id, sum(t.delta) as total, sum(t.jenis = 'penyesuaian') as jumlah, max(t.created_at) as terakhir
+      select t.customer_id, sum(t.delta) as total, sum(t.jenis = 'penyesuaian') as jumlah, max(t.created_at) as terakhir,
+        max(case when t.jenis = 'verifikasi' then t.no_formulir end) as formVerifikasi, max(t.no_formulir) as formTerakhir
       from target_adjustments t
       join customers c2 on c2.id = t.customer_id
       where c2.dealer_night_id = ${dealerNightId}
@@ -200,6 +234,8 @@ export async function listTargets(dealerNightId: string): Promise<TargetListRow[
     verifiedAt: isoAtauNull(row.verifiedAt),
     verifiedByName: teksAtauNull(row.verifiedByName),
     targetVerifikasi: row.targetVerifikasi == null ? null : Number(row.targetVerifikasi),
+    formVerifikasi: row.formVerifikasi == null ? null : Number(row.formVerifikasi),
+    formTerakhir: row.formTerakhir == null ? null : Number(row.formTerakhir),
     qtyHadir: row.qtyHadir == null ? null : Number(row.qtyHadir),
     nomorUndian: teksAtauNull(row.nomorUndian),
     checkedInAt: isoAtauNull(row.checkedInAt),
@@ -208,7 +244,7 @@ export async function listTargets(dealerNightId: string): Promise<TargetListRow[
 
 export async function getTargetHistory(customerId: string) {
   const rows = rowsFrom<Record<string, unknown>>(await db.execute(sql`
-    select a.id, a.customer_id as customerId, a.delta, a.jenis, a.note,
+    select a.id, a.customer_id as customerId, a.delta, a.jenis, a.no_formulir as noFormulir, a.note,
       a.recorded_by as recordedBy, p.full_name as recordedByName, a.created_at as createdAt
     from target_adjustments a
     left join profiles p on p.id = a.recorded_by
@@ -220,6 +256,7 @@ export async function getTargetHistory(customerId: string) {
     customerId: String(row.customerId),
     delta: Number(row.delta),
     jenis: String(row.jenis) as 'verifikasi' | 'penyesuaian',
+    noFormulir: Number(row.noFormulir),
     note: row.note == null ? null : String(row.note),
     recordedBy: row.recordedBy == null ? null : String(row.recordedBy),
     recordedByName: row.recordedByName == null ? null : String(row.recordedByName),
@@ -239,6 +276,60 @@ export async function resetVerifikasi(customerId: string) {
     await tx.execute(sql`delete from kupon_proses where customer_id = ${customerId}`);
     await tx.execute(sql`
       update customers set verified_at = null, verified_by = null, target_verifikasi = null where id = ${customerId}
+    `);
+  });
+}
+
+export class FormulirError extends Error {
+  constructor(message: string, public readonly status = 400) {
+    super(message);
+    this.name = 'FormulirError';
+  }
+}
+
+/**
+ * Mengubah nomor formulir riwayat satu toko, mis. untuk menyamakan dengan
+ * formulir fisik yang dulu dinomori manual. Nomor wajib unik per DN; penghitung
+ * DN dinaikkan bila perlu supaya nomor otomatis berikutnya tidak bentrok.
+ */
+export async function ubahNoFormulir(customerId: string, items: { id: string; noFormulir: number }[]) {
+  await db.transaction(async (tx) => {
+    const [customer] = rowsFrom<{ dealerNightId: string }>(await tx.execute(sql`
+      select dealer_night_id as dealerNightId from customers where id = ${customerId} for update
+    `));
+    if (!customer) throw new FormulirError('Toko tidak ditemukan.', 404);
+    // Mengunci baris DN juga menahan ambilNoFormulir sampai perubahan ini selesai.
+    await tx.execute(sql`select id from dealer_nights where id = ${customer.dealerNightId} for update`);
+
+    const milikToko = new Set(rowsFrom<{ id: string }>(await tx.execute(sql`
+      select id from target_adjustments where customer_id = ${customerId}
+    `)).map((row) => String(row.id)));
+    if (items.some((item) => !milikToko.has(item.id))) throw new FormulirError('Ada riwayat yang bukan milik toko ini.');
+    const nomor = items.map((item) => item.noFormulir);
+    if (new Set(nomor).size !== nomor.length) throw new FormulirError('Nomor formulir tidak boleh sama dalam satu toko.');
+
+    const ids = items.map((item) => item.id);
+    const bentrok = rowsFrom<{ nomor: number; nama: string }>(await tx.execute(sql`
+      select a.no_formulir as nomor, c.mg_name as nama
+      from target_adjustments a join customers c on c.id = a.customer_id
+      where a.dealer_night_id = ${customer.dealerNightId}
+        and a.no_formulir in (${sql.join(nomor.map((n) => sql`${n}`), sql`, `)})
+        and a.id not in (${sql.join(ids.map((id) => sql`${id}`), sql`, `)})
+      limit 1
+    `))[0];
+    if (bentrok) throw new FormulirError(`No. Formulir ${bentrok.nomor} sudah dipakai oleh ${bentrok.nama}.`, 409);
+
+    // Nomor sementara negatif dulu supaya bertukar nomor antar riwayat toko yang
+    // sama tidak menabrak unique index di tengah jalan.
+    for (const [index, item] of items.entries()) {
+      await tx.execute(sql`update target_adjustments set no_formulir = ${-(index + 1)} where id = ${item.id}`);
+    }
+    for (const item of items) {
+      await tx.execute(sql`update target_adjustments set no_formulir = ${item.noFormulir} where id = ${item.id}`);
+    }
+    await tx.execute(sql`
+      update dealer_nights set form_terakhir = greatest(form_terakhir, ${Math.max(...nomor)})
+      where id = ${customer.dealerNightId}
     `);
   });
 }

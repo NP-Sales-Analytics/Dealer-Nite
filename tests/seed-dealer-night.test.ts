@@ -40,6 +40,8 @@ describe('seedDealerNight', () => {
     await db.insert(targetAdjustments).values({
       id: randomUUID(),
       customerId: customer!.id,
+      dealerNightId: dealerNight.id,
+      noFormulir: 9_999,
       delta: 1_000_000,
       note: 'test preserves ledger',
       recordedBy: null,

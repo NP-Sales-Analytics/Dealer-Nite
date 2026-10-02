@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { ArrowRight, Building2, CalendarClock, MapPin, Store, UserCheck, UserRound, Users, X } from 'lucide-react';
+import { NoFormulirRow } from './no-formulir-row';
 import { PillHadir, PillStatus } from './pills';
 import { TargetFormPanel } from './target-form-panel';
 import type { TargetRow } from './types';
@@ -11,7 +12,7 @@ import { formatRupiah } from '@/lib/target/money';
 import { cn, jamJakarta, tanggalJakarta } from '@/lib/utils';
 
 type Riwayat = {
-  id: string; delta: number; jenis: 'verifikasi' | 'penyesuaian'; note: string | null;
+  id: string; delta: number; jenis: 'verifikasi' | 'penyesuaian'; noFormulir: number; note: string | null;
   recordedByName: string | null; createdAt: string;
 };
 
@@ -110,14 +111,6 @@ export function TargetDetailDialog({
     berjalan += item.delta;
     return { ...item, sebelum, sesudah: berjalan };
   });
-  if (verified && !urut.some((item) => item.jenis === 'verifikasi')) {
-    const index = timeline.findIndex((item) => item.createdAt > row.verifiedAt!);
-    const nilai = row.targetVerifikasi ?? row.targetAwal;
-    timeline.splice(index < 0 ? timeline.length : index, 0, {
-      id: 'verifikasi', delta: 0, jenis: 'verifikasi', note: null, recordedByName: row.verifiedByName,
-      createdAt: row.verifiedAt!, sebelum: nilai, sesudah: nilai,
-    });
-  }
   const terbaru = [...timeline].reverse();
   const penyesuaian = row.targetEfektif - (row.targetVerifikasi ?? row.targetEfektif);
 
@@ -178,6 +171,7 @@ export function TargetDetailDialog({
                 <Judul icon={Store}>Data Toko</Judul>
                 <div className="rounded-xl border border-border px-3.5 py-2">
                   <div className="divide-y divide-border">
+                    <NoFormulirRow customerId={row.customerId} riwayat={terbaru} canEdit={canAdjust} onSaved={onSaved} />
                     <Baris icon={Building2} label="SOTP" nilai={`${row.sotpName} · ${row.sotpCode}`} />
                     <Baris icon={MapPin} label="Region" nilai={row.region ? `Region ${row.region}` : null} />
                     <Baris icon={UserRound} label="Salesman" nilai={row.salesman} />
@@ -226,7 +220,7 @@ export function TargetDetailDialog({
                               item.jenis === 'verifikasi' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' : 'bg-primary/10 text-primary',
                             )}
                             >
-                              {item.jenis === 'verifikasi' ? 'Verifikasi' : 'Penyesuaian'}
+                              {item.jenis === 'verifikasi' ? 'Verifikasi' : 'Penyesuaian'} Form {item.noFormulir}
                             </span>
                             <Selisih nilai={item.delta} />
                           </div>
