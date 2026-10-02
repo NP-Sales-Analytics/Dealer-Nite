@@ -12,7 +12,7 @@ import { formatRupiah } from '@/lib/target/money';
 import { cn, jamJakarta, tanggalJakarta } from '@/lib/utils';
 
 type Riwayat = {
-  id: string; delta: number; jenis: 'verifikasi' | 'penyesuaian'; noFormulir: number; note: string | null;
+  id: string; delta: number; jenis: 'verifikasi' | 'penyesuaian'; noFormulir: number | null; note: string | null;
   recordedByName: string | null; createdAt: string;
 };
 
@@ -220,7 +220,8 @@ export function TargetDetailDialog({
                               item.jenis === 'verifikasi' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' : 'bg-primary/10 text-primary',
                             )}
                             >
-                              {item.jenis === 'verifikasi' ? 'Verifikasi' : 'Penyesuaian'} Form {item.noFormulir}
+                              {item.jenis === 'verifikasi' ? 'Verifikasi' : 'Penyesuaian'}{' '}
+                              {item.noFormulir != null ? `Form ${item.noFormulir}` : '· Form belum diisi'}
                             </span>
                             <Selisih nilai={item.delta} />
                           </div>

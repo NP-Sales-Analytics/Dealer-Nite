@@ -256,7 +256,7 @@ export async function getTargetHistory(customerId: string) {
     customerId: String(row.customerId),
     delta: Number(row.delta),
     jenis: String(row.jenis) as 'verifikasi' | 'penyesuaian',
-    noFormulir: Number(row.noFormulir),
+    noFormulir: row.noFormulir == null ? null : Number(row.noFormulir),
     note: row.note == null ? null : String(row.note),
     recordedBy: row.recordedBy == null ? null : String(row.recordedBy),
     recordedByName: row.recordedByName == null ? null : String(row.recordedByName),
@@ -292,7 +292,7 @@ export class FormulirError extends Error {
  * formulir fisik yang dulu dinomori manual. Nomor wajib unik per DN; penghitung
  * DN dinaikkan bila perlu supaya nomor otomatis berikutnya tidak bentrok.
  */
-export async function ubahNoFormulir(customerId: string, items: { id: string; noFormulir: number }[]) {
+export async function ubahNoFormulir(customerId: string, items: { id: string; noFormulir: number | null }[]) {
   await db.transaction(async (tx) => {
     const [customer] = rowsFrom<{ dealerNightId: string }>(await tx.execute(sql`
       select dealer_night_id as dealerNightId from customers where id = ${customerId} for update
@@ -305,11 +305,12 @@ export async function ubahNoFormulir(customerId: string, items: { id: string; no
       select id from target_adjustments where customer_id = ${customerId}
     `)).map((row) => String(row.id)));
     if (items.some((item) => !milikToko.has(item.id))) throw new FormulirError('Ada riwayat yang bukan milik toko ini.');
-    const nomor = items.map((item) => item.noFormulir);
+    // Kosong (null) = belum dicatat; aturan unik & penghitung hanya untuk yang terisi.
+    const nomor = items.map((item) => item.noFormulir).filter((n): n is number => n !== null);
     if (new Set(nomor).size !== nomor.length) throw new FormulirError('Nomor formulir tidak boleh sama dalam satu toko.');
 
     const ids = items.map((item) => item.id);
-    const bentrok = rowsFrom<{ nomor: number; nama: string }>(await tx.execute(sql`
+    const bentrok = nomor.length === 0 ? undefined : rowsFrom<{ nomor: number; nama: string }>(await tx.execute(sql`
       select a.no_formulir as nomor, c.mg_name as nama
       from target_adjustments a join customers c on c.id = a.customer_id
       where a.dealer_night_id = ${customer.dealerNightId}
@@ -327,9 +328,11 @@ export async function ubahNoFormulir(customerId: string, items: { id: string; no
     for (const item of items) {
       await tx.execute(sql`update target_adjustments set no_formulir = ${item.noFormulir} where id = ${item.id}`);
     }
-    await tx.execute(sql`
-      update dealer_nights set form_terakhir = greatest(form_terakhir, ${Math.max(...nomor)})
-      where id = ${customer.dealerNightId}
-    `);
+    if (nomor.length > 0) {
+      await tx.execute(sql`
+        update dealer_nights set form_terakhir = greatest(form_terakhir, ${Math.max(...nomor)})
+        where id = ${customer.dealerNightId}
+      `);
+    }
   });
 }
