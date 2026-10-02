@@ -61,6 +61,12 @@ load-tests/data/snapshot-*.json
 load-tests/data/active-run.json
 load-tests/data/target-readonly.json
 load-tests/data/report-*.json
+load-tests/data/cleanup-*.json
+load-tests/data/mysql-*.csv
 # Cadangan tabel customers sebelum update master data: memuat kode_sap, yang
 # ADALAH kredensial login customer.
 load-tests/data/customers-sebelum-update-*.json
+
+.vercel
+.env*
+load-tests/data/k6-*.log
