@@ -21,7 +21,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     {/* TooltipProvider dibutuhkan saat sidebar diciutkan: yang tersisa hanya ikon,
         dan namanya muncul sebagai tooltip. */}
     <TooltipProvider>
-    <SidebarProvider>
+    {/* Navigasi tertutup secara bawaan supaya konten memakai layar penuh. */}
+    <SidebarProvider defaultOpen={false}>
       <AppSidebar user={user} />
       <SidebarInset className="min-w-0 bg-background">
         {/* Header judul halaman menempel di atas saat digulung, sejajar dengan

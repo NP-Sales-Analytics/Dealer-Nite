@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
-import { bigint, datetime, index, mysqlEnum, mysqlTable, text, varchar } from 'drizzle-orm/mysql-core';
+import { bigint, datetime, index, int, mysqlEnum, mysqlTable, text, uniqueIndex, varchar } from 'drizzle-orm/mysql-core';
 import { customers } from './customers';
+import { dealerNights } from './dealer-nights';
 import { profiles } from './profiles';
 
 export const targetAdjustments = mysqlTable('target_adjustments', {
@@ -8,6 +9,11 @@ export const targetAdjustments = mysqlTable('target_adjustments', {
   customerId: varchar('customer_id', { length: 36 })
     .notNull()
     .references(() => customers.id, { onDelete: 'cascade' }),
+  dealerNightId: varchar('dealer_night_id', { length: 36 })
+    .notNull()
+    .references(() => dealerNights.id, { onDelete: 'cascade' }),
+  // Nomor formulir fisik, berurutan per Dealer Night.
+  noFormulir: int('no_formulir').notNull(),
   delta: bigint('delta', { mode: 'number' }).notNull(),
   jenis: mysqlEnum('jenis', ['verifikasi', 'penyesuaian']).notNull().default('penyesuaian'),
   note: text('note'),
@@ -18,5 +24,6 @@ export const targetAdjustments = mysqlTable('target_adjustments', {
     .default(sql`CURRENT_TIMESTAMP(3)`),
 }, (table) => [
   index('target_adjustments_customer_idx').on(table.customerId),
+  uniqueIndex('target_adjustments_dn_form_unique').on(table.dealerNightId, table.noFormulir),
   index('target_adjustments_created_at_idx').on(table.createdAt),
 ]);

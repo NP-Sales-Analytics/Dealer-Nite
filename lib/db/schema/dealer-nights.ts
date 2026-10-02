@@ -8,6 +8,7 @@ export const dealerNights = mysqlTable('dealer_nights', {
   active: boolean('active').notNull().default(true),
   targetPax: int('target_pax').notNull().default(0),
   targetDn: bigint('target_dn', { mode: 'number' }).notNull().default(0),
+  formTerakhir: int('form_terakhir').notNull().default(0),
   eventDate: date('event_date', { mode: 'string' }),
   depotCodes: json('depot_codes').$type<string[] | null>(),
   createdAt: datetime('created_at', { mode: 'date', fsp: 3 })

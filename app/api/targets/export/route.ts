@@ -17,12 +17,14 @@ export async function GET(request: NextRequest) {
     const rows = (await listTargets(dealerNightId)).filter((row) => bolehDepot(user, row.depotCode));
     const header = [
       'MG Code', 'MG Name', 'Depot', 'Target Pusat', 'Target Terverifikasi', 'Penambahan Setelah Verifikasi',
-      'Target Saat Ini', 'Jumlah Penyesuaian', 'Status Verifikasi', 'Kehadiran (pax)', 'Nomor Undian',
+      'Target Saat Ini', 'Jumlah Penyesuaian', 'Status Verifikasi', 'No. Form Verifikasi', 'No. Form Terakhir',
+      'Kehadiran (pax)', 'Nomor Undian',
     ];
     const csv = [header, ...rows.map((row) => [
       row.mgCode, row.mgName, row.depotName, row.targetAwal, row.targetVerifikasi ?? '',
       row.targetVerifikasi == null ? '' : row.targetEfektif - row.targetVerifikasi, row.targetEfektif,
       row.jumlahPenyesuaian, row.verifiedAt ? 'Terverifikasi' : 'Belum diverifikasi',
+      row.formVerifikasi ?? '', row.formTerakhir ?? '',
       row.qtyHadir ?? '', row.nomorUndian ?? '',
     ])].map((row) => row.map(csvCell).join(',')).join('\r\n');
 

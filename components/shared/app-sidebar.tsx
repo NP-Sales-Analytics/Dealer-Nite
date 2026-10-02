@@ -7,7 +7,7 @@ import {
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import type { ComponentType } from 'react';
+import { useEffect, useRef, type ComponentType } from 'react';
 import { signOut } from '@/app/(auth)/login/actions';
 import { Brand } from '@/components/shared/brand';
 import {
@@ -58,8 +58,18 @@ const initials = (user: SessionUser) =>
 
 export function AppSidebar({ user }: { user: SessionUser }) {
   const pathname = usePathname();
-  const { setOpenMobile, toggleSidebar, state } = useSidebar();
+  const { setOpen, setOpenMobile, toggleSidebar, state } = useSidebar();
   const tertutup = state === 'collapsed';
+
+  // Navigasi hanya dibuka saat perlu: setiap pindah halaman ia menutup lagi.
+  // Lewat ref, karena setOpen bawaan sidebar berganti identitas tiap kali
+  // status buka berubah - kalau dijadikan dependensi, membuka sidebar langsung
+  // memicu efek ini dan menutupnya kembali.
+  const tutup = useRef(() => {});
+  tutup.current = () => { setOpen(false); setOpenMobile(false); };
+  useEffect(() => {
+    tutup.current();
+  }, [pathname]);
   // Menu mengikuti halaman yang diizinkan untuk akun ini, bukan rolenya:
   // superadmin bisa mencabut satu halaman tanpa mengganti role orangnya.
   const boleh = halamanEfektif(user.role, user.allowedPages);
