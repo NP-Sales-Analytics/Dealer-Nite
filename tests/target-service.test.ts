@@ -125,6 +125,37 @@ describe('Target DN ledger', () => {
       .rejects.toThrow('No. Formulir 3 sudah dipakai oleh TOKO C');
   });
 
+  it('nomor formulir boleh dikosongkan lalu diisi manual dari 1', async () => {
+    await adjustTarget({ customerId: ids.customer, newTarget: 820_000_000, actorId: ids.actor }); // Form 1
+    await adjustTarget({ customerId: ids.customer, newTarget: 900_000_000, actorId: ids.actor }); // Form 2
+    const riwayat = await db.select().from(targetAdjustments).where(eq(targetAdjustments.customerId, ids.customer));
+
+    await ubahNoFormulir(ids.customer, riwayat.map((row) => ({ id: row.id, noFormulir: null })));
+    const kosong = await db.select().from(targetAdjustments).where(eq(targetAdjustments.customerId, ids.customer));
+    expect(kosong.every((row) => row.noFormulir === null)).toBe(true);
+
+    await ubahNoFormulir(ids.customer, [{ id: riwayat[0].id, noFormulir: 1 }, { id: riwayat[1].id, noFormulir: null }]);
+    const [terisi] = await db.select().from(targetAdjustments).where(eq(targetAdjustments.id, riwayat[0].id));
+    expect(terisi.noFormulir).toBe(1);
+  });
+
+  it('nomor sama boleh di DN lain, tidak boleh di DN yang sama', async () => {
+    const dnLain = '37373737-3737-4373-8373-373737373737';
+    const tokoLain = '38383838-3838-4383-8383-383838383838';
+    await db.delete(dealerNights).where(eq(dealerNights.id, dnLain));
+    await db.insert(dealerNights).values({ id: dnLain, slug: 'form-dn-lain', name: 'DN Lain' });
+    await db.insert(customers).values({
+      id: tokoLain, dealerNightId: dnLain, mgCode: 'MG-L', mgName: 'TOKO LAIN', sotpCode: 'S-L', sotpName: 'TOKO LAIN',
+      depotCode: '1F', depotName: '1F Bandung', targetDnAwal: 100_000_000, qtyUndangan: 1,
+    });
+    try {
+      expect((await adjustTarget({ customerId: ids.customer, newTarget: 820_000_000, actorId: ids.actor })).noFormulir).toBe(1);
+      expect((await adjustTarget({ customerId: tokoLain, newTarget: 100_000_000, actorId: ids.actor })).noFormulir).toBe(1);
+    } finally {
+      await db.delete(dealerNights).where(eq(dealerNights.id, dnLain));
+    }
+  });
+
   it('penyesuaian tanpa perubahan ditolak dan tidak memakai nomor formulir', async () => {
     await adjustTarget({ customerId: ids.customer, newTarget: 820_000_000, actorId: ids.actor });
     await expect(adjustTarget({ customerId: ids.customer, newTarget: 820_000_000, actorId: ids.actor }))

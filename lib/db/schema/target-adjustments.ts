@@ -12,8 +12,8 @@ export const targetAdjustments = mysqlTable('target_adjustments', {
   dealerNightId: varchar('dealer_night_id', { length: 36 })
     .notNull()
     .references(() => dealerNights.id, { onDelete: 'cascade' }),
-  // Nomor formulir fisik, berurutan per Dealer Night.
-  noFormulir: int('no_formulir').notNull(),
+  // Nomor formulir fisik, berurutan per Dealer Night; NULL = belum dicatat.
+  noFormulir: int('no_formulir'),
   delta: bigint('delta', { mode: 'number' }).notNull(),
   jenis: mysqlEnum('jenis', ['verifikasi', 'penyesuaian']).notNull().default('penyesuaian'),
   note: text('note'),

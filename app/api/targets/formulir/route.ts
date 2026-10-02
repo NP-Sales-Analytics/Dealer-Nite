@@ -9,7 +9,7 @@ const schema = z.object({
   customerId: z.string().uuid(),
   items: z.array(z.object({
     id: z.string().min(1).max(36),
-    noFormulir: z.number().int('No. Formulir harus bilangan bulat.').min(1, 'No. Formulir minimal 1.').max(9_999_999),
+    noFormulir: z.number().int('No. Formulir harus bilangan bulat.').min(1, 'No. Formulir minimal 1.').max(9_999_999).nullable(),
   }).strict()).min(1).max(200),
 }).strict();
 

@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { cn, tanggalJakarta } from '@/lib/utils';
 
-export type RiwayatForm = { id: string; jenis: 'verifikasi' | 'penyesuaian'; noFormulir: number; createdAt: string };
+export type RiwayatForm = { id: string; jenis: 'verifikasi' | 'penyesuaian'; noFormulir: number | null; createdAt: string };
 
 /** Baris "No. Formulir" di Data Toko; pensil membuka editor nomor tiap riwayat toko. */
 export function NoFormulirRow({ customerId, riwayat, canEdit, onSaved }: {
@@ -22,13 +22,14 @@ export function NoFormulirRow({ customerId, riwayat, canEdit, onSaved }: {
   const terakhir = riwayat[0]?.noFormulir;
 
   const buka = () => {
-    setNilai(Object.fromEntries(riwayat.map((item) => [item.id, String(item.noFormulir)])));
+    setNilai(Object.fromEntries(riwayat.map((item) => [item.id, item.noFormulir == null ? '' : String(item.noFormulir)])));
     setEdit(true);
   };
 
-  const angka = (id: string) => Number(nilai[id]);
-  const valid = riwayat.every((item) => Number.isInteger(angka(item.id)) && angka(item.id) >= 1)
-    && new Set(riwayat.map((item) => angka(item.id))).size === riwayat.length;
+  // Kotak kosong = nomor belum dicatat (disimpan sebagai kosong).
+  const angka = (id: string) => (nilai[id] ? Number(nilai[id]) : null);
+  const terisi = riwayat.map((item) => angka(item.id)).filter((n): n is number => n !== null);
+  const valid = terisi.every((n) => Number.isInteger(n) && n >= 1) && new Set(terisi).size === terisi.length;
 
   const simpan = () => start(async () => {
     const response = await fetch('/api/targets/formulir', {
@@ -52,7 +53,13 @@ export function NoFormulirRow({ customerId, riwayat, canEdit, onSaved }: {
         <FileText className="mt-px size-3.5 text-muted-foreground" aria-hidden />
         <span className="text-xs text-muted-foreground">No. Formulir</span>
         <span className="flex items-center justify-between gap-2">
-          <span className="font-semibold tabular-nums">{terakhir ? `Form ${terakhir}` : '—'}</span>
+          {terakhir != null ? (
+            <span className="font-semibold tabular-nums">Form {terakhir}</span>
+          ) : (
+            <span className={riwayat.length ? 'font-medium text-amber-700 dark:text-amber-300' : 'text-muted-foreground'}>
+              {riwayat.length ? 'Belum diisi' : '—'}
+            </span>
+          )}
           {canEdit && riwayat.length > 0 && !edit && (
             <button
               type="button"
@@ -72,7 +79,7 @@ export function NoFormulirRow({ customerId, riwayat, canEdit, onSaved }: {
           className="mt-2.5 space-y-2 rounded-lg border border-primary/30 bg-primary/5 p-2.5"
           onSubmit={(event) => { event.preventDefault(); if (valid) simpan(); }}
         >
-          <p className="text-[11px] text-muted-foreground">Samakan dengan nomor di formulir fisik.</p>
+          <p className="text-[11px] text-muted-foreground">Samakan dengan nomor di formulir fisik. Kosongkan bila belum ada.</p>
           {riwayat.map((item) => (
             <label key={item.id} className="flex items-center gap-2">
               <span
