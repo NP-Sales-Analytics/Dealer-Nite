@@ -1,137 +1,56 @@
-# Audit dan Load Test Produksi — Batas 200 Pengguna
+# Uji Beban Dealer Nite (k6)
 
-Target resmi adalah **200 pengguna bersamaan**. Proyek Supabase Free memiliki
-batas 200 koneksi Realtime dan 100 channel join/detik, jadi alat ini tidak akan
-membuka lebih dari 200 koneksi dan membatasi join menjadi maksimal 10/detik.
+Uji dijalankan ke production, tetapi semua data tulis masuk ke Dealer Night
+terisolasi **DN Loadtest** (tidak aktif, tidak terlihat pengguna asli). DN lain,
+termasuk penghitung No. Formulir-nya, tidak tersentuh.
 
-## Gerbang keselamatan
+## Persiapan
 
-Tidak boleh ada traffic produksi sebelum dashboard Connected Clients dan
-database Supabase, serta log/observability Vercel, dapat dipantau. Semua tool
-yang mengirim HTTP/WebSocket ke domain produksi menolak berjalan kecuali empat
-konfirmasi ini lengkap dan run ID-nya sama:
+1. Buka SSH tunnel ke server MySQL (port lokal 13306).
+2. Buat `.env.loadtest` (diabaikan Git):
 
-```dotenv
-IZINKAN_PRODUKSI=1
-KONFIRMASI_RUN_PRODUKSI=LOADTEST_YYYYMMDDTHHMMSSZ_A1B2C3
-OBSERVABILITY_SIAP=1
-TIM_SUDAH_DIBERI_TAHU=1
-```
-
-Setiap run memakai marker unik dan manifest berisi UUID persis semua customer
-dan staf dummy. Cleanup tidak memakai `LIKE 'LT%'`; semua target divalidasi
-terhadap manifest sebelum transaksi `DELETE`. Snapshot hanya menyimpan jumlah
-baris dan SHA-256 tiap baris—tidak menyimpan password hash, Kode SAP, atau data
-bisnis mentah.
-
-## Persiapan dan preview
-
-1. Salin `.env.loadtest.example` menjadi `.env.loadtest`, lalu isi konfigurasi.
-2. Jalankan lint, tes, type-check, build, dan pemeriksaan secret.
-3. Deploy Vercel Preview dengan konfigurasi produksi, lalu lakukan smoke test
-   read-only dan periksa log fungsi. Promosikan build yang sama ke produksi.
-4. Buat run ID dan salin nilainya ke `LOADTEST_RUN_ID` serta
-   `KONFIRMASI_RUN_PRODUKSI`:
-
-   ```powershell
-   npm run loadtest:new-run
+   ```dotenv
+   SUPERADMIN_PASSWORD=<password Super Admin production>
+   DATABASE_URL=mysql://<akun>:<password>@127.0.0.1:13306/pylox_dn
    ```
 
-5. Pastikan tim sudah diberi tahu, monitoring terbuka, dan aktivitas bisnis
-   telah sepi minimal 10 menit. Preflight juga menolak marker lama dan tenggat
-   order yang telah lewat:
+   AUTH_SECRET production bersifat Sensitive di Vercel dan tidak bisa dibaca,
+   jadi akun uji dibuat lewat User Management (hash password tetap dari server).
+
+3. Buat data uji: DN Loadtest + 120 toko (DB), lalu 20 akun admin + sesinya (browser):
 
    ```powershell
-   npm run loadtest:preflight
-   npm run loadtest:snapshot
-   npm run loadtest:seed
+   npx tsx --env-file=.env.loadtest scripts/loadtest-dn.ts seed
+   npx tsx --env-file=.env.loadtest scripts/loadtest-dn.ts akun
    ```
 
-`loadtest:seed` membuat 200 customer dan 20 staf dummy. Manifest dan cookie ada
-di `load-tests/data/target.json` yang diabaikan Git. Untuk pengujian baca lokal
-atau staging tanpa seed, `npm run loadtest:target` menulis file terpisah
-`target-readonly.json`; gunakan `TARGET_FILE=../data/target-readonly.json`.
+## Menjalankan
 
-## Urutan pengujian
-
-Baseline harus lulus sebelum beban dinaikkan:
+Pantau server MySQL di terminal terpisah selama uji:
 
 ```powershell
-npm run loadtest:k6 -- leaderboard-read --baseline
-npm run loadtest:k6 -- staff-mixed --baseline
+npx tsx --env-file=.env.loadtest scripts/loadtest-mysql-monitor.ts
 ```
 
-Profil k6 utama bergerak melalui 25, 50, 100, 150, 180, dan 200 VU:
+Lalu jalankan dari folder `load-tests/scenarios`:
 
 ```powershell
-npm run loadtest:k6 -- leaderboard-read
-npm run loadtest:k6 -- order-adjust
+k6 run -e MODE=smoke  dealer-nite.js   # 5 VU, 1,5 menit - wajib lulus dulu
+k6 run -e MODE=load   dealer-nite.js   # naik ke 100 VU, tahan 10 menit
+k6 run -e MODE=stress dealer-nite.js   # 100 -> 200 VU untuk mencari titik jenuh
 ```
 
-Profil realistis dijalankan di dua terminal pada saat yang sama. Terminal
-pertama membuka 180 koneksi customer bertahap; terminal kedua menjalankan 20
-staf yang mencari dan check-in:
+Tambahkan `--summary-export ../data/report-<mode>.json` untuk menyimpan
+ringkasan. Uji berhenti otomatis bila p95 > 3 detik atau error server > 2%.
+
+Campuran pengguna (per 10 VU): 4 pencatat kehadiran (cari + check-in), 3 layar
+pemantau (dashboard/kehadiran/leaderboard, polling 10 detik), 2 admin target
+(daftar, riwayat, pratinjau formulir, verifikasi/penyesuaian), 1 admin kupon.
+
+## Selesai
+
+Selalu bersihkan data uji, juga bila uji gagal di tengah jalan:
 
 ```powershell
-$env:KLIEN='180'; npm run cek:badai
+npx tsx --env-file=.env.loadtest scripts/loadtest-dn.ts cleanup
 ```
-
-```powershell
-$env:STAFF_VUS='20'; $env:DURATION='7m'; npm run loadtest:k6 -- staff-mixed
-```
-
-Profil batas kuota membuka tepat 200 koneksi tanpa traffic staf atau order:
-
-```powershell
-$env:KLIEN='200'; $env:ORDER='0'; npm run cek:badai
-```
-
-Uji integritas dan interaksi dilakukan setelah profil utama:
-
-```powershell
-npm run loadtest:race
-npm run loadtest:burst
-npm run loadtest:double-click
-npm run loadtest:verify
-```
-
-`loadtest:burst` memakai customer dummy berbeda untuk burst 10, 25, dan 50.
-`loadtest:double-click` memastikan dua klik sinkron hanya mengirim satu POST dan
-menambah tepat satu baris ledger. Endpoint tidak dinyatakan idempoten karena
-belum memiliki kontrak idempotency key.
-
-## Stop condition dan cleanup
-
-Hentikan kenaikan beban jika ada 402, `too_many_connections`,
-`too_many_joins`, kegagalan integritas, subscription tidak lengkap, error
-5xx/429 di atas 1%, p95 di atas 2 detik selama 60 detik, atau CPU/koneksi DB di
-atas 80% selama dua menit. CPU dan koneksi harus diawasi dari dashboard selama
-tes; runner lokal tidak boleh menebak metrik server yang tidak dimilikinya.
-
-Cleanup wajib dijalankan dalam blok operasional `finally`, bahkan jika tes
-gagal:
-
-```powershell
-npm run loadtest:reset
-npm run loadtest:snapshot -- --banding
-```
-
-Reset menampilkan jumlah child/parent, memvalidasi marker + UUID, menghapus
-dalam transaksi dengan urutan FK aman, dan membuktikan seluruh ID run tersisa
-nol. Perbandingan snapshot membuktikan semua data non-test identik dengan awal.
-
-## Kriteria keputusan
-
-- HTTP: p95 `<500 ms`, p99 `<1.000 ms`, error `<1%`, tanpa 402/5xx.
-- Realtime: 200/200 `SUBSCRIBED`, delivery `>=99,9%`, tidak ada koneksi ganda,
-  dan semua channel hilang setelah disconnect.
-- Database: tidak ada order hilang, total salah/minus, check-in ganda, atau
-  perubahan record produksi.
-
-Kesimpulan laporan hanya boleh salah satu:
-
-- `READY FOR 200 CONCURRENT USERS — NO REALTIME HEADROOM ON FREE PLAN`
-- `NOT READY FOR 200 CONCURRENT USERS`
-
-Tidak ada stress Realtime di atas 200. Target lebih tinggi memerlukan upgrade
-paket atau memindahkan sebagian customer ke polling.
