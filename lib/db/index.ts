@@ -32,6 +32,11 @@ export function connectionOptions(
     password: decodeURIComponent(url.password),
     database,
     connectionLimit: 5,
+    // Server MySQL dipakai bersama aplikasi lain (max_connections 151). Tanpa
+    // ini tiap instance serverless menahan 5 koneksi menganggur selamanya;
+    // uji 100 VU menyisakan ~50 koneksi diam setelah beban selesai.
+    maxIdle: 1,
+    idleTimeout: 15_000,
     waitForConnections: true,
     queueLimit: 0,
     timezone: 'Z',
