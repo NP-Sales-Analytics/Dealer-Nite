@@ -124,12 +124,14 @@ export function TargetDetailDialog({
           <div className="flex min-w-0 items-center gap-3">
             <InitialAvatar nama={row.mgName} className="size-10 rounded-xl" />
             <div className="min-w-0">
-              <DialogTitle className="truncate text-base font-semibold">{row.mgName}</DialogTitle>
+              <DialogTitle className="text-base font-semibold break-words sm:truncate">{row.mgName}</DialogTitle>
               <DialogDescription className="text-xs">MG {row.mgCode} · {row.depotName}</DialogDescription>
+              {/* Di HP pill pindah ke bawah nama supaya nama toko tidak terpotong. */}
+              <span className="mt-1.5 flex sm:hidden"><PillStatus verified={verified} /></span>
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <PillStatus verified={verified} />
+            <span className="hidden sm:flex"><PillStatus verified={verified} /></span>
             <DialogClose
               aria-label="Tutup"
               className="grid size-9 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
