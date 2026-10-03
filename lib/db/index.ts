@@ -46,4 +46,10 @@ export function connectionOptions(
 }
 
 export const mysqlPool = createPool(connectionOptions());
+// `timezone: 'Z'` di atas hanya mengatur konversi Date di sisi Node, bukan zona
+// sesi MySQL. Server memakai zona sistem WIB, sehingga CURRENT_TIMESTAMP
+// (default checked_in_at, created_at, verified_at) tersimpan 7 jam lebih maju
+// lalu dibaca sebagai UTC: check-in 17.26 WIB tampil 00.26. Event ini jalan
+// sebelum koneksi baru diserahkan, jadi SET selalu antre di depan query aplikasi.
+mysqlPool.pool.on('connection', (connection) => connection.query("set time_zone = '+00:00'"));
 export const db = drizzle(mysqlPool, { schema, mode: 'default' });
