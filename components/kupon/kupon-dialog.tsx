@@ -167,6 +167,12 @@ export function KuponDialog({ row, canManage, onOpenChange, onChanged }: {
                     <span className="text-muted-foreground">{row.qtyHadir} pax</span>
                     <span className="text-muted-foreground">·</span>
                     <span>No. undian <span className="font-semibold tabular-nums">{row.nomorUndian ?? '—'}</span></span>
+                    {row.checkedInAt && (
+                      <>
+                        <span className="text-muted-foreground">·</span>
+                        <span className="tabular-nums text-muted-foreground">{jamJakarta(row.checkedInAt)}</span>
+                      </>
+                    )}
                   </>
                 )}
               </div>

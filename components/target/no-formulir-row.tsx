@@ -4,7 +4,12 @@ import { FileText, Pencil } from 'lucide-react';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { cn, tanggalJakarta } from '@/lib/utils';
+import { cn } from '@/lib/utils';
+
+/** "2 Okt 2026" - cukup pendek untuk muat di samping input nomor. */
+const tanggalSingkat = (iso: string) => new Date(iso).toLocaleDateString('id-ID', {
+  day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Jakarta',
+});
 
 export type RiwayatForm = { id: string; jenis: 'verifikasi' | 'penyesuaian'; noFormulir: number | null; createdAt: string };
 
@@ -79,7 +84,7 @@ export function NoFormulirRow({ customerId, riwayat, canEdit, onSaved }: {
           className="mt-2.5 space-y-2 rounded-lg border border-primary/30 bg-primary/5 p-2.5"
           onSubmit={(event) => { event.preventDefault(); if (valid) simpan(); }}
         >
-          <p className="text-[11px] text-muted-foreground">Samakan dengan nomor di formulir fisik. Kosongkan bila belum ada.</p>
+          <p className="text-[11px] text-muted-foreground">Sesuaikan dengan nomor di formulir fisik.</p>
           {riwayat.map((item) => (
             <label key={item.id} className="flex items-center gap-2">
               <span
@@ -90,7 +95,7 @@ export function NoFormulirRow({ customerId, riwayat, canEdit, onSaved }: {
               >
                 {item.jenis === 'verifikasi' ? 'Verifikasi' : 'Penyesuaian'}
               </span>
-              <span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">{tanggalJakarta(item.createdAt)}</span>
+              <span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">{tanggalSingkat(item.createdAt)}</span>
               <span className="text-xs text-muted-foreground">Form</span>
               <input
                 inputMode="numeric"

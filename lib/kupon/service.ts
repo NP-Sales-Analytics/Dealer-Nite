@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { kuponProses } from '@/lib/db/schema';
 import { prosesKupon, totalKupon, type JumlahKupon } from '@/lib/target/kupon';
+import { isoUtc as iso } from '@/lib/utils';
 
 export class KuponError extends Error {
   constructor(message: string, public readonly status = 400) {
@@ -26,13 +27,13 @@ export type KuponRow = {
   targetEfektif: number;
   qtyHadir: number | null;
   nomorUndian: string | null;
+  checkedInAt: string | null;
   dibuat: JumlahKupon;
   diberikan: JumlahKupon;
   terakhir: string | null;
 };
 
 const rowsFrom = <T,>(result: unknown) => (result as [T[], unknown])[0];
-const iso = (value: unknown) => (value == null ? null : (value instanceof Date ? value : new Date(String(value))).toISOString());
 
 export const catatKuponSchema = z.object({
   customerId: z.string().uuid(),
@@ -91,7 +92,7 @@ export async function listKupon(dealerNightId: string): Promise<KuponRow[]> {
     select c.id as customerId, c.mg_code as mgCode, c.mg_name as mgName, c.depot_code as depotCode, c.depot_name as depotName,
       c.wilayah, c.region, c.verified_at is not null as verified,
       c.target_dn_awal + coalesce(a.total, 0) as targetEfektif,
-      r.qty_hadir as qtyHadir, r.nomor_undian as nomorUndian,
+      r.qty_hadir as qtyHadir, r.nomor_undian as nomorUndian, r.checked_in_at as checkedInAt,
       coalesce(k.dibuatPink, 0) as dibuatPink, coalesce(k.dibuatHijau, 0) as dibuatHijau,
       coalesce(k.diberikanPink, 0) as diberikanPink, coalesce(k.diberikanHijau, 0) as diberikanHijau,
       k.terakhir
@@ -128,6 +129,7 @@ export async function listKupon(dealerNightId: string): Promise<KuponRow[]> {
     targetEfektif: Number(row.targetEfektif),
     qtyHadir: row.qtyHadir == null ? null : Number(row.qtyHadir),
     nomorUndian: row.nomorUndian == null ? null : String(row.nomorUndian),
+    checkedInAt: iso(row.checkedInAt),
     dibuat: { pink: Number(row.dibuatPink), hijau: Number(row.dibuatHijau) },
     diberikan: { pink: Number(row.diberikanPink), hijau: Number(row.diberikanHijau) },
     terakhir: iso(row.terakhir),

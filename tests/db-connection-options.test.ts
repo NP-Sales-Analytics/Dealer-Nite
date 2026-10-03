@@ -1,5 +1,12 @@
 import { afterAll, describe, expect, it } from 'vitest';
 import { connectionOptions, mysqlPool } from '@/lib/db';
+import { isoUtc } from '@/lib/utils';
+
+// Teks DATETIME mentah harus dibaca sebagai UTC, apa pun zona mesin yang menjalankan.
+it('reads raw MySQL DATETIME text as UTC regardless of the host time zone', () => {
+  expect(isoUtc('2026-10-03 12:57:01.123')).toBe('2026-10-03T12:57:01.123Z');
+  expect(isoUtc(null)).toBeNull();
+});
 
 afterAll(() => mysqlPool.end());
 

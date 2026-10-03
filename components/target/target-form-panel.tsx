@@ -91,7 +91,7 @@ export function TargetFormPanel({ row, onSaved }: { row: TargetRow; onSaved: () 
           />
         </div>
         <p className={cn('text-xs', valid || value === '' ? 'text-muted-foreground' : 'text-destructive')}>
-          Minimal Rp50.000.000. Boleh dinaikkan maupun diturunkan.
+          Minimal Rp50.000.000.
         </p>
       </div>
 

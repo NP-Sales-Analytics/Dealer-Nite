@@ -306,7 +306,6 @@ export function KuponClient({ dealerNights, canManage, canExport }: {
                     </TableCell>
                     <TableCell className="py-4 text-center">
                       <PillHadir qtyHadir={row.qtyHadir} />
-                      {row.nomorUndian && <p className="mt-1 text-[11px] tabular-nums text-muted-foreground">Undian {row.nomorUndian}</p>}
                     </TableCell>
                     <TableCell className="py-4 text-center">
                       {k.status === 'belum_verifikasi' ? <span className="text-muted-foreground">&mdash;</span> : (
