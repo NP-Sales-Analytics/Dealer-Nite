@@ -23,6 +23,16 @@ export function inisial(nama: string) {
   );
 }
 
+/**
+ * DATETIME dari `db.execute` mentah datang sebagai teks tanpa zona
+ * ("2026-10-03 12:57:01.000") yang isinya UTC. `new Date(teks)` membacanya
+ * sebagai jam lokal server, jadi di mesin ber-zona WIB bergeser 7 jam.
+ */
+export function isoUtc(value: unknown) {
+  if (value == null) return null;
+  return (value instanceof Date ? value : new Date(`${String(value).replace(' ', 'T')}Z`)).toISOString();
+}
+
 /** Jam check-in dalam zona Asia/Jakarta. */
 export function jamJakarta(v: string) {
   // checked_in_at datang sebagai string mentah driver ("2026-09-02 06:15:05.88+00").

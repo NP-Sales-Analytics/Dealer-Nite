@@ -3,6 +3,7 @@ import { sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { targetAdjustments } from '@/lib/db/schema';
 import { MIN_TARGET_DN, validateTargetDn } from '@/lib/target/rules';
+import { isoUtc as isoAtauNull } from '@/lib/utils';
 
 export type TargetSnapshot = {
   customerId: string;
@@ -36,9 +37,6 @@ export type TargetListRow = TargetSnapshot & {
 };
 
 const teksAtauNull = (value: unknown) => (value == null ? null : String(value));
-const isoAtauNull = (value: unknown) => (value == null
-  ? null
-  : (value instanceof Date ? value : new Date(String(value))).toISOString());
 
 const PESAN_GALAT = {
   NOT_FOUND: 'Toko tidak ditemukan.',
@@ -260,7 +258,7 @@ export async function getTargetHistory(customerId: string) {
     note: row.note == null ? null : String(row.note),
     recordedBy: row.recordedBy == null ? null : String(row.recordedBy),
     recordedByName: row.recordedByName == null ? null : String(row.recordedByName),
-    createdAt: new Date(String(row.createdAt)),
+    createdAt: new Date(isoAtauNull(row.createdAt)!),
   }));
 }
 

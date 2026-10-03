@@ -20,7 +20,7 @@ export function targetFormCopy({ currentTarget, verified = true }: { currentTarg
   } : {
     title: 'Verifikasi Target DN',
     current: `Target dari pusat ${formatRupiah(currentTarget)}`,
-    instruction: 'Cek target dari pusat. Ubah bila perlu, lalu simpan untuk memverifikasi.',
+    instruction: 'Cek kesesuaian target dari pusat',
     save: 'Simpan Verifikasi',
   };
 }
