@@ -14,7 +14,7 @@ import { hitungKpiTarget, TargetKpi } from './target-kpi';
 import type { DealerNightOption, TargetResponse, TargetRow } from './types';
 import { UploadMasterDialog } from './upload-master-dialog';
 import type { FilterOptions } from '@/app/api/dashboard/filters/route';
-import { adaFilterAktif, FilterBar, FILTER_KOSONG, type FilterState } from '@/components/dashboard/filter-bar';
+import { adaFilterAktif, FilterBar, FILTER_KOSONG, lolosHadir, type FilterState } from '@/components/dashboard/filter-bar';
 import { InitialAvatar } from '@/components/shared/initial-avatar';
 import { TombolUnduh } from '@/components/shared/tombol-unduh';
 import {
@@ -32,16 +32,12 @@ import { cn } from '@/lib/utils';
 
 const PER_HALAMAN = 20;
 type Status = 'semua' | 'belum' | 'sudah';
-type Kehadiran = 'semua' | 'hadir' | 'belum';
-
-const cocokStatus = (row: TargetRow, s: Status) => s === 'semua' || (s === 'sudah') === !!row.verifiedAt;
-// Sama dengan PillHadir: tercatat check-in = sudah hadir.
-const cocokHadir = (row: TargetRow, h: Kehadiran) => h === 'semua' || (h === 'hadir') === (row.qtyHadir !== null);
 
 const cocok = (row: TargetRow, f: FilterState, q: string) =>
   (f.wilayah.length === 0 || (!!row.wilayah && f.wilayah.includes(row.wilayah)))
   && (f.region.length === 0 || (!!row.region && f.region.includes(row.region)))
   && (f.depot.length === 0 || f.depot.includes(row.depotName))
+  && lolosHadir(f, row.qtyHadir)
   && (!q || `${row.mgCode} ${row.mgName} ${row.sotpCode} ${row.sotpName} ${row.salesman ?? ''} ${row.spv ?? ''}`
     .toLowerCase().includes(q));
 
@@ -71,38 +67,6 @@ function KolomPenambahan({ row }: { row: TargetRow }) {
     >
       {tambah > 0 ? '+' : ''}{formatRupiahRingkas(tambah)}
     </span>
-  );
-}
-
-/** Deretan tab penyaring dengan jumlah baris per pilihan. */
-function GrupTab<K extends string>({ label, pilihan, value, jumlah, onChange }: {
-  label: string;
-  pilihan: readonly (readonly [K, string])[];
-  value: K;
-  jumlah: Record<K, number>;
-  onChange: (value: K) => void;
-}) {
-  return (
-    <div className="inline-flex max-w-full gap-1 overflow-x-auto rounded-xl border border-border bg-card p-1 shadow-xs" role="tablist" aria-label={label}>
-      {pilihan.map(([key, teks]) => (
-        <button
-          key={key}
-          type="button"
-          role="tab"
-          aria-selected={value === key}
-          onClick={() => onChange(key)}
-          className={cn(
-            'inline-flex h-9 shrink-0 items-center gap-2 rounded-lg px-3.5 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
-            value === key ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
-          )}
-        >
-          {teks}
-          <span className={cn('rounded-full px-1.5 text-xs tabular-nums', value === key ? 'bg-primary-foreground/20' : 'bg-secondary')}>
-            {jumlah[key]}
-          </span>
-        </button>
-      ))}
-    </div>
   );
 }
 
@@ -141,7 +105,6 @@ export function TargetDetail({
   const [dealerNightId, setDealerNightId] = useState(() => dnBawaan(dealerNights));
   const [filter, setFilter] = useState<FilterState>(FILTER_KOSONG);
   const [status, setStatus] = useState<Status>('semua');
-  const [kehadiran, setKehadiran] = useState<Kehadiran>('semua');
   const [page, setPage] = useState(1);
   const [detail, setDetail] = useState<TargetRow | null>(null);
   const [master, setMaster] = useState<TargetRow | 'baru' | null>(null);
@@ -163,7 +126,7 @@ export function TargetDetail({
   });
   const semua = useMemo(() => query.data?.rows ?? [], [query.data]);
   const q = useDebounce(filter.q, 250).trim().toLowerCase();
-  useEffect(() => setPage(1), [dealerNightId, filter.wilayah, filter.region, filter.depot, q, status, kehadiran]);
+  useEffect(() => setPage(1), [dealerNightId, filter.wilayah, filter.region, filter.depot, filter.hadir, q, status]);
 
   const options = useMemo<FilterOptions>(() => {
     const depots = [...new Map(semua.map((row) => [row.depotName, {
@@ -179,21 +142,12 @@ export function TargetDetail({
   }, [semua]);
 
   const tersaring = useMemo(() => semua.filter((row) => cocok(row, filter, q)), [semua, filter, q]);
-  // Jumlah tiap grup tab mengikuti pilihan di grup lainnya, jadi angka di tab
-  // selalu sama dengan jumlah baris yang tampil bila tab itu dipilih.
-  const perHadir = tersaring.filter((row) => cocokHadir(row, kehadiran));
-  const perStatus = tersaring.filter((row) => cocokStatus(row, status));
-  const jumlah: Record<Status, number> = {
-    semua: perHadir.length,
-    belum: perHadir.filter((row) => cocokStatus(row, 'belum')).length,
-    sudah: perHadir.filter((row) => cocokStatus(row, 'sudah')).length,
+  const jumlah = {
+    semua: tersaring.length,
+    belum: tersaring.filter((row) => !row.verifiedAt).length,
+    sudah: tersaring.filter((row) => row.verifiedAt).length,
   };
-  const jumlahHadir: Record<Kehadiran, number> = {
-    semua: perStatus.length,
-    hadir: perStatus.filter((row) => cocokHadir(row, 'hadir')).length,
-    belum: perStatus.filter((row) => cocokHadir(row, 'belum')).length,
-  };
-  const rows = perStatus.filter((row) => cocokHadir(row, kehadiran));
+  const rows = tersaring.filter((row) => status === 'semua' || (status === 'sudah') === !!row.verifiedAt);
   const totalPages = Math.max(1, Math.ceil(rows.length / PER_HALAMAN));
   const aman = Math.min(page, totalPages);
   const tampil = rows.slice((aman - 1) * PER_HALAMAN, aman * PER_HALAMAN);
@@ -202,7 +156,7 @@ export function TargetDetail({
   const kpi = useMemo(() => hitungKpiTarget(semua, targetDn), [semua, targetDn]);
 
   const segarkan = () => queryClient.invalidateQueries({ queryKey: ['targets'] });
-  const adaFilter = adaFilterAktif({ ...filter, q }) || status !== 'semua' || kehadiran !== 'semua';
+  const adaFilter = adaFilterAktif({ ...filter, q }) || status !== 'semua';
 
   async function hapusToko(row: TargetRow) {
     const response = await fetch(`/api/master/${row.customerId}`, { method: 'DELETE' }).catch(() => null);
@@ -252,32 +206,37 @@ export function TargetDetail({
         options={options}
         onChange={setFilter}
         withSearch
+        withKehadiran
         searchPlaceholder="Cari toko, MG Code, salesman, atau SPV..."
         awal={(
           <DealerNightSelect
             options={dealerNights}
             value={dealerNightId}
-            onChange={(id) => { setDealerNightId(id); setFilter(FILTER_KOSONG); setStatus('semua'); setKehadiran('semua'); }}
+            onChange={(id) => { setDealerNightId(id); setFilter(FILTER_KOSONG); setStatus('semua'); }}
             className="min-w-0 basis-full sm:basis-auto sm:w-40 sm:flex-none"
           />
         )}
       />
 
-      <div className="flex flex-wrap gap-2">
-        <GrupTab
-          label="Status verifikasi"
-          pilihan={[['semua', 'Semua'], ['belum', 'Belum Verifikasi'], ['sudah', 'Terverifikasi']] as const}
-          value={status}
-          jumlah={jumlah}
-          onChange={setStatus}
-        />
-        <GrupTab
-          label="Kehadiran"
-          pilihan={[['semua', 'Semua Kehadiran'], ['hadir', 'Sudah Hadir'], ['belum', 'Belum Hadir']] as const}
-          value={kehadiran}
-          jumlah={jumlahHadir}
-          onChange={setKehadiran}
-        />
+      <div className="inline-flex max-w-full gap-1 overflow-x-auto rounded-xl border border-border bg-card p-1 shadow-xs" role="tablist">
+        {([['semua', 'Semua'], ['belum', 'Belum Verifikasi'], ['sudah', 'Terverifikasi']] as const).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={status === key}
+            onClick={() => setStatus(key)}
+            className={cn(
+              'inline-flex h-9 shrink-0 items-center gap-2 rounded-lg px-3.5 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+              status === key ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
+            )}
+          >
+            {label}
+            <span className={cn('rounded-full px-1.5 text-xs tabular-nums', status === key ? 'bg-primary-foreground/20' : 'bg-secondary')}>
+              {jumlah[key]}
+            </span>
+          </button>
+        ))}
       </div>
 
       {!dealerNightId ? (
