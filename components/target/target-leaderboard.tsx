@@ -86,7 +86,7 @@ export function TargetLeaderboard({ dealerNights }: { dealerNights: DealerNightO
             items={pilihanDepot}
             value={depot}
             onChange={setDepot}
-            labelSemua="Semua Depot"
+            labelSemua="Depot"
             satuan="Depot"
             cariPlaceholder="Cari depot..."
             kosong="Depot tidak ditemukan."

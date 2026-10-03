@@ -13,15 +13,26 @@ import { PilihBanyak } from '@/components/ui/combobox';
  * "kosong" dan "semua" sengaja diwakili nilai yang sama, bukan sentinel
  * terpisah yang harus diingat di tiap pemanggil.
  */
-export type FilterState = { wilayah: string[]; region: string[]; depot: string[]; hadir: string[]; q: string };
-export const FILTER_KOSONG: FilterState = { wilayah: [], region: [], depot: [], hadir: [], q: '' };
+export type FilterState = {
+  wilayah: string[]; region: string[]; depot: string[]; hadir: string[]; tambah: string[]; q: string;
+};
+export const FILTER_KOSONG: FilterState = { wilayah: [], region: [], depot: [], hadir: [], tambah: [], q: '' };
 
 /** Pilihan filter Kehadiran; teksnya sama dengan PillHadir. */
 const HADIR = ['Sudah Hadir', 'Belum Hadir'];
+const TAMBAH = ['Ada Penambahan', 'Tanpa Penambahan'];
 
 /** Toko lolos filter Kehadiran? Tercatat check-in (qtyHadir terisi) = sudah hadir. */
 export const lolosHadir = (f: FilterState, qtyHadir: number | null) =>
   f.hadir.length === 0 || f.hadir.includes(qtyHadir === null ? 'Belum Hadir' : 'Sudah Hadir');
+
+/**
+ * Toko lolos filter Penambahan? "Ada" = target berubah setelah verifikasi -
+ * definisi yang sama dengan kolom Penambahan dan KPI "toko menyesuaikan".
+ */
+export const lolosTambah = (f: FilterState, targetVerifikasi: number | null, targetEfektif: number) =>
+  f.tambah.length === 0
+  || f.tambah.includes(targetVerifikasi != null && targetEfektif !== targetVerifikasi ? 'Ada Penambahan' : 'Tanpa Penambahan');
 
 /**
  * Menuliskan filter ke query string - dipakai bersama ketiga halaman.
@@ -41,7 +52,8 @@ export function paramFilter(f: FilterState, p = new URLSearchParams()) {
 
 /** Apakah ada penyaring yang sedang aktif - untuk pesan "tidak ada yang cocok". */
 export const adaFilterAktif = (f: FilterState) =>
-  f.wilayah.length > 0 || f.region.length > 0 || f.depot.length > 0 || f.hadir.length > 0 || f.q.trim() !== '';
+  f.wilayah.length > 0 || f.region.length > 0 || f.depot.length > 0 || f.hadir.length > 0 || f.tambah.length > 0
+  || f.q.trim() !== '';
 
 type Tingkat = 'wilayah' | 'region' | 'depot';
 type Simpul = { wilayah: string | null; region: string | null; depot: string };
@@ -56,15 +68,18 @@ const cocok = (s: Simpul, w: string[], r: string[], d: string[]) =>
   && (d.length === 0 || d.includes(s.depot));
 
 export function FilterBar({
-  value, options, onChange, withSearch = false, searchPlaceholder = 'Cari nama toko atau MG Code...', withKehadiran = false, awal,
+  value, options, onChange, withSearch = false, searchPlaceholder = 'Cari nama toko atau MG Code...', filterToko = false, awal,
 }: {
   value: FilterState;
   options: FilterOptions | undefined;
   onChange: (v: FilterState) => void;
   withSearch?: boolean;
   searchPlaceholder?: string;
-  /** Tampilkan filter Kehadiran; penyaringannya dilakukan pemanggil lewat lolosHadir. */
-  withKehadiran?: boolean;
+  /**
+   * Varian halaman per toko (Detail Target, Detail Kupon): tanpa Region, tambah
+   * Kehadiran dan Penambahan. Penyaringannya di pemanggil lewat lolosHadir/lolosTambah.
+   */
+  filterToko?: boolean;
   /** Kontrol tambahan di depan dropdown, mis. pemilih Dealer Night. */
   awal?: ReactNode;
 }) {
@@ -165,17 +180,19 @@ export function FilterBar({
 
         <div className="flex flex-wrap gap-2.5 lg:flex-nowrap">
           {awal}
-          <PilihBanyak
-            items={regionTampil}
-            value={value.region}
-            onChange={(v) => ubah('region', v)}
-            labelSemua="Region"
-            satuan="Region"
-            format={(r) => `Region ${r}`}
-            cariPlaceholder="Cari region..."
-            kosong="Region tidak ditemukan."
-            className="min-w-0 flex-1 sm:w-36 sm:flex-none"
-          />
+          {!filterToko && (
+            <PilihBanyak
+              items={regionTampil}
+              value={value.region}
+              onChange={(v) => ubah('region', v)}
+              labelSemua="Region"
+              satuan="Region"
+              format={(r) => `Region ${r}`}
+              cariPlaceholder="Cari region..."
+              kosong="Region tidak ditemukan."
+              className="min-w-0 flex-1 sm:w-36 sm:flex-none"
+            />
+          )}
 
           <PilihBanyak
             items={depotTampil}
@@ -188,19 +205,32 @@ export function FilterBar({
             className="min-w-0 flex-1 sm:w-40 sm:flex-none"
           />
 
-          {withKehadiran && (
-            <PilihBanyak
-              items={HADIR}
-              value={value.hadir}
-              onChange={(v) => onChange({ ...value, hadir: v })}
-              labelSemua="Kehadiran"
-              satuan="Status"
-              cariPlaceholder="Cari status..."
-              kosong="Status tidak ditemukan."
-              // Di HP pindah ke baris sendiri di bawah; kalau ikut berbagi baris
-              // dengan Region, Depot, dan Reset, semua labelnya terpotong.
-              className="order-last min-w-0 basis-full sm:order-none sm:w-36 sm:flex-none sm:basis-auto"
-            />
+          {filterToko && (
+            // Di HP keduanya berbagi satu baris sendiri di bawah Depot + Reset,
+            // supaya label tidak terpotong dan Reset tidak menambah baris.
+            // Mulai sm pembungkus ini lenyap (contents) dan keduanya ikut baris utama.
+            <div className="order-last flex basis-full gap-2.5 sm:contents">
+              <PilihBanyak
+                items={HADIR}
+                value={value.hadir}
+                onChange={(v) => onChange({ ...value, hadir: v })}
+                labelSemua="Kehadiran"
+                satuan="Status"
+                cariPlaceholder="Cari status..."
+                kosong="Status tidak ditemukan."
+                className="min-w-0 flex-[2] sm:w-36 sm:flex-none"
+              />
+              <PilihBanyak
+                items={TAMBAH}
+                value={value.tambah}
+                onChange={(v) => onChange({ ...value, tambah: v })}
+                labelSemua="Penambahan"
+                satuan="Status"
+                cariPlaceholder="Cari status..."
+                kosong="Status tidak ditemukan."
+                className="min-w-0 flex-[3] sm:w-44 sm:flex-none"
+              />
+            </div>
           )}
 
           {aktif && (
