@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { KuponDialog } from './kupon-dialog';
 import { BarProses, RasioKupon, STATUS_KUPON, WARNA } from './status';
 import type { FilterOptions } from '@/app/api/dashboard/filters/route';
-import { adaFilterAktif, FilterBar, FILTER_KOSONG, lolosHadir, type FilterState } from '@/components/dashboard/filter-bar';
+import { adaFilterAktif, FilterBar, FILTER_KOSONG, lolosHadir, lolosTambah, type FilterState } from '@/components/dashboard/filter-bar';
 import { InitialAvatar } from '@/components/shared/initial-avatar';
 import { TombolUnduh } from '@/components/shared/tombol-unduh';
 import { DealerNightSelect } from '@/components/target/dealer-night-select';
@@ -60,7 +60,7 @@ export function KuponClient({ dealerNights, canManage, canExport }: {
   })), [query.data]);
 
   const q = useDebounce(filter.q, 250).trim().toLowerCase();
-  useEffect(() => { setPage(1); setPilih(new Set()); }, [dealerNightId, filter.wilayah, filter.region, filter.depot, filter.hadir, q, status]);
+  useEffect(() => { setPage(1); setPilih(new Set()); }, [dealerNightId, filter.wilayah, filter.region, filter.depot, filter.hadir, filter.tambah, q, status]);
 
   const options = useMemo<FilterOptions>(() => {
     const depots = [...new Map(semua.map(({ row }) => [row.depotName, { depot: row.depotName, region: row.region, wilayah: row.wilayah }])).values()];
@@ -76,6 +76,7 @@ export function KuponClient({ dealerNights, canManage, canExport }: {
     && (filter.region.length === 0 || (!!row.region && filter.region.includes(row.region)))
     && (filter.depot.length === 0 || filter.depot.includes(row.depotName))
     && lolosHadir(filter, row.qtyHadir)
+    && lolosTambah(filter, row.targetVerifikasi, row.targetEfektif)
     && (!q || `${row.mgCode} ${row.mgName} ${row.nomorUndian ?? ''}`.toLowerCase().includes(q)));
 
   const ringkas = useMemo(() => {
@@ -217,7 +218,7 @@ export function KuponClient({ dealerNights, canManage, canExport }: {
         options={options}
         onChange={setFilter}
         withSearch
-        withKehadiran
+        filterToko
         searchPlaceholder="Cari toko, MG Code, atau nomor undian..."
         awal={(
           <DealerNightSelect

@@ -1,10 +1,10 @@
 import { Target, TrendingUp, Trophy, type LucideIcon } from 'lucide-react';
 import Link from 'next/link';
 import type { TargetRow } from './types';
-import { formatRupiah, formatRupiahRingkas } from '@/lib/target/money';
+import { formatRupiahRingkas } from '@/lib/target/money';
 import { cn } from '@/lib/utils';
 
-/** Angka KPI Target DN untuk satu Dealer Night (tidak ikut filter tabel). */
+/** Angka KPI Target DN untuk sekumpulan toko (satu Dealer Night, atau depot terpilih). */
 export function hitungKpiTarget(rows: TargetRow[], targetDn: number) {
   const verified = rows.filter((row) => row.verifiedAt);
   const pencapaian = verified.reduce((sum, row) => sum + row.targetEfektif, 0);
@@ -37,16 +37,25 @@ function Kartu({ icon: Icon, label, children, aksen }: {
   );
 }
 
-export function TargetKpi({ kpi, bisaAtur }: { kpi: ReturnType<typeof hitungKpiTarget>; bisaAtur: boolean }) {
+/**
+ * `kpi` mencakup seluruh Dealer Night; `kpiDepot` hanya depot yang difilter.
+ * Target DN diatur per Dealer Night, bukan per depot, jadi Total Target dan
+ * Persentase tetap seluruh DN - hanya Pencapaian dan Penambahan yang ikut depot.
+ */
+export function TargetKpi({ kpi, kpiDepot, bisaAtur }: {
+  kpi: ReturnType<typeof hitungKpiTarget>;
+  kpiDepot: ReturnType<typeof hitungKpiTarget>;
+  bisaAtur: boolean;
+}) {
   const persen = kpi.persen === null ? null : Math.round(kpi.persen * 10) / 10;
-  const naik = kpi.penambahan >= 0;
+  const naik = kpiDepot.penambahan >= 0;
 
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       <Kartu icon={Target} label="Total Target DN" aksen="bg-primary/30">
         {kpi.targetDn > 0 ? (
           <>
-            <p className="text-xl font-bold tracking-tight tabular-nums text-foreground">{formatRupiah(kpi.targetDn)}</p>
+            <p className="text-xl font-bold tracking-tight tabular-nums">{formatRupiahRingkas(kpi.targetDn)}</p>
             <p className="mt-0.5 text-xs text-muted-foreground">target seluruh Dealer Night</p>
           </>
         ) : (
@@ -64,9 +73,9 @@ export function TargetKpi({ kpi, bisaAtur }: { kpi: ReturnType<typeof hitungKpiT
       </Kartu>
 
       <Kartu icon={Trophy} label="Pencapaian Malam DN" aksen="bg-amber-300/40">
-        <p className="text-xl font-bold tracking-tight tabular-nums">{formatRupiahRingkas(kpi.pencapaian)}</p>
+        <p className="text-xl font-bold tracking-tight tabular-nums">{formatRupiahRingkas(kpiDepot.pencapaian)}</p>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          dari <span className="font-semibold text-foreground tabular-nums">{kpi.tokoVerified}</span>/{kpi.totalToko} toko terverifikasi
+          dari <span className="font-semibold text-foreground tabular-nums">{kpiDepot.tokoVerified}</span>/{kpiDepot.totalToko} toko terverifikasi
         </p>
       </Kartu>
 
@@ -86,11 +95,11 @@ export function TargetKpi({ kpi, bisaAtur }: { kpi: ReturnType<typeof hitungKpiT
       </Kartu>
 
       <Kartu icon={TrendingUp} label="Total Penambahan" aksen={naik ? 'bg-emerald-300/40' : 'bg-red-300/40'}>
-        <p className={cn('text-xl font-bold tracking-tight tabular-nums', kpi.penambahan > 0 ? 'text-emerald-600' : kpi.penambahan < 0 ? 'text-destructive' : '')}>
-          {kpi.penambahan > 0 ? '+' : ''}{formatRupiahRingkas(kpi.penambahan)}
+        <p className={cn('text-xl font-bold tracking-tight tabular-nums', kpiDepot.penambahan > 0 ? 'text-emerald-600' : kpiDepot.penambahan < 0 ? 'text-destructive' : '')}>
+          {kpiDepot.penambahan > 0 ? '+' : ''}{formatRupiahRingkas(kpiDepot.penambahan)}
         </p>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          setelah verifikasi · <span className="font-semibold text-foreground tabular-nums">{kpi.tokoMenyesuaikan}</span> toko menyesuaikan
+          setelah verifikasi · <span className="font-semibold text-foreground tabular-nums">{kpiDepot.tokoMenyesuaikan}</span> toko menyesuaikan
         </p>
       </Kartu>
     </div>

@@ -24,6 +24,7 @@ export type KuponRow = {
   wilayah: string | null;
   region: string | null;
   verified: boolean;
+  targetVerifikasi: number | null;
   targetEfektif: number;
   qtyHadir: number | null;
   nomorUndian: string | null;
@@ -90,7 +91,7 @@ export async function scopeKupon(customerId: string) {
 export async function listKupon(dealerNightId: string): Promise<KuponRow[]> {
   const rows = rowsFrom<Record<string, unknown>>(await db.execute(sql`
     select c.id as customerId, c.mg_code as mgCode, c.mg_name as mgName, c.depot_code as depotCode, c.depot_name as depotName,
-      c.wilayah, c.region, c.verified_at is not null as verified,
+      c.wilayah, c.region, c.verified_at is not null as verified, c.target_verifikasi as targetVerifikasi,
       c.target_dn_awal + coalesce(a.total, 0) as targetEfektif,
       r.qty_hadir as qtyHadir, r.nomor_undian as nomorUndian, r.checked_in_at as checkedInAt,
       coalesce(k.dibuatPink, 0) as dibuatPink, coalesce(k.dibuatHijau, 0) as dibuatHijau,
@@ -126,6 +127,7 @@ export async function listKupon(dealerNightId: string): Promise<KuponRow[]> {
     wilayah: row.wilayah == null ? null : String(row.wilayah),
     region: row.region == null ? null : String(row.region),
     verified: Number(row.verified) === 1,
+    targetVerifikasi: row.targetVerifikasi == null ? null : Number(row.targetVerifikasi),
     targetEfektif: Number(row.targetEfektif),
     qtyHadir: row.qtyHadir == null ? null : Number(row.qtyHadir),
     nomorUndian: row.nomorUndian == null ? null : String(row.nomorUndian),

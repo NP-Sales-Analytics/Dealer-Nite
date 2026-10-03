@@ -14,7 +14,7 @@ import { hitungKpiTarget, TargetKpi } from './target-kpi';
 import type { DealerNightOption, TargetResponse, TargetRow } from './types';
 import { UploadMasterDialog } from './upload-master-dialog';
 import type { FilterOptions } from '@/app/api/dashboard/filters/route';
-import { adaFilterAktif, FilterBar, FILTER_KOSONG, lolosHadir, type FilterState } from '@/components/dashboard/filter-bar';
+import { adaFilterAktif, FilterBar, FILTER_KOSONG, lolosHadir, lolosTambah, type FilterState } from '@/components/dashboard/filter-bar';
 import { InitialAvatar } from '@/components/shared/initial-avatar';
 import { TombolUnduh } from '@/components/shared/tombol-unduh';
 import {
@@ -38,6 +38,7 @@ const cocok = (row: TargetRow, f: FilterState, q: string) =>
   && (f.region.length === 0 || (!!row.region && f.region.includes(row.region)))
   && (f.depot.length === 0 || f.depot.includes(row.depotName))
   && lolosHadir(f, row.qtyHadir)
+  && lolosTambah(f, row.targetVerifikasi, row.targetEfektif)
   && (!q || `${row.mgCode} ${row.mgName} ${row.sotpCode} ${row.sotpName} ${row.salesman ?? ''} ${row.spv ?? ''}`
     .toLowerCase().includes(q));
 
@@ -126,7 +127,7 @@ export function TargetDetail({
   });
   const semua = useMemo(() => query.data?.rows ?? [], [query.data]);
   const q = useDebounce(filter.q, 250).trim().toLowerCase();
-  useEffect(() => setPage(1), [dealerNightId, filter.wilayah, filter.region, filter.depot, filter.hadir, q, status]);
+  useEffect(() => setPage(1), [dealerNightId, filter.wilayah, filter.region, filter.depot, filter.hadir, filter.tambah, q, status]);
 
   const options = useMemo<FilterOptions>(() => {
     const depots = [...new Map(semua.map((row) => [row.depotName, {
@@ -154,6 +155,8 @@ export function TargetDetail({
 
   const targetDn = dealerNights.find((item) => item.id === dealerNightId)?.targetDn ?? 0;
   const kpi = useMemo(() => hitungKpiTarget(semua, targetDn), [semua, targetDn]);
+  const kpiDepot = useMemo(() => (filter.depot.length === 0 ? kpi
+    : hitungKpiTarget(semua.filter((row) => filter.depot.includes(row.depotName)), targetDn)), [kpi, semua, filter.depot, targetDn]);
 
   const segarkan = () => queryClient.invalidateQueries({ queryKey: ['targets'] });
   const adaFilter = adaFilterAktif({ ...filter, q }) || status !== 'semua';
@@ -199,14 +202,14 @@ export function TargetDetail({
         </div>
       </div>
 
-      <TargetKpi kpi={kpi} bisaAtur={canSetting} />
+      <TargetKpi kpi={kpi} kpiDepot={kpiDepot} bisaAtur={canSetting} />
 
       <FilterBar
         value={filter}
         options={options}
         onChange={setFilter}
         withSearch
-        withKehadiran
+        filterToko
         searchPlaceholder="Cari toko, MG Code, salesman, atau SPV..."
         awal={(
           <DealerNightSelect
