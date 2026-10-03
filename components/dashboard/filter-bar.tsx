@@ -13,8 +13,15 @@ import { PilihBanyak } from '@/components/ui/combobox';
  * "kosong" dan "semua" sengaja diwakili nilai yang sama, bukan sentinel
  * terpisah yang harus diingat di tiap pemanggil.
  */
-export type FilterState = { wilayah: string[]; region: string[]; depot: string[]; q: string };
-export const FILTER_KOSONG: FilterState = { wilayah: [], region: [], depot: [], q: '' };
+export type FilterState = { wilayah: string[]; region: string[]; depot: string[]; hadir: string[]; q: string };
+export const FILTER_KOSONG: FilterState = { wilayah: [], region: [], depot: [], hadir: [], q: '' };
+
+/** Pilihan filter Kehadiran; teksnya sama dengan PillHadir. */
+const HADIR = ['Sudah Hadir', 'Belum Hadir'];
+
+/** Toko lolos filter Kehadiran? Tercatat check-in (qtyHadir terisi) = sudah hadir. */
+export const lolosHadir = (f: FilterState, qtyHadir: number | null) =>
+  f.hadir.length === 0 || f.hadir.includes(qtyHadir === null ? 'Belum Hadir' : 'Sudah Hadir');
 
 /**
  * Menuliskan filter ke query string - dipakai bersama ketiga halaman.
@@ -34,7 +41,7 @@ export function paramFilter(f: FilterState, p = new URLSearchParams()) {
 
 /** Apakah ada penyaring yang sedang aktif - untuk pesan "tidak ada yang cocok". */
 export const adaFilterAktif = (f: FilterState) =>
-  f.wilayah.length > 0 || f.region.length > 0 || f.depot.length > 0 || f.q.trim() !== '';
+  f.wilayah.length > 0 || f.region.length > 0 || f.depot.length > 0 || f.hadir.length > 0 || f.q.trim() !== '';
 
 type Tingkat = 'wilayah' | 'region' | 'depot';
 type Simpul = { wilayah: string | null; region: string | null; depot: string };
@@ -49,13 +56,15 @@ const cocok = (s: Simpul, w: string[], r: string[], d: string[]) =>
   && (d.length === 0 || d.includes(s.depot));
 
 export function FilterBar({
-  value, options, onChange, withSearch = false, searchPlaceholder = 'Cari nama toko atau MG Code...', awal,
+  value, options, onChange, withSearch = false, searchPlaceholder = 'Cari nama toko atau MG Code...', withKehadiran = false, awal,
 }: {
   value: FilterState;
   options: FilterOptions | undefined;
   onChange: (v: FilterState) => void;
   withSearch?: boolean;
   searchPlaceholder?: string;
+  /** Tampilkan filter Kehadiran; penyaringannya dilakukan pemanggil lewat lolosHadir. */
+  withKehadiran?: boolean;
   /** Kontrol tambahan di depan dropdown, mis. pemilih Dealer Night. */
   awal?: ReactNode;
 }) {
@@ -127,10 +136,11 @@ export function FilterBar({
   // menghapus jaraknya sama sekali.
   return (
     <div className="mb-4 rounded-2xl border border-border bg-card p-3 shadow-xs sm:mb-6 sm:p-4">
-      {/* Satu baris di laptop: pencarian melebar, kontrol lain berukuran tetap. */}
+      {/* Satu baris di laptop: pencarian mengisi sisa ruang dan boleh menyempit,
+          jadi filter tambahan atau tombol Reset tidak pernah memindah baris. */}
       <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center">
         {withSearch && (
-          <div className="relative min-w-0 lg:min-w-52 lg:flex-1">
+          <div className="relative min-w-0 lg:flex-1">
             <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <input
               value={value.q}
@@ -177,6 +187,21 @@ export function FilterBar({
             kosong="Depot tidak ditemukan."
             className="min-w-0 flex-1 sm:w-40 sm:flex-none"
           />
+
+          {withKehadiran && (
+            <PilihBanyak
+              items={HADIR}
+              value={value.hadir}
+              onChange={(v) => onChange({ ...value, hadir: v })}
+              labelSemua="Kehadiran"
+              satuan="Status"
+              cariPlaceholder="Cari status..."
+              kosong="Status tidak ditemukan."
+              // Di HP pindah ke baris sendiri di bawah; kalau ikut berbagi baris
+              // dengan Region, Depot, dan Reset, semua labelnya terpotong.
+              className="order-last min-w-0 basis-full sm:order-none sm:w-36 sm:flex-none sm:basis-auto"
+            />
+          )}
 
           {aktif && (
             <Button
