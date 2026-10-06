@@ -5,36 +5,36 @@ import { redirect } from 'next/navigation';
 import { HOME_BY_ROLE, type Role } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { profiles } from '@/lib/db/schema';
-import { hashPassword } from '@/lib/password';
+import { hashPassword, normalisasiNama } from '@/lib/password';
 import { rateLimit } from '@/lib/rate-limit';
 import { clearSessionCookie, setSessionCookie } from '@/lib/session';
 
-export async function signIn(_prev: string | null, formData: FormData): Promise<string | null> {
-  const credential = String(formData.get('credential') ?? '').trim();
-  if (!credential) return 'Masukkan password.';
+const GAGAL = 'Username atau password salah.';
 
-  // Dikunci pada kredensial yang dicoba, BUKAN pada IP. Di venue seluruh tamu
-  // berbagi satu IP NAT wifi, jadi kunci per-IP akan mengunci SATU RUANGAN
-  // sekaligus tepat pada jam kedatangan. Yang memang perlu direm adalah
-  // tebak-tebakan terhadap satu kredensial, dan itu persis yang dihitung di sini.
-  //
-  // Yang dipakai hash-nya, bukan kredensial mentah: kunci Redis bisa terlihat di
-  // dashboard/log, dan kredensial itu password sungguhan.
-  const { ok } = await rateLimit(`login:${hashPassword(credential)}`);
+export async function signIn(_prev: string | null, formData: FormData): Promise<string | null> {
+  const username = normalisasiNama(String(formData.get('username') ?? ''));
+  const password = String(formData.get('password') ?? '').trim();
+  if (!username || !password) return 'Masukkan username dan password.';
+
+  // Dikunci per username, BUKAN per IP. Di venue seluruh tamu berbagi satu IP
+  // NAT wifi, jadi kunci per-IP akan mengunci SATU RUANGAN sekaligus tepat pada
+  // jam kedatangan. Yang perlu direm adalah tebak-tebakan password terhadap
+  // satu akun, dan itu persis yang dihitung di sini.
+  const { ok } = await rateLimit(`login:${username}`);
   if (!ok) return 'Terlalu banyak percobaan. Coba lagi sebentar.';
 
-  // Tim: password unik = pengenal. Dicek lebih dulu; kalau cocok, ini akun tim.
-  const [team] = await db
-    .select({ id: profiles.id, role: profiles.role })
+  // Password unik (unique index) jadi akun dicari lewat hash-nya, lalu username
+  // harus cocok dengan nama lengkap akun itu. Satu pesan untuk semua kegagalan
+  // supaya tidak membocorkan mana yang benar: username atau password.
+  const [akun] = await db
+    .select({ id: profiles.id, role: profiles.role, fullName: profiles.fullName })
     .from(profiles)
-    .where(eq(profiles.passwordHash, hashPassword(credential)))
+    .where(eq(profiles.passwordHash, hashPassword(password)))
     .limit(1);
-  if (team) {
-    await setSessionCookie(team.id);
-    redirect(HOME_BY_ROLE[team.role as Role]);
-  }
+  if (!akun || normalisasiNama(akun.fullName) !== username) return GAGAL;
 
-  return 'Password salah.';
+  await setSessionCookie(akun.id);
+  redirect(HOME_BY_ROLE[akun.role as Role]);
 }
 
 export async function signOut() {

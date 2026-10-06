@@ -86,7 +86,7 @@ export function UserFormDialog({
         <header className="flex items-center justify-between border-b border-border px-5 py-4">
           <div>
             <DialogTitle className="text-base">{edit ? 'Ubah User' : 'Tambah User'}</DialogTitle>
-            <p className="text-xs text-muted-foreground">Semua akun login hanya dengan password unik.</p>
+            <p className="text-xs text-muted-foreground">Login memakai Nama Lengkap sebagai username dan password unik.</p>
           </div>
           <DialogClose aria-label="Tutup" className="grid size-8 place-items-center rounded-lg hover:bg-secondary">
             <X className="size-4" />
@@ -115,7 +115,8 @@ export function UserFormDialog({
           </div>
           <div className="space-y-2">
             <Label htmlFor="u-name">Nama Lengkap</Label>
-            <Input id="u-name" name="fullName" defaultValue={row?.fullName ?? ''} required className="h-11" />
+            <Input id="u-name" name="fullName" defaultValue={row?.fullName ?? ''} required className="h-11" aria-describedby="u-name-hint" />
+            <p id="u-name-hint" className="text-xs text-muted-foreground">Dipakai sebagai username saat login; harus unik.</p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="u-pass">{edit ? 'Password Baru' : 'Password (min. 8 karakter, unik)'}</Label>

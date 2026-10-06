@@ -1,13 +1,13 @@
 'use server';
 
 import { randomUUID } from 'node:crypto';
-import { and, eq, inArray, ne } from 'drizzle-orm';
+import { and, eq, inArray, ne, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { HALAMAN, SEMUA_ROLE } from '@/lib/access';
 import { lupakanProfil, requireRole, type Role } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { dealerNights, profiles } from '@/lib/db/schema';
-import { hashPassword } from '@/lib/password';
+import { hashPassword, normalisasiNama } from '@/lib/password';
 import { depotDealerNight } from '@/lib/target/dealer-night-options';
 
 const HREF_SAH = HALAMAN.map((item) => item.href);
@@ -47,6 +47,16 @@ async function passwordDipakai(hash: string, kecualiUserId?: string): Promise<bo
   return !!row;
 }
 
+/** Nama lengkap dipakai sebagai username login, jadi harus unik (tanpa beda huruf besar). */
+async function namaDipakai(fullName: string, kecualiUserId?: string): Promise<boolean> {
+  const sama = sql`LOWER(TRIM(${profiles.fullName})) = ${normalisasiNama(fullName)}`;
+  const condition = kecualiUserId ? and(sama, ne(profiles.id, kecualiUserId)) : sama;
+  const [row] = await db.select({ id: profiles.id }).from(profiles).where(condition).limit(1);
+  return !!row;
+}
+
+const NAMA_GANDA = 'Nama lengkap sudah dipakai user lain. Nama ini menjadi username login, jadi harus unik.';
+
 export async function createUser(_prev: string | null, formData: FormData): Promise<string | null> {
   await requireRole(['superadmin']);
 
@@ -59,6 +69,7 @@ export async function createUser(_prev: string | null, formData: FormData): Prom
   if (!fullName) return 'Nama lengkap wajib diisi.';
   if (password.length < 8) return 'Password minimal 8 karakter.';
   if (!SEMUA_ROLE.includes(role)) return 'Role tidak valid.';
+  if (await namaDipakai(fullName)) return NAMA_GANDA;
 
   const passwordHash = hashPassword(password);
   if (await passwordDipakai(passwordHash)) return 'Password sudah dipakai user lain. Pakai yang berbeda.';
@@ -103,6 +114,7 @@ export async function updateUser(_prev: string | null, formData: FormData): Prom
   if (password && password.length < 8) return 'Password minimal 8 karakter.';
   if (!SEMUA_ROLE.includes(role)) return 'Role tidak valid.';
   if (me.id === userId && role !== 'superadmin') return 'Tidak bisa mengubah role akun sendiri.';
+  if (await namaDipakai(fullName, userId)) return NAMA_GANDA;
 
   let dealerNightIds: string[] | null;
   let depotCodes: string[] | null;
