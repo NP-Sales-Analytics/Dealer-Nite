@@ -73,3 +73,6 @@ load-tests/data/k6-*.log
 
 # guidebook: screenshot berisi data asli
 docs/guidebook/screens/
+# guidebook: deck & PDF berisi data pelanggan asli, dibagikan di luar git (repo publik)
+docs/guidebook/*.pptx
+docs/guidebook/*.pdf
