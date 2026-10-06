@@ -70,3 +70,6 @@ load-tests/data/customers-sebelum-update-*.json
 .vercel
 .env*
 load-tests/data/k6-*.log
+
+# guidebook: screenshot berisi data asli
+docs/guidebook/screens/
