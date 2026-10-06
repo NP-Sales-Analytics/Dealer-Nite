@@ -21,3 +21,10 @@ function secret() {
 export function hashPassword(password: string): string {
   return createHmac('sha256', secret()).update(password).digest('hex');
 }
+
+/**
+ * Bentuk baku nama lengkap untuk dipakai sebagai username: tanpa spasi tepi,
+ * huruf kecil. Harus setara dengan LOWER(TRIM(full_name)) di SQL - cek nama
+ * ganda di User Management memakai ekspresi itu.
+ */
+export const normalisasiNama = (nama: string) => nama.trim().toLowerCase();

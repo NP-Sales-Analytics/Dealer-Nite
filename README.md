@@ -1,6 +1,6 @@
 # Dealer Nite
 
-Aplikasi internal Nippon Paint untuk mengelola Target DN dan pencatatan kehadiran Dealer Night. Backend memakai MySQL 8 dan login password-only untuk tim internal.
+Aplikasi internal Nippon Paint untuk mengelola Target DN dan pencatatan kehadiran Dealer Night. Backend memakai MySQL 8 dan login username (nama lengkap) + password untuk tim internal.
 
 ## Fitur utama
 
@@ -80,7 +80,7 @@ Jangan menyimpan `.env.local`, kredensial bootstrap, cookie pengujian, atau URL 
 | `management` | semua DN | lihat dan unduh | lihat dan unduh | tidak |
 | `dn_user` | tepat satu DN | lihat saja | lihat saja | tidak |
 
-Semua akun masuk memakai password unik. Tidak ada login toko. Setiap akun selain superadmin punya cakupan Dealer Night (`dealer_night_ids`; `NULL` = semua) yang diatur di User Management, dan API menegakkan scope itu walaupun URL dimanipulasi.
+Semua akun masuk memakai username, yaitu Nama Lengkap di User Management (unik, tidak peka huruf besar), ditambah password unik. Tidak ada login toko. Setiap akun selain superadmin punya cakupan Dealer Night (`dealer_night_ids`; `NULL` = semua) yang diatur di User Management, dan API menegakkan scope itu walaupun URL dimanipulasi.
 
 ## Data DN Bogor
 
