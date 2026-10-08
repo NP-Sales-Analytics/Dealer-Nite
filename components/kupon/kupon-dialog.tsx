@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, CalendarClock, PackageCheck, Printer, Undo2, X } from 'lucide-react';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
-import { BarProses, PillStatusKupon, WARNA } from './status';
+import { BarProses, PillStatusKupon, temaKupon } from './status';
 import { QtyStepper } from '@/components/reservation/qty-stepper';
 import { InitialAvatar } from '@/components/shared/initial-avatar';
 import { PillHadir } from '@/components/target/pills';
@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import type { KuponRow, TahapKupon } from '@/lib/kupon/service';
-import { prosesKupon, totalKupon } from '@/lib/target/kupon';
+import { prosesKupon, totalKupon, type KonfigKupon } from '@/lib/target/kupon';
 import { formatRupiahRingkas } from '@/lib/target/money';
 import { cn, jamJakarta, tanggalJakarta } from '@/lib/utils';
 
@@ -32,13 +32,18 @@ function Judul({ children, icon: Icon }: { children: React.ReactNode; icon?: typ
   );
 }
 
-export function KuponDialog({ row, canManage, onOpenChange, onChanged }: {
+export function KuponDialog({ row, konfig, canManage, onOpenChange, onChanged }: {
   row: KuponRow;
+  konfig: KonfigKupon;
   canManage: boolean;
   onOpenChange: (open: boolean) => void;
   onChanged: () => void;
 }) {
-  const k = prosesKupon({ verified: row.verified, target: row.targetEfektif, dibuat: row.dibuat, diberikan: row.diberikan });
+  const k = prosesKupon({
+    verified: row.verified, target: row.targetEfektif, dibuat: row.dibuat, diberikan: row.diberikan, nilai: konfig.nilai,
+  });
+  const tema = temaKupon(konfig);
+  const nama = (warna: 'pink' | 'hijau') => tema[warna].label.toLowerCase();
   const tahapAwal: TahapKupon = totalKupon(k.perluDibuat) > 0 || totalKupon(k.siapDiberikan) === 0 ? 'dibuat' : 'diberikan';
   const [tahap, setTahap] = useState<TahapKupon>(tahapAwal);
   const batas = tahap === 'dibuat' ? k.perluDibuat : k.siapDiberikan;
@@ -76,7 +81,7 @@ export function KuponDialog({ row, canManage, onOpenChange, onChanged }: {
       toast.error(body?.error ?? 'Gagal mencatat kupon.');
       return;
     }
-    toast.success(`${jumlah.pink} pink & ${jumlah.hijau} hijau ${tahap === 'dibuat' ? 'tercatat dibuat' : 'tercatat diberikan'}.`);
+    toast.success(`${jumlah.pink} ${nama('pink')} & ${jumlah.hijau} ${nama('hijau')} ${tahap === 'dibuat' ? 'tercatat dibuat' : 'tercatat diberikan'}.`);
     onChanged();
   });
 
@@ -132,13 +137,13 @@ export function KuponDialog({ row, canManage, onOpenChange, onChanged }: {
                     <div key={warna} className="rounded-xl border border-border p-4">
                       <div className="flex items-center justify-between">
                         <span className="inline-flex items-center gap-2 text-sm font-semibold">
-                          <span className={cn('size-2.5 rounded-full', WARNA[warna].dot)} aria-hidden />
-                          Kupon {WARNA[warna].label}
+                          <span className={cn('size-2.5 rounded-full', tema[warna].dot)} aria-hidden />
+                          Kupon {tema[warna].label}
                         </span>
-                        <span className="text-[11px] text-muted-foreground">per {WARNA[warna].nilai}</span>
+                        <span className="text-[11px] text-muted-foreground">per {tema[warna].nilai}</span>
                       </div>
                       <p className="mt-2 text-3xl font-bold tabular-nums">{k.hak[warna]}<span className="ml-1 text-sm font-medium text-muted-foreground">hak</span></p>
-                      <div className="mt-3"><BarProses warna={warna} hak={k.hak[warna]} dibuat={k.dibuat[warna]} diberikan={k.diberikan[warna]} /></div>
+                      <div className="mt-3"><BarProses tema={tema[warna]} hak={k.hak[warna]} dibuat={k.dibuat[warna]} diberikan={k.diberikan[warna]} /></div>
                       <dl className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
                         <div><dt className="text-muted-foreground">Dibuat</dt><dd className="text-sm font-semibold tabular-nums">{k.dibuat[warna]}</dd></div>
                         <div><dt className="text-muted-foreground">Diberikan</dt><dd className="text-sm font-semibold tabular-nums">{k.diberikan[warna]}</dd></div>
@@ -201,9 +206,9 @@ export function KuponDialog({ row, canManage, onOpenChange, onChanged }: {
                           {item.tahap === 'dibuat' ? 'Dibuat' : 'Diberikan'}
                         </span>
                         <span className="text-sm font-semibold tabular-nums">
-                          <span className={WARNA.pink.teks}>{item.pink} pink</span>
+                          <span className={tema.pink.teks}>{item.pink} {nama('pink')}</span>
                           <span className="mx-1 text-muted-foreground">·</span>
-                          <span className={WARNA.hijau.teks}>{item.hijau} hijau</span>
+                          <span className={tema.hijau.teks}>{item.hijau} {nama('hijau')}</span>
                         </span>
                         {canManage && (
                           <button
@@ -262,15 +267,15 @@ export function KuponDialog({ row, canManage, onOpenChange, onChanged }: {
 
                 <p className="text-xs text-muted-foreground">
                   {tahap === 'dibuat'
-                    ? `Sisa yang perlu dibuat: ${k.perluDibuat.pink} pink, ${k.perluDibuat.hijau} hijau.`
-                    : `Sudah dibuat dan siap diberikan: ${k.siapDiberikan.pink} pink, ${k.siapDiberikan.hijau} hijau.`}
+                    ? `Sisa yang perlu dibuat: ${k.perluDibuat.pink} ${nama('pink')}, ${k.perluDibuat.hijau} ${nama('hijau')}.`
+                    : `Sudah dibuat dan siap diberikan: ${k.siapDiberikan.pink} ${nama('pink')}, ${k.siapDiberikan.hijau} ${nama('hijau')}.`}
                 </p>
 
                 {(['pink', 'hijau'] as const).map((warna) => (
                   <div key={warna} className="space-y-2">
                     <Label htmlFor={`k-${warna}`} className="flex items-center gap-2">
-                      <span className={cn('size-2.5 rounded-full', WARNA[warna].dot)} aria-hidden />
-                      Kupon {WARNA[warna].label}
+                      <span className={cn('size-2.5 rounded-full', tema[warna].dot)} aria-hidden />
+                      Kupon {tema[warna].label}
                       <span className="ml-auto text-xs font-normal text-muted-foreground">maks {batas[warna]}</span>
                     </Label>
                     <QtyStepper
@@ -278,7 +283,7 @@ export function KuponDialog({ row, canManage, onOpenChange, onChanged }: {
                       value={warna === 'pink' ? pink : hijau}
                       onChange={warna === 'pink' ? setPink : setHijau}
                       max={batas[warna]}
-                      ariaLabel={`Jumlah kupon ${warna}`}
+                      ariaLabel={`Jumlah kupon ${nama(warna)}`}
                     />
                   </div>
                 ))}

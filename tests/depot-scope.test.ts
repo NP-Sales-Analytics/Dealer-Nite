@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { bolehDepot, cakupanDepot, labelDealerNightAccess } from '@/lib/access';
 import { batasiFilterDepot } from '@/lib/depot-scope';
 
-const filter = { wilayah: [], region: [], depot: [], q: null, kodeSap: null };
+const filter = { wilayah: [], region: [], depot: [], statusPax: [], q: null, kodeSap: null };
 
 describe('Akses per depot', () => {
   it('tanpa depot berarti semua depot di DN', () => {

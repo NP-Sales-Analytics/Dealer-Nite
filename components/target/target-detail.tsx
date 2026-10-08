@@ -181,9 +181,8 @@ export function TargetDetail({
           {canExport && dealerNightId && (
             <TombolUnduh
               url={`/api/targets/export?dealerNightId=${encodeURIComponent(dealerNightId)}`}
-              namaBawaan="target-dn.csv"
+              namaBawaan="target-dn.xlsx"
               jumlah={semua.length}
-              label="Download CSV"
               className="h-11 gap-2"
             />
           )}

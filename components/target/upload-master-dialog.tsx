@@ -81,7 +81,7 @@ export function UploadMasterDialog({
               </div>
               {hasil.dilewati > 0 && (
                 <p className="text-xs text-muted-foreground">
-                  Toko yang dilewati sudah diverifikasi admin DN, jadi datanya tidak ditimpa.
+                  Toko yang dilewati sudah diverifikasi admin DN, jadi datanya tidak ditimpa (hanya Pax yang diperbarui).
                 </p>
               )}
             </div>
@@ -125,9 +125,10 @@ export function UploadMasterDialog({
 
               <div className="rounded-xl border border-border bg-secondary/30 px-3.5 py-3 text-xs leading-relaxed text-muted-foreground">
                 Kolom wajib: MG Code, MG Name, SOTP Code, SOTP Name, Depot Code, Salesman, SPV,
-                Target DN Pembulatan Inc. PPN.{' '}
-                <a href="/template-master-toko.csv" download className="font-semibold text-primary underline-offset-2 hover:underline">
-                  Unduh template
+                Target DN Pembulatan Inc. PPN. Kolom Pax (paling kanan) berisi jumlah orang
+                yang didaftarkan tiap toko; boleh dikosongkan.{' '}
+                <a href="/api/master/template" download className="font-semibold text-primary underline-offset-2 hover:underline">
+                  Unduh template Excel
                 </a>
                 <br />
                 MG Code yang sudah ada akan diperbarui. Satu baris salah membatalkan seluruh upload.

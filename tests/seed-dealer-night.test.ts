@@ -57,7 +57,7 @@ describe('seedDealerNight', () => {
 
     expect(reseeded).toHaveLength(113);
     expect(new Set(reseeded.map((row) => row.depotCode)).size).toBe(2);
-    expect(new Set(reseeded.map((row) => row.qtyUndangan))).toEqual(new Set([1]));
+    expect(new Set(reseeded.map((row) => row.qtyUndangan))).toEqual(new Set([null]));
     expect(Math.min(...reseeded.map((row) => row.targetDnAwal))).toBe(53_000_000);
     expect(reseeded.reduce((total, row) => total + row.targetDnAwal, 0)).toBe(42_955_000_000);
     expect(ledger).toHaveLength(1);

@@ -78,7 +78,7 @@ Leaderboard Target DN ── peringkat toko terverifikasi
 
 ### Modul B: Detail Target DN (`/order/detail`)
 
-- Bagian atas: jumlah toko terdaftar, tombol **Download CSV**, **Upload Master**, **Tambah Master Data** (Admin/Super Admin).
+- Bagian atas: jumlah toko terdaftar, tombol **Download Excel**, **Upload Master**, **Tambah Master Data** (Admin/Super Admin).
 - 4 kartu KPI: Total Target DN, Pencapaian Malam DN, Persentase Pencapaian, Total Penambahan (KPI ikut filter depot).
 - Filter: cari (toko/MG Code/salesman/SPV), DN, Region, Depot, **Kehadiran** (Sudah/Belum Hadir), **Penambahan** (Ada/Tanpa).
 - Tab status: **Semua / Belum Verifikasi / Terverifikasi**.
@@ -96,7 +96,7 @@ Leaderboard Target DN ── peringkat toko terverifikasi
 - Tabel: centang, Nama Customer, Kehadiran, Hak Kupon, Dibuat, Diberikan, Aksi (**Buat** / **Berikan** / Selesai / Belum verifikasi).
 - Klik baris/aksi → dialog kupon toko: **Catat Pembuatan** atau **Catat Pemberian** (jumlah pink & hijau), riwayat kupon, batalkan catatan.
 - Centang beberapa toko → bilah aksi massal: **Tandai Dibuat** / **Tandai Diberikan**.
-- **Download CSV**.
+- **Download Excel**.
 - Aturan: kenaikan target setelah kupon dibuat otomatis memunculkan sisa "Perlu Dibuat"; penurunan target tidak menarik kupon yang sudah dibuat.
 
 ## 5. Di luar cakupan guidebook (disebut singkat saja)

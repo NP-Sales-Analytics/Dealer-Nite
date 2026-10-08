@@ -32,6 +32,7 @@ export async function GET(request: NextRequest) {
       depot: customers.depotName,
       wilayah: customers.wilayah,
       region: customers.region,
+      paxTerdaftar: customers.qtyUndangan,
       reservationId: reservations.id,
       qtyHadirSebelumnya: reservations.qtyHadir,
     })

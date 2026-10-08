@@ -26,7 +26,8 @@ export const customers = mysqlTable('customers', {
   salesman: varchar('salesman', { length: 200 }),
   spv: varchar('spv', { length: 200 }),
   targetDnAwal: bigint('target_dn_awal', { mode: 'number' }).notNull(),
-  qtyUndangan: int('qty_undangan').notNull().default(1),
+  // Pax terdaftar dari kolom Pax upload master; null = belum didata.
+  qtyUndangan: int('qty_undangan'),
   verifiedAt: datetime('verified_at', { mode: 'date', fsp: 3 }),
   targetVerifikasi: bigint('target_verifikasi', { mode: 'number' }),
   verifiedBy: varchar('verified_by', { length: 36 }),

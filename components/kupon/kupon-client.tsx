@@ -5,7 +5,7 @@ import { CheckCircle2, ChevronLeft, ChevronRight, Clock3, PackageCheck, Printer,
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 import { KuponDialog } from './kupon-dialog';
-import { BarProses, RasioKupon, STATUS_KUPON, WARNA } from './status';
+import { BarProses, RasioKupon, STATUS_KUPON, temaKupon } from './status';
 import type { FilterOptions } from '@/app/api/dashboard/filters/route';
 import { adaFilterAktif, FilterBar, FILTER_KOSONG, lolosHadir, lolosTambah, type FilterState } from '@/components/dashboard/filter-bar';
 import { InitialAvatar } from '@/components/shared/initial-avatar';
@@ -18,7 +18,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { KuponRow, TahapKupon } from '@/lib/kupon/service';
 import { dnBawaan } from '@/lib/target/dn-bawaan';
-import { KUPON_NOL, prosesKupon, totalKupon, type JumlahKupon, type StatusKupon } from '@/lib/target/kupon';
+import {
+  KONFIG_KUPON_BAWAAN, KUPON_NOL, prosesKupon, totalKupon, type JumlahKupon, type KonfigKupon, type StatusKupon,
+} from '@/lib/target/kupon';
 import { targetPollingInterval } from '@/lib/target/use-target-polling';
 import { useDebounce } from '@/lib/use-debounce';
 import { cn } from '@/lib/utils';
@@ -45,7 +47,7 @@ export function KuponClient({ dealerNights, canManage, canExport }: {
   const query = useQuery({
     queryKey: ['kupon', 'list', dealerNightId],
     enabled: !!dealerNightId,
-    queryFn: async (): Promise<{ rows: KuponRow[] }> => {
+    queryFn: async (): Promise<{ rows: KuponRow[]; kupon: KonfigKupon }> => {
       const response = await fetch(`/api/kupon/list?dealerNightId=${encodeURIComponent(dealerNightId)}`);
       if (!response.ok) throw new Error('Gagal memuat data kupon.');
       return response.json();
@@ -54,10 +56,16 @@ export function KuponClient({ dealerNights, canManage, canExport }: {
     placeholderData: keepPreviousData,
   });
 
+  // Skema warna dan pembagi kupon milik DN terpilih, dari server: hitungan di
+  // sini harus sama persis dengan batas yang divalidasi server saat mencatat.
+  const konfig = query.data?.kupon ?? KONFIG_KUPON_BAWAAN;
+  const tema = useMemo(() => temaKupon(konfig), [konfig]);
   const semua = useMemo(() => (query.data?.rows ?? []).map((row) => ({
     row,
-    k: prosesKupon({ verified: row.verified, target: row.targetEfektif, dibuat: row.dibuat, diberikan: row.diberikan }),
-  })), [query.data]);
+    k: prosesKupon({
+      verified: row.verified, target: row.targetEfektif, dibuat: row.dibuat, diberikan: row.diberikan, nilai: konfig.nilai,
+    }),
+  })), [query.data, konfig]);
 
   const q = useDebounce(filter.q, 250).trim().toLowerCase();
   useEffect(() => { setPage(1); setPilih(new Set()); }, [dealerNightId, filter.wilayah, filter.region, filter.depot, filter.hadir, filter.tambah, q, status]);
@@ -135,9 +143,8 @@ export function KuponClient({ dealerNights, canManage, canExport }: {
         {canExport && dealerNightId && (
           <TombolUnduh
             url={`/api/kupon/export?dealerNightId=${encodeURIComponent(dealerNightId)}`}
-            namaBawaan="detail-kupon.csv"
+            namaBawaan="detail-kupon.xlsx"
             jumlah={semua.length}
-            label="Download CSV"
             className="h-11 gap-2"
           />
         )}
@@ -150,21 +157,21 @@ export function KuponClient({ dealerNights, canManage, canExport }: {
           const persen = (n: number) => (t.hak[warna] ? Math.round((n / t.hak[warna]) * 100) : 0);
           return (
             <div key={warna} className="relative overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-xs sm:p-5">
-              <div className={cn('pointer-events-none absolute -right-8 -top-8 size-28 rounded-full opacity-50 blur-2xl', warna === 'pink' ? 'bg-pink-300' : 'bg-emerald-300')} aria-hidden />
+              <div className={cn('pointer-events-none absolute -right-8 -top-8 size-28 rounded-full opacity-50 blur-2xl', tema[warna].cahaya)} aria-hidden />
               <div className="relative flex items-start justify-between gap-3">
                 <div>
                   <p className="flex items-center gap-2 text-sm font-semibold">
-                    <span className={cn('size-2.5 rounded-full', WARNA[warna].dot)} aria-hidden />
-                    Kupon {WARNA[warna].label}
+                    <span className={cn('size-2.5 rounded-full', tema[warna].dot)} aria-hidden />
+                    Kupon {tema[warna].label}
                   </p>
-                  <p className="text-xs text-muted-foreground">1 kupon per {WARNA[warna].nilai} target</p>
+                  <p className="text-xs text-muted-foreground">1 kupon per {tema[warna].nilai} target</p>
                 </div>
                 <div className="text-right">
                   <p className="text-3xl font-bold tabular-nums">{t.hak[warna]}</p>
                   <p className="text-xs text-muted-foreground">total hak</p>
                 </div>
               </div>
-              <div className="relative mt-4"><BarProses warna={warna} hak={t.hak[warna]} dibuat={t.dibuat[warna]} diberikan={t.diberikan[warna]} /></div>
+              <div className="relative mt-4"><BarProses tema={tema[warna]} hak={t.hak[warna]} dibuat={t.dibuat[warna]} diberikan={t.diberikan[warna]} /></div>
               <dl className="relative mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {[
                   ['Dibuat', t.dibuat[warna], `${persen(t.dibuat[warna])}% dari hak`, ''],
@@ -313,13 +320,13 @@ export function KuponClient({ dealerNights, canManage, canExport }: {
                     <TableCell className="py-4 text-center">
                       {k.status === 'belum_verifikasi' ? <span className="text-muted-foreground">&mdash;</span> : (
                         <span className="inline-flex flex-wrap justify-center gap-1.5">
-                          <ChipKupon warna="pink" jumlah={k.hak.pink} />
-                          <ChipKupon warna="hijau" jumlah={k.hak.hijau} />
+                          <ChipKupon tema={tema.pink} jumlah={k.hak.pink} />
+                          <ChipKupon tema={tema.hijau} jumlah={k.hak.hijau} />
                         </span>
                       )}
                     </TableCell>
-                    <TableCell className="py-4 text-center">{k.status === 'belum_verifikasi' ? <span className="text-muted-foreground">&mdash;</span> : <RasioKupon nilai={k.dibuat} dari={k.hak} />}</TableCell>
-                    <TableCell className="py-4 text-center">{k.status === 'belum_verifikasi' ? <span className="text-muted-foreground">&mdash;</span> : <RasioKupon nilai={k.diberikan} dari={k.hak} />}</TableCell>
+                    <TableCell className="py-4 text-center">{k.status === 'belum_verifikasi' ? <span className="text-muted-foreground">&mdash;</span> : <RasioKupon nilai={k.dibuat} dari={k.hak} tema={tema} />}</TableCell>
+                    <TableCell className="py-4 text-center">{k.status === 'belum_verifikasi' ? <span className="text-muted-foreground">&mdash;</span> : <RasioKupon nilai={k.diberikan} dari={k.hak} tema={tema} />}</TableCell>
                     <TableCell className="py-4 pr-5 text-center">
                       <Button
                         size="sm"
@@ -386,6 +393,7 @@ export function KuponClient({ dealerNights, canManage, canExport }: {
         <KuponDialog
           key={`${detailRow.customerId}-${totalKupon(detailRow.dibuat)}-${totalKupon(detailRow.diberikan)}-${detailRow.targetEfektif}`}
           row={detailRow}
+          konfig={konfig}
           canManage={canManage}
           onOpenChange={(open) => !open && setDetail(null)}
           onChanged={segarkan}

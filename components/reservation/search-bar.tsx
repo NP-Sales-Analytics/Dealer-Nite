@@ -15,6 +15,8 @@ export type CustomerSearchResult = {
   region: string | null;
   sudahHadir: boolean;
   qtyHadirSebelumnya: number | null;
+  /** Pax terdaftar di master; null = belum didata. */
+  paxTerdaftar: number | null;
 };
 
 export function SearchBar({ dealerNightId, onSelect }: { dealerNightId: string; onSelect: (c: CustomerSearchResult) => void }) {

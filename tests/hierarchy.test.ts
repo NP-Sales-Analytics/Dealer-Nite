@@ -3,7 +3,7 @@ import { hierarkiDepot, lengkapiInduk, pilihanDepot } from '@/lib/dashboard/hier
 
 describe('hierarkiDepot', () => {
   it('membaca seluruh baris CSV', () => {
-    expect(hierarkiDepot().size).toBe(97);
+    expect(hierarkiDepot().size).toBe(98);
   });
 
   it('tidak lagi memuat depot Komunitas & Media', () => {
@@ -12,7 +12,7 @@ describe('hierarkiDepot', () => {
 
   it('menyediakan pilihan depot lengkap dan terurut untuk form master', () => {
     const pilihan = pilihanDepot();
-    expect(pilihan).toHaveLength(97);
+    expect(pilihan).toHaveLength(98);
     expect(pilihan.find((item) => item.depot === '1P Semarang')).toEqual({
       depot: '1P Semarang', region: '3A', wilayah: 'Indonesia Barat',
     });

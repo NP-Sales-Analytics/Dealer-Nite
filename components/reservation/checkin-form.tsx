@@ -16,9 +16,10 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { DealerNightSelect } from '@/components/target/dealer-night-select';
 import type { DealerNightOption } from '@/components/target/types';
+import { statusPax } from '@/lib/reservation/pax';
 import { dnBawaan } from '@/lib/target/dn-bawaan';
 
-type Konfirmasi = { isi: string; lanjut: () => void };
+type Konfirmasi = { judul: string; isi: string; aksi: string; lanjut: () => void };
 
 export function CheckinForm({ dealerNights }: { dealerNights: DealerNightOption[] }) {
   const [selected, setSelected] = useState<CustomerSearchResult | null>(null);
@@ -53,7 +54,9 @@ export function CheckinForm({ dealerNights }: { dealerNights: DealerNightOption[
       // ter-dismiss tak sengaja padahal isinya keputusan menimpa data.
       if (res.status === 409 && body.code === 'ALREADY_CHECKED_IN') {
         setKonfirmasi({
+          judul: 'Toko ini sudah dicatat hadir',
           isi: `"${body.namaToko}" sudah tercatat hadir ${body.existing.qtyHadir} orang. Ganti menjadi ${qty} orang dengan nomor undian ${undian}?`,
+          aksi: 'Ya, ganti',
           lanjut: () => submit(true),
         });
         return;
@@ -75,6 +78,19 @@ export function CheckinForm({ dealerNights }: { dealerNights: DealerNightOption[
   }
 
   const valid = qty !== '' && Number.isInteger(Number(qty)) && Number(qty) >= 0 && nomorUndianValid(undian);
+  const melebihi = !!selected && statusPax(Number(qty), selected.paxTerdaftar) === 'melebihi';
+
+  // Pax hadir di atas pax terdaftar boleh dicatat, tapi diminta konfirmasi dulu:
+  // biasanya salah ketik, kadang memang ada tamu tambahan.
+  function simpan() {
+    if (!melebihi) return submit();
+    setKonfirmasi({
+      judul: 'Melebihi pax terdaftar',
+      isi: `${selected!.namaToko} terdaftar ${selected!.paxTerdaftar} pax, tetapi yang akan dicatat ${qty} pax. Tetap catat ${qty} pax?`,
+      aksi: `Ya, catat ${qty} pax`,
+      lanjut: () => submit(),
+    });
+  }
 
   return (
     <div className="space-y-4">
@@ -111,6 +127,11 @@ export function CheckinForm({ dealerNights }: { dealerNights: DealerNightOption[
             <div className="min-w-0 space-y-2.5">
               <Label htmlFor="qty" className="text-base">Jumlah pax hadir</Label>
               <QtyStepper value={qty} onChange={setQty} />
+              {selected.paxTerdaftar != null && (
+                <p className={melebihi ? 'text-sm font-medium text-destructive' : 'text-sm text-muted-foreground'}>
+                  Terdaftar {selected.paxTerdaftar} pax{melebihi && ' · melebihi pendaftaran'}
+                </p>
+              )}
             </div>
             <div className="min-w-0 space-y-2.5">
               <Label htmlFor="undian" className="text-base">Nomor undian</Label>
@@ -131,7 +152,7 @@ export function CheckinForm({ dealerNights }: { dealerNights: DealerNightOption[
             </Button>
             <Button
               className="h-12 flex-[2] text-base md:flex-none md:px-8"
-              onClick={() => submit()}
+              onClick={simpan}
               disabled={!valid || submitting}
             >
               {submitting ? 'Menyimpan...' : 'Simpan Kehadiran'}
@@ -143,7 +164,7 @@ export function CheckinForm({ dealerNights }: { dealerNights: DealerNightOption[
       <AlertDialog open={konfirmasi !== null} onOpenChange={(o) => !o && setKonfirmasi(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Toko ini sudah dicatat hadir</AlertDialogTitle>
+            <AlertDialogTitle>{konfirmasi?.judul}</AlertDialogTitle>
             <AlertDialogDescription>{konfirmasi?.isi}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -156,7 +177,7 @@ export function CheckinForm({ dealerNights }: { dealerNights: DealerNightOption[
                 next?.();
               }}
             >
-              Ya, ganti
+              {konfirmasi?.aksi}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

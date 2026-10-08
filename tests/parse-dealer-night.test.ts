@@ -31,8 +31,23 @@ describe('parseDealerNightCsv', () => {
       salesman: 'Sales A',
       spv: 'SPV A',
       targetDnAwal: 5_619_000_000,
-      qtyUndangan: 1,
     });
+  });
+
+  it('membaca kolom Pax: angka, kosong = belum didata, salah = ditolak', () => {
+    const csv = [
+      `${HEADER},Pax`,
+      '632723,Toko A,632723,Toko A,1S,Sales,SPV," 60,000,000 ",3',
+      '632724,Toko B,632724,Toko B,1S,Sales,SPV," 70,000,000 ",',
+    ].join('\n');
+    expect(parseDealerNightCsv(csv, HIERARCHY).map((row) => row.qtyUndangan)).toEqual([3, null]);
+    const nol = [`${HEADER},Pax`, '632723,Toko A,632723,Toko A,1S,Sales,SPV," 60,000,000 ",0'].join('\n');
+    expect(() => parseDealerNightCsv(nol, HIERARCHY)).toThrow('Baris 2: Pax harus bilangan bulat 1 sampai 1000');
+  });
+
+  it('tanpa kolom Pax, pax tidak disentuh (undefined)', () => {
+    const csv = [HEADER, '632723,Toko A,632723,Toko A,1S,Sales,SPV," 60,000,000 "'].join('\n');
+    expect(parseDealerNightCsv(csv, HIERARCHY)[0]).not.toHaveProperty('qtyUndangan');
   });
 
   it('accepts the Rp53 million source row', () => {
@@ -68,6 +83,6 @@ describe('parseDealerNightCsv', () => {
     expect(rows).toHaveLength(113);
     expect(new Set(rows.map((row) => row.mgCode)).size).toBe(113);
     expect(rows.reduce((total, row) => total + row.targetDnAwal, 0)).toBe(42_955_000_000);
-    expect(rows.every((row) => row.qtyUndangan === 1)).toBe(true);
+    expect(rows.every((row) => row.qtyUndangan === undefined)).toBe(true);
   });
 });

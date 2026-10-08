@@ -2,10 +2,19 @@ import { describe, expect, it } from 'vitest';
 import { parseDealerNightRecords } from '@/lib/csv/parse-dealer-night';
 import { dnBawaan } from '@/lib/target/dn-bawaan';
 import { hitungKupon, prosesKupon } from '@/lib/target/kupon';
+import { statusPax } from '@/lib/reservation/pax';
 
 describe('hitungKupon', () => {
   it('Rp100 juta = 1 pink dan 4 hijau (dihitung dari target penuh)', () => {
     expect(hitungKupon(100_000_000)).toEqual({ pink: 1, hijau: 4 });
+  });
+
+  it('pembagi custom per DN: pink Rp75 juta -> target 75 juta = 1 pink dan 3 hijau', () => {
+    expect(hitungKupon(75_000_000, { pink: 75_000_000, hijau: 25_000_000 })).toEqual({ pink: 1, hijau: 3 });
+    expect(prosesKupon({
+      verified: true, target: 150_000_000, dibuat: { pink: 0, hijau: 0 }, diberikan: { pink: 0, hijau: 0 },
+      nilai: { pink: 75_000_000, hijau: 30_000_000 },
+    }).perluDibuat).toEqual({ pink: 2, hijau: 5 });
   });
 
   it('membulatkan ke bawah', () => {
@@ -81,5 +90,17 @@ describe('prosesKupon', () => {
     const dibuat = { pink: 2, hijau: 10 };
     expect(prosesKupon({ verified: true, target: 100_000_000, dibuat, diberikan: dibuat }))
       .toMatchObject({ status: 'selesai', kelebihan: { pink: 1, hijau: 6 } });
+  });
+});
+
+describe('statusPax', () => {
+  it('sesuai, melebihi, kurang terhadap pax terdaftar', () => {
+    expect(statusPax(3, 3)).toBe('sesuai');
+    expect(statusPax(5, 3)).toBe('melebihi');
+    expect(statusPax(2, 3)).toBe('kurang');
+  });
+
+  it('tanpa pax terdaftar tidak ada status', () => {
+    expect(statusPax(5, null)).toBeNull();
   });
 });

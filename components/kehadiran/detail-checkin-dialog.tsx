@@ -1,6 +1,7 @@
 'use client';
 
 import { Pencil, Trash2, X } from 'lucide-react';
+import { PillStatusPax } from '@/components/target/pills';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogClose, DialogContent, DialogTitle } from '@/components/ui/dialog';
@@ -8,12 +9,12 @@ import type { AttendanceRow } from '@/lib/dashboard/types';
 import { inisial, jamJakarta, tanggalJakarta } from '@/lib/utils';
 
 /** Satu baris "label di kiri, nilai di kanan" di dalam kartu detail. */
-function Baris({ label, nilai }: { label: string; nilai: string | number | null }) {
+function Baris({ label, nilai }: { label: string; nilai: React.ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-4 px-4 py-2.5">
       <span className="shrink-0 text-sm text-muted-foreground">{label}</span>
       <span className="min-w-0 break-words text-right text-sm font-medium">
-        {nilai === null || nilai === '' ? <span className="text-muted-foreground">&mdash;</span> : nilai}
+        {nilai == null || nilai === '' ? <span className="text-muted-foreground">&mdash;</span> : nilai}
       </span>
     </div>
   );
@@ -94,6 +95,8 @@ export function DetailCheckinDialog({
 
           <Seksi judul="Kehadiran">
             <Baris label="Jumlah hadir" nilai={`${row.qtyHadir} pax`} />
+            <Baris label="Pax terdaftar" nilai={row.paxTerdaftar == null ? null : `${row.paxTerdaftar} pax`} />
+            <Baris label="Status pax" nilai={<PillStatusPax hadir={row.qtyHadir} terdaftar={row.paxTerdaftar} />} />
             <Baris label="Nomor undian" nilai={row.nomorUndian} />
             <Baris label="Jam check-in" nilai={jamJakarta(row.checkedInAt)} />
             <Baris label="Tanggal" nilai={tanggalJakarta(row.checkedInAt)} />

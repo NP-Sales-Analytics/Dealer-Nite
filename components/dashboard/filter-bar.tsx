@@ -5,6 +5,7 @@ import { useMemo, type ReactNode } from 'react';
 import type { FilterOptions } from '@/app/api/dashboard/filters/route';
 import { Button } from '@/components/ui/button';
 import { PilihBanyak } from '@/components/ui/combobox';
+import { FILTER_STATUS_PAX, LABEL_FILTER_PAX } from '@/lib/reservation/pax';
 
 /**
  * Ketiganya bisa dipilih lebih dari satu; daftar KOSONG berarti semua.
@@ -14,9 +15,9 @@ import { PilihBanyak } from '@/components/ui/combobox';
  * terpisah yang harus diingat di tiap pemanggil.
  */
 export type FilterState = {
-  wilayah: string[]; region: string[]; depot: string[]; hadir: string[]; tambah: string[]; q: string;
+  wilayah: string[]; region: string[]; depot: string[]; hadir: string[]; tambah: string[]; statusPax: string[]; q: string;
 };
-export const FILTER_KOSONG: FilterState = { wilayah: [], region: [], depot: [], hadir: [], tambah: [], q: '' };
+export const FILTER_KOSONG: FilterState = { wilayah: [], region: [], depot: [], hadir: [], tambah: [], statusPax: [], q: '' };
 
 /** Pilihan filter Kehadiran; teksnya sama dengan PillHadir. */
 const HADIR = ['Sudah Hadir', 'Belum Hadir'];
@@ -46,6 +47,7 @@ export function paramFilter(f: FilterState, p = new URLSearchParams()) {
   if (f.wilayah.length > 0) p.set('wilayah', f.wilayah.join(','));
   if (f.region.length > 0) p.set('region', f.region.join(','));
   if (f.depot.length > 0) p.set('depot', f.depot.join(','));
+  if (f.statusPax.length > 0) p.set('statusPax', f.statusPax.join(','));
   if (f.q.trim()) p.set('q', f.q.trim());
   return p;
 }
@@ -53,7 +55,7 @@ export function paramFilter(f: FilterState, p = new URLSearchParams()) {
 /** Apakah ada penyaring yang sedang aktif - untuk pesan "tidak ada yang cocok". */
 export const adaFilterAktif = (f: FilterState) =>
   f.wilayah.length > 0 || f.region.length > 0 || f.depot.length > 0 || f.hadir.length > 0 || f.tambah.length > 0
-  || f.q.trim() !== '';
+  || f.statusPax.length > 0 || f.q.trim() !== '';
 
 type Tingkat = 'wilayah' | 'region' | 'depot';
 type Simpul = { wilayah: string | null; region: string | null; depot: string };
@@ -68,7 +70,8 @@ const cocok = (s: Simpul, w: string[], r: string[], d: string[]) =>
   && (d.length === 0 || d.includes(s.depot));
 
 export function FilterBar({
-  value, options, onChange, withSearch = false, searchPlaceholder = 'Cari nama toko atau MG Code...', filterToko = false, awal,
+  value, options, onChange, withSearch = false, searchPlaceholder = 'Cari nama toko atau MG Code...', filterToko = false,
+  tanpaRegion = false, filterStatusPax = false, awal,
 }: {
   value: FilterState;
   options: FilterOptions | undefined;
@@ -80,6 +83,10 @@ export function FilterBar({
    * Kehadiran dan Penambahan. Penyaringannya di pemanggil lewat lolosHadir/lolosTambah.
    */
   filterToko?: boolean;
+  /** Sembunyikan filter Region (Detail Toko Hadir cukup Depot). */
+  tanpaRegion?: boolean;
+  /** Tampilkan filter Status Pax (Detail Toko Hadir). */
+  filterStatusPax?: boolean;
   /** Kontrol tambahan di depan dropdown, mis. pemilih Dealer Night. */
   awal?: ReactNode;
 }) {
@@ -180,7 +187,7 @@ export function FilterBar({
 
         <div className="flex flex-wrap gap-2.5 lg:flex-nowrap">
           {awal}
-          {!filterToko && (
+          {!filterToko && !tanpaRegion && (
             <PilihBanyak
               items={regionTampil}
               value={value.region}
@@ -204,6 +211,20 @@ export function FilterBar({
             kosong="Depot tidak ditemukan."
             className="min-w-0 flex-1 sm:w-40 sm:flex-none"
           />
+
+          {filterStatusPax && (
+            <PilihBanyak
+              items={[...FILTER_STATUS_PAX]}
+              value={value.statusPax}
+              onChange={(v) => onChange({ ...value, statusPax: v })}
+              labelSemua="Status Pax"
+              satuan="Status"
+              format={(v) => LABEL_FILTER_PAX[v] ?? v}
+              cariPlaceholder="Cari status..."
+              kosong="Status tidak ditemukan."
+              className="min-w-0 flex-1 sm:w-40 sm:flex-none"
+            />
+          )}
 
           {filterToko && (
             // Di HP keduanya berbagi satu baris sendiri di bawah Depot + Reset,
