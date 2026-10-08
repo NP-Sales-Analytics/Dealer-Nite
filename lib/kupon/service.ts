@@ -3,7 +3,9 @@ import { sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { kuponProses } from '@/lib/db/schema';
-import { prosesKupon, totalKupon, type JumlahKupon } from '@/lib/target/kupon';
+import {
+  NAMA_KUPON, prosesKupon, totalKupon, type JumlahKupon, type KonfigKupon, type SkemaKupon,
+} from '@/lib/target/kupon';
 import { isoUtc as iso } from '@/lib/utils';
 
 export class KuponError extends Error {
@@ -23,6 +25,8 @@ export type KuponRow = {
   depotName: string;
   wilayah: string | null;
   region: string | null;
+  salesman: string | null;
+  spv: string | null;
   verified: boolean;
   targetVerifikasi: number | null;
   targetEfektif: number;
@@ -53,13 +57,29 @@ export const catatMassalSchema = z.object({
 
 type Executor = Pick<typeof db, 'execute'>;
 
+const konfigDari = (row: Record<string, unknown>): KonfigKupon => ({
+  skema: String(row.kuponSkema) as SkemaKupon,
+  nilai: { pink: Number(row.nilaiKuponPink), hijau: Number(row.nilaiKuponHijau) },
+});
+
+/** Skema warna dan nilai pembagi kupon satu DN. */
+export async function konfigKupon(dealerNightId: string): Promise<KonfigKupon> {
+  const [row] = rowsFrom<Record<string, unknown>>(await db.execute(sql`
+    select kupon_skema as kuponSkema, nilai_kupon_pink as nilaiKuponPink, nilai_kupon_hijau as nilaiKuponHijau
+    from dealer_nights where id = ${dealerNightId}
+  `));
+  if (!row) throw new KuponError('Dealer Night tidak ditemukan.', 404);
+  return konfigDari(row);
+}
+
 /** Posisi kupon satu toko; dengan `kunci` baris toko dikunci untuk transaksi tulis. */
 async function posisiToko(ex: Executor, customerId: string, kunci = false) {
   const [customer] = rowsFrom<Record<string, unknown>>(await ex.execute(sql`
     select c.id, c.dealer_night_id as dealerNightId, c.depot_code as depotCode, c.mg_name as mgName, c.verified_at as verifiedAt,
-      c.target_dn_awal + coalesce((select sum(delta) from target_adjustments where customer_id = c.id), 0) as target
-    from customers c where c.id = ${customerId}
-    ${kunci ? sql`for update` : sql``}
+      c.target_dn_awal + coalesce((select sum(delta) from target_adjustments where customer_id = c.id), 0) as target,
+      d.kupon_skema as kuponSkema, d.nilai_kupon_pink as nilaiKuponPink, d.nilai_kupon_hijau as nilaiKuponHijau
+    from customers c join dealer_nights d on d.id = c.dealer_night_id where c.id = ${customerId}
+    ${kunci ? sql`for update of c` : sql``}
   `));
   if (!customer) throw new KuponError('Toko tidak ditemukan.', 404);
   const [jumlah] = rowsFrom<Record<string, unknown>>(await ex.execute(sql`
@@ -70,11 +90,14 @@ async function posisiToko(ex: Executor, customerId: string, kunci = false) {
       coalesce(sum(case when tahap = 'diberikan' then hijau end), 0) as diberikanHijau
     from kupon_proses where customer_id = ${customerId}
   `));
+  const konfig = konfigDari(customer);
   return {
     dealerNightId: String(customer.dealerNightId),
     depotCode: String(customer.depotCode),
     mgName: String(customer.mgName),
+    skema: konfig.skema,
     proses: prosesKupon({
+      nilai: konfig.nilai,
       verified: customer.verifiedAt != null,
       target: Number(customer.target),
       dibuat: { pink: Number(jumlah.dibuatPink), hijau: Number(jumlah.dibuatHijau) },
@@ -91,7 +114,7 @@ export async function scopeKupon(customerId: string) {
 export async function listKupon(dealerNightId: string): Promise<KuponRow[]> {
   const rows = rowsFrom<Record<string, unknown>>(await db.execute(sql`
     select c.id as customerId, c.mg_code as mgCode, c.mg_name as mgName, c.depot_code as depotCode, c.depot_name as depotName,
-      c.wilayah, c.region, c.verified_at is not null as verified, c.target_verifikasi as targetVerifikasi,
+      c.wilayah, c.region, c.salesman, c.spv, c.verified_at is not null as verified, c.target_verifikasi as targetVerifikasi,
       c.target_dn_awal + coalesce(a.total, 0) as targetEfektif,
       r.qty_hadir as qtyHadir, r.nomor_undian as nomorUndian, r.checked_in_at as checkedInAt,
       coalesce(k.dibuatPink, 0) as dibuatPink, coalesce(k.dibuatHijau, 0) as dibuatHijau,
@@ -126,6 +149,8 @@ export async function listKupon(dealerNightId: string): Promise<KuponRow[]> {
     depotName: String(row.depotName),
     wilayah: row.wilayah == null ? null : String(row.wilayah),
     region: row.region == null ? null : String(row.region),
+    salesman: row.salesman == null ? null : String(row.salesman),
+    spv: row.spv == null ? null : String(row.spv),
     verified: Number(row.verified) === 1,
     targetVerifikasi: row.targetVerifikasi == null ? null : Number(row.targetVerifikasi),
     targetEfektif: Number(row.targetEfektif),
@@ -158,20 +183,24 @@ export async function riwayatKupon(customerId: string) {
   }));
 }
 
-function cekBatas(tahap: TahapKupon, proses: ReturnType<typeof prosesKupon>, jumlah: JumlahKupon, nama: string) {
+function cekBatas(
+  tahap: TahapKupon, proses: ReturnType<typeof prosesKupon>, jumlah: JumlahKupon, nama: string, skema: SkemaKupon,
+) {
   if (proses.status === 'belum_verifikasi') throw new KuponError(`Target ${nama} belum diverifikasi; kupon belum bisa diproses.`);
   const batas = tahap === 'dibuat' ? proses.perluDibuat : proses.siapDiberikan;
   if (jumlah.pink > batas.pink || jumlah.hijau > batas.hijau) {
+    const label = NAMA_KUPON[skema];
+    const rincian = `${batas.pink} ${label.pink.toLowerCase()}, ${batas.hijau} ${label.hijau.toLowerCase()}`;
     throw new KuponError(tahap === 'dibuat'
-      ? `Maksimal yang bisa dibuat untuk ${nama}: ${batas.pink} pink, ${batas.hijau} hijau.`
-      : `Maksimal yang bisa diberikan untuk ${nama}: ${batas.pink} pink, ${batas.hijau} hijau (sesuai kupon yang sudah dibuat).`);
+      ? `Maksimal yang bisa dibuat untuk ${nama}: ${rincian}.`
+      : `Maksimal yang bisa diberikan untuk ${nama}: ${rincian} (sesuai kupon yang sudah dibuat).`);
   }
 }
 
 export async function catatKupon(input: z.infer<typeof catatKuponSchema> & { actorId: string }) {
   return db.transaction(async (tx) => {
-    const { dealerNightId, mgName, proses } = await posisiToko(tx, input.customerId, true);
-    cekBatas(input.tahap, proses, input, mgName);
+    const { dealerNightId, mgName, proses, skema } = await posisiToko(tx, input.customerId, true);
+    cekBatas(input.tahap, proses, input, mgName, skema);
     await tx.insert(kuponProses).values({
       id: randomUUID(),
       dealerNightId,

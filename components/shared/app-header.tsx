@@ -45,7 +45,7 @@ const JUDUL: { awalan: string; judul: string; keterangan: string }[] = [
   {
     awalan: '/setting/pax',
     judul: 'Setting Target DN',
-    keterangan: 'Atur Total Target DN dan target pax untuk setiap Dealer Night.',
+    keterangan: 'Atur Total Target DN, target pax, dan pembagi kupon untuk setiap Dealer Night.',
   },
   {
     awalan: '/admin/users',

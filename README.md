@@ -4,11 +4,14 @@ Aplikasi internal Nippon Paint untuk mengelola Target DN dan pencatatan kehadira
 
 ## Fitur utama
 
-- Master toko per Dealer Night dari CSV.
+- Master toko per Dealer Night dari CSV/Excel; kolom `Pax` (opsional, paling kanan) mengisi pax terdaftar per toko.
 - Leaderboard berdasarkan Target DN efektif terbesar dengan format ringkas (`Rp5,62 M`, `Rp905 jt`).
 - Penyesuaian Target DN naik atau turun, dengan batas minimum Rp50.000.000.
 - Ledger penyesuaian yang menyimpan delta, catatan, waktu, dan pengguna pencatat.
-- Pencatatan serta rekap kehadiran dengan `qty_undangan` default 1 per MG Code.
+- Pencatatan serta rekap kehadiran; pax hadir dibandingkan dengan pax terdaftar (Sesuai / Melebihi / Kurang Pax),
+  dengan konfirmasi sebelum mencatat bila melebihi.
+- Kupon undian per DN: skema warna `pink_hijau` (Indonesia Barat) atau `putih_kuning` (Indonesia Timur) dan
+  nilai pembagi per kupon yang bisa diatur di Setting Target DN (bawaan Rp100 jt / Rp25 jt).
 - Akun khusus Dealer Night yang hanya dapat membaca satu DN.
 - Polling 10 detik; tidak ada koneksi push atau batas waktu penyesuaian.
 

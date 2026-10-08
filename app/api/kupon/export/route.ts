@@ -1,10 +1,11 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import writeExcelFile from 'write-excel-file/node';
 import { bolehDepot } from '@/lib/access';
-import { listKupon } from '@/lib/kupon/service';
-import { prosesKupon } from '@/lib/target/kupon';
+import { angka, header, rupiah, teks } from '@/lib/excel/kolom';
+import { konfigKupon, listKupon, type KuponRow } from '@/lib/kupon/service';
+import { NAMA_KUPON, prosesKupon } from '@/lib/target/kupon';
 import { izinKupon, kuponErrorResponse } from '../_auth';
 
-const csvCell = (value: unknown) => `"${String(value ?? '').replaceAll('"', '""')}"`;
 const STATUS = {
   belum_verifikasi: 'Belum verifikasi',
   perlu_dibuat: 'Perlu dibuat',
@@ -12,30 +13,45 @@ const STATUS = {
   selesai: 'Selesai',
 } as const;
 
+type Baris = { row: KuponRow; k: ReturnType<typeof prosesKupon> };
+
 export async function GET(request: NextRequest) {
   const dealerNightId = request.nextUrl.searchParams.get('dealerNightId') ?? '';
   const user = await izinKupon(dealerNightId);
   if (user instanceof NextResponse) return user;
   try {
-    const rows = (await listKupon(dealerNightId)).filter((row) => bolehDepot(user, row.depotCode));
-    const header = [
-      'MG Code', 'MG Name', 'Depot', 'Target DN', 'Status',
-      'Hak Pink', 'Hak Hijau', 'Dibuat Pink', 'Dibuat Hijau', 'Diberikan Pink', 'Diberikan Hijau',
-      'Perlu Dibuat Pink', 'Perlu Dibuat Hijau', 'Kehadiran (pax)', 'Nomor Undian',
+    const [semua, { skema, nilai }] = await Promise.all([listKupon(dealerNightId), konfigKupon(dealerNightId)]);
+    const rows: Baris[] = semua.filter((row) => bolehDepot(user, row.depotCode)).map((row) => ({
+      row,
+      k: prosesKupon({ verified: row.verified, target: row.targetEfektif, dibuat: row.dibuat, diberikan: row.diberikan, nilai }),
+    }));
+    // Nama kolom kupon mengikuti warna fisik kupon DN (Pink/Hijau atau Putih/Kuning).
+    const { pink, hijau } = NAMA_KUPON[skema];
+    const kupon = (judul: string, ambil: (b: Baris) => number) => ({ header: header(judul), width: 12, cell: (b: Baris) => angka(ambil(b)) });
+    const columns = [
+      { header: header('MG Code'), width: 12, cell: (b: Baris) => teks(b.row.mgCode) },
+      { header: header('MG Name'), width: 34, cell: (b: Baris) => teks(b.row.mgName) },
+      { header: header('Depot'), width: 18, cell: (b: Baris) => teks(b.row.depotName) },
+      { header: header('SPV'), width: 28, cell: (b: Baris) => teks(b.row.spv) },
+      { header: header('Salesman'), width: 28, cell: (b: Baris) => teks(b.row.salesman) },
+      { header: header('Target DN'), width: 16, cell: (b: Baris) => rupiah(b.row.targetEfektif) },
+      { header: header('Status'), width: 16, cell: (b: Baris) => teks(STATUS[b.k.status]) },
+      kupon(`Hak ${pink}`, (b) => b.k.hak.pink),
+      kupon(`Hak ${hijau}`, (b) => b.k.hak.hijau),
+      kupon(`Dibuat ${pink}`, (b) => b.k.dibuat.pink),
+      kupon(`Dibuat ${hijau}`, (b) => b.k.dibuat.hijau),
+      kupon(`Diberikan ${pink}`, (b) => b.k.diberikan.pink),
+      kupon(`Diberikan ${hijau}`, (b) => b.k.diberikan.hijau),
+      kupon(`Perlu Dibuat ${pink}`, (b) => b.k.perluDibuat.pink),
+      kupon(`Perlu Dibuat ${hijau}`, (b) => b.k.perluDibuat.hijau),
+      { header: header('Kehadiran (pax)'), width: 11, cell: (b: Baris) => angka(b.row.qtyHadir) },
+      { header: header('Nomor Undian'), width: 14, cell: (b: Baris) => teks(b.row.nomorUndian) },
     ];
-    const lines = [header, ...rows.map((row) => {
-      const k = prosesKupon({ verified: row.verified, target: row.targetEfektif, dibuat: row.dibuat, diberikan: row.diberikan });
-      return [
-        row.mgCode, row.mgName, row.depotName, row.targetEfektif, STATUS[k.status],
-        k.hak.pink, k.hak.hijau, k.dibuat.pink, k.dibuat.hijau, k.diberikan.pink, k.diberikan.hijau,
-        k.perluDibuat.pink, k.perluDibuat.hijau, row.qtyHadir ?? '', row.nomorUndian ?? '',
-      ];
-    })];
-    const csv = lines.map((line) => line.map(csvCell).join(',')).join('\r\n');
-    return new NextResponse(`﻿${csv}`, {
+    const buffer = await writeExcelFile(rows, { columns, sheet: 'Detail Kupon', stickyRowsCount: 1 }).toBuffer();
+    return new NextResponse(new Uint8Array(buffer), {
       headers: {
-        'Content-Type': 'text/csv; charset=utf-8',
-        'Content-Disposition': 'attachment; filename="detail-kupon.csv"',
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition': 'attachment; filename="detail-kupon.xlsx"',
         'Cache-Control': 'private, no-store',
       },
     });

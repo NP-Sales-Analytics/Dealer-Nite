@@ -54,11 +54,51 @@ export function UserTable({
         </Button>
       </div>
 
-      {/* Struktur dan ukuran disamakan dengan tabel Detail Toko Hadir: satu
-          layout untuk semua lebar layar, digeser ke kanan di HP alih-alih
-          berubah jadi kartu, supaya susunan kolomnya tetap sama di mana pun. */}
+      {/* Sama dengan Detail Toko Hadir: kartu di HP (tanpa geser ke kanan),
+          tabel mulai md. Ketuk kartu untuk detail; ubah & hapus ada di dialognya. */}
       <div className="min-w-0 rounded-2xl border border-border bg-card shadow-xs">
-        <div className="overflow-x-auto">
+        <ul className="space-y-2.5 p-3 md:hidden">
+          {rows.map((u) => {
+            const boleh = halamanEfektif(u.role, u.allowedPages);
+            return (
+              <li key={u.id}>
+                <button
+                  type="button"
+                  onClick={() => setDetail(u)}
+                  aria-label={`Lihat detail ${u.fullName || u.email || 'user'}`}
+                  className="w-full rounded-xl border border-border bg-card p-3.5 text-left shadow-xs transition-colors active:bg-secondary/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                >
+                  <div className="flex items-start gap-3">
+                    <Avatar nama={u.fullName || u.email || '?'} />
+                    <div className="min-w-0 flex-1">
+                      <p className="flex items-center gap-1.5 font-semibold leading-snug">
+                        <span className="min-w-0 truncate">{u.fullName || 'Tanpa nama'}</span>
+                        {u.id === currentUserId && <Badge variant="outline" className="shrink-0">Anda</Badge>}
+                      </p>
+                      {u.email && <p className="truncate text-xs text-muted-foreground">{u.email}</p>}
+                    </div>
+                    <Badge variant="secondary" className="shrink-0">{ROLE_LABEL[u.role]}</Badge>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between gap-3 border-t border-border pt-3">
+                    <span className="min-w-0 truncate text-xs text-muted-foreground">
+                      {boleh.length} halaman · {labelDealerNightAccess(u, dealerNightOptions)}
+                    </span>
+                    {u.bolehUnduh ? (
+                      <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
+                        <span className="size-1.5 rounded-full bg-emerald-500" aria-hidden />
+                        Bisa unduh
+                      </span>
+                    ) : (
+                      <span className="shrink-0 rounded-full bg-secondary px-2.5 py-1 text-xs font-semibold text-muted-foreground">Tanpa unduh</span>
+                    )}
+                  </div>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+
+        <div className="hidden overflow-x-auto md:block">
           <Table className="min-w-[52rem]">
             <TableHeader>
               <TableRow>

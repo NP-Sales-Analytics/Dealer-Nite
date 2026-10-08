@@ -45,6 +45,7 @@ export function MasterTokoDialog({
     salesman: row?.salesman ?? '',
     spv: row?.spv ?? '',
     target: row ? String(row.targetAwal) : '',
+    pax: row?.paxTerdaftar == null ? '' : String(row.paxTerdaftar),
   });
   const [pending, start] = useTransition();
   const set = (key: keyof typeof form) => (value: string) => setForm((lama) => ({ ...lama, [key]: value }));
@@ -52,6 +53,8 @@ export function MasterTokoDialog({
   const depots = dealerNights.find((item) => item.id === dealerNightId)?.depots ?? [];
   const namaDepot = (kode: string) => depots.find((item) => item.kode === kode)?.depot ?? kode;
   const target = parseRupiahInput(form.target);
+  const pax = form.pax === '' ? null : Number(form.pax);
+  const paxValid = pax === null || (Number.isInteger(pax) && pax >= 1 && pax <= 1000);
   const targetTerkunci = edit && !!row?.verifiedAt;
   const [yakinReset, setYakinReset] = useState(false);
 
@@ -71,7 +74,7 @@ export function MasterTokoDialog({
     onOpenChange(false);
   });
   const valid = !!dealerNightId && !!form.mgCode.trim() && !!form.mgName.trim() && !!form.sotpCode.trim()
-    && !!form.sotpName.trim() && !!form.depotCode && Number.isFinite(target) && target >= MIN_TARGET_DN;
+    && !!form.sotpName.trim() && !!form.depotCode && Number.isFinite(target) && target >= MIN_TARGET_DN && paxValid;
 
   const simpan = () => start(async () => {
     const response = await fetch(edit ? `/api/master/${row!.customerId}` : '/api/master', {
@@ -80,7 +83,7 @@ export function MasterTokoDialog({
       body: JSON.stringify({
         dealerNightId,
         mgCode: form.mgCode, mgName: form.mgName, sotpCode: form.sotpCode, sotpName: form.sotpName,
-        depotCode: form.depotCode, salesman: form.salesman, spv: form.spv, targetDnAwal: target,
+        depotCode: form.depotCode, salesman: form.salesman, spv: form.spv, targetDnAwal: target, qtyUndangan: pax,
       }),
     }).catch(() => null);
     const body = await response?.json().catch(() => ({}));
@@ -157,6 +160,22 @@ export function MasterTokoDialog({
           <div className="grid gap-4 sm:grid-cols-2">
             <Isian id="salesman" label="Salesman (opsional)" value={form.salesman} onChange={set('salesman')} />
             <Isian id="spv" label="SPV (opsional)" value={form.spv} onChange={set('spv')} />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="m-pax">Pax terdaftar (opsional)</Label>
+            <Input
+              id="m-pax"
+              inputMode="numeric"
+              value={form.pax}
+              onChange={(event) => set('pax')(event.target.value.replace(/[^0-9]/g, ''))}
+              placeholder="Jumlah orang yang didaftarkan"
+              aria-invalid={!paxValid}
+              className="h-11 tabular-nums"
+            />
+            <p className={paxValid ? 'text-xs text-muted-foreground' : 'text-xs text-destructive'}>
+              1 sampai 1.000 orang. Kosongkan bila belum didata; pencatatan kehadiran akan memperingatkan bila melebihi.
+            </p>
           </div>
 
           <div className="space-y-2">

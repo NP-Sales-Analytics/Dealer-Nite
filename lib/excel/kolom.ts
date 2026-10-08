@@ -43,6 +43,13 @@ export const header = (teksJudul: string) => ({
 
 export const teks = (v: string | null) => ({ value: v ?? '' });
 
+/** Rupiah sebagai angka (bisa dijumlah di Excel) dengan pemisah ribuan. */
+export const rupiah = (v: number | null | undefined) => ({
+  value: v ?? undefined,
+  type: Number,
+  format: '#,##0',
+});
+
 export const angka = (v: number | null | undefined) => ({
   value: v ?? undefined,
   type: Number,

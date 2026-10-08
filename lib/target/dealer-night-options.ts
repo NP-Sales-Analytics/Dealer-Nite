@@ -47,6 +47,9 @@ export async function dealerNightOptionsFor(user: SessionUser) {
       targetDn: dealerNights.targetDn,
       eventDate: dealerNights.eventDate,
       depotCodes: dealerNights.depotCodes,
+      kuponSkema: dealerNights.kuponSkema,
+      nilaiKuponPink: dealerNights.nilaiKuponPink,
+      nilaiKuponHijau: dealerNights.nilaiKuponHijau,
     })
     .from(dealerNights)
     .where(aksesSemuaDealerNight(user) ? active : and(active, inArray(dealerNights.id, user.dealerNightIds!)))
@@ -54,6 +57,7 @@ export async function dealerNightOptionsFor(user: SessionUser) {
   const depots = await depotDealerNight(rows);
   return rows.map((row) => ({
     id: row.id, name: row.name, targetPax: row.targetPax, targetDn: row.targetDn, eventDate: row.eventDate,
+    kupon: { skema: row.kuponSkema, nilai: { pink: row.nilaiKuponPink, hijau: row.nilaiKuponHijau } },
     depots: (depots.get(row.id) ?? []).filter((item) => bolehDepot(user, item.kode)),
   }));
 }

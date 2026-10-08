@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
-import type { DealerNightMasterRow } from '@/lib/csv/parse-dealer-night';
+import { MAKS_PAX, type DealerNightMasterRow } from '@/lib/csv/parse-dealer-night';
 import { depotPerKode } from '@/lib/dashboard/hierarchy';
 import { db } from '@/lib/db';
 import { customers } from '@/lib/db/schema';
@@ -29,6 +29,9 @@ export const masterInputSchema = z.object({
   spv: opsional,
   targetDnAwal: z.number().int('Target DN harus bilangan bulat rupiah.').safe()
     .min(MIN_TARGET_DN, 'Target DN minimal Rp50.000.000.'),
+  // Pax terdaftar; null/kosong = belum didata.
+  qtyUndangan: z.number().int('Pax harus bilangan bulat.').min(1, 'Pax minimal 1.')
+    .max(MAKS_PAX, `Pax maksimal ${MAKS_PAX}.`).nullable().default(null),
 }).strict();
 
 export type MasterInput = z.infer<typeof masterInputSchema>;
@@ -51,7 +54,7 @@ async function depotDn(dealerNightId: string, depotCode: string) {
 export async function createMaster(input: MasterInput) {
   const depot = await depotDn(input.dealerNightId, input.depotCode);
   try {
-    await db.insert(customers).values({ id: randomUUID(), ...input, ...depot, qtyUndangan: 1 });
+    await db.insert(customers).values({ id: randomUUID(), ...input, ...depot });
   } catch (error) {
     if (isDup(error)) throw new MasterError(`MG Code ${input.mgCode} sudah terdaftar di Dealer Night ini.`, 409);
     throw error;
@@ -92,7 +95,8 @@ export async function deleteMaster(id: string) {
 /**
  * Upload massal: semua atau tidak sama sekali. MG Code yang sudah ada
  * diperbarui, kecuali toko yang targetnya sudah diverifikasi admin DN -
- * data itu dilewati supaya verifikasi tidak tertimpa data pusat.
+ * data itu dilewati supaya verifikasi tidak tertimpa data pusat. Pax tetap
+ * diperbarui untuk toko terverifikasi karena bukan bagian dari target.
  */
 export async function importMaster(dealerNightId: string, rows: DealerNightMasterRow[]) {
   const milikDn = new Set((await depotSatuDn(dealerNightId)).map((item) => item.kode));
@@ -125,13 +129,18 @@ export async function importMaster(dealerNightId: string, rows: DealerNightMaste
         salesman: row.salesman || null,
         spv: row.spv || null,
         targetDnAwal: row.targetDnAwal,
-        qtyUndangan: 1,
+        // Tanpa kolom Pax di file, pax yang sudah didata tidak disentuh.
+        ...(row.qtyUndangan === undefined ? {} : { qtyUndangan: row.qtyUndangan }),
       };
       const lama = byMg.get(row.mgCode);
       if (!lama) {
         await tx.insert(customers).values({ id: randomUUID(), ...values });
         baru += 1;
       } else if (lama.verifiedAt) {
+        if (row.qtyUndangan !== undefined) {
+          await tx.update(customers).set({ qtyUndangan: row.qtyUndangan, updatedAt: new Date() })
+            .where(and(eq(customers.id, lama.id), eq(customers.dealerNightId, dealerNightId)));
+        }
         dilewati += 1;
       } else {
         await tx.update(customers).set({ ...values, updatedAt: new Date() })

@@ -13,8 +13,11 @@ export type DealerNightMasterRow = {
   salesman: string;
   spv: string;
   targetDnAwal: number;
-  qtyUndangan: 1;
+  /** Pax terdaftar. null = sel Pax kosong; undefined = file tidak punya kolom Pax (pax lama dibiarkan). */
+  qtyUndangan?: number | null;
 };
+
+export const MAKS_PAX = 1000;
 
 const HEADERS = [
   'MG Code',
@@ -28,6 +31,9 @@ const HEADERS = [
 ] as const;
 
 const clean = (value: unknown) => String(value ?? '').trim().replace(/\s+/g, ' ');
+
+/** Kolom opsional paling kanan template; huruf besar/kecil diabaikan. */
+const isKolomPax = (header: string) => clean(header).toLowerCase() === 'pax';
 
 export type DepotByCode = Map<string, { depotName: string; wilayah: string; region: string }>;
 
@@ -61,6 +67,7 @@ export function parseDealerNightRecords(
   const seen = new Set<string>();
   const rows = records.filter((record) => Object.values(record).some((value) => clean(value) !== ''));
   if (rows.length === 0) throw new Error('File tidak berisi data toko.');
+  const kolomPax = Object.keys(rows[0]).find(isKolomPax);
 
   return rows.map((record) => {
     const rowNumber = records.indexOf(record) + 2;
@@ -98,9 +105,20 @@ export function parseDealerNightRecords(
       salesman: clean(record.Salesman),
       spv: clean(record.SPV),
       targetDnAwal,
-      qtyUndangan: 1,
+      ...(kolomPax === undefined ? {} : { qtyUndangan: paxDariSel(record[kolomPax], rowNumber) }),
     };
   });
+}
+
+/** Sel Pax: kosong = belum didata (null), selain itu bilangan bulat 1..MAKS_PAX. */
+function paxDariSel(value: unknown, rowNumber: number): number | null {
+  const teks = clean(value);
+  if (teks === '') return null;
+  const pax = typeof value === 'number' ? value : Number(teks);
+  if (!Number.isInteger(pax) || pax < 1 || pax > MAKS_PAX) {
+    throw new Error(`Baris ${rowNumber}: Pax harus bilangan bulat 1 sampai ${MAKS_PAX} atau dikosongkan`);
+  }
+  return pax;
 }
 
 /** Excel menyimpan angka sebagai number; CSV sebagai teks berformat " 5,619,000,000 ". */

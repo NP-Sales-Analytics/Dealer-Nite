@@ -48,14 +48,14 @@ export function AttendanceClient({
   const qDebounced = useDebounce(filter.q, 300).trim();
   const filterEfektif = useMemo(
     () => ({ ...filter, q: qDebounced }),
-    [filter.wilayah, filter.region, filter.depot, qDebounced], // eslint-disable-line react-hooks/exhaustive-deps
+    [filter.wilayah, filter.region, filter.depot, filter.statusPax, qDebounced], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   // Filter berubah -> kembali ke halaman 1, kalau tidak nomor halaman bisa
   // menunjuk ke luar rentang hasil yang baru.
   useEffect(() => {
     setPage(1);
-  }, [filterEfektif.wilayah, filterEfektif.region, filterEfektif.depot, filterEfektif.q]);
+  }, [filterEfektif.wilayah, filterEfektif.region, filterEfektif.depot, filterEfektif.statusPax, filterEfektif.q]);
 
   const options = useQuery({
     queryKey: ['filters', dealerNightId],
@@ -107,6 +107,8 @@ export function AttendanceClient({
         options={options.data}
         onChange={setFilter}
         withSearch
+        tanpaRegion
+        filterStatusPax
         awal={(
           <DealerNightSelect
             options={dealerNights}

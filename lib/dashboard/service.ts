@@ -28,6 +28,7 @@ export async function loadAttendance(dealerNightId: string): Promise<AttendanceR
       depotName: customers.depotName,
       wilayah: customers.wilayah,
       region: customers.region,
+      paxTerdaftar: customers.qtyUndangan,
       recordedByName: profiles.fullName,
     })
     .from(reservations)
@@ -46,6 +47,7 @@ export async function loadAttendance(dealerNightId: string): Promise<AttendanceR
       region: hierarchy.region,
       wilayah: hierarchy.wilayah,
       qtyHadir: row.qtyHadir,
+      paxTerdaftar: row.paxTerdaftar,
       nomorUndian: row.nomorUndian,
       checkedInAt: row.checkedInAt.toISOString(),
       isManualEntry: row.isManualEntry,

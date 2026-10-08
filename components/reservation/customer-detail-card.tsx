@@ -27,6 +27,7 @@ export function CustomerDetailCard({ customer }: { customer: CustomerSearchResul
         <Row label="Wilayah" value={customer.wilayah} />
         <Row label="Region" value={customer.region} />
         <Row label="Depot" value={customer.depot} />
+        <Row label="Pax terdaftar" value={customer.paxTerdaftar == null ? 'Belum didata' : `${customer.paxTerdaftar} orang`} />
       </div>
     </div>
   );

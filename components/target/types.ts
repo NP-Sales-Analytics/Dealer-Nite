@@ -1,8 +1,11 @@
+import type { KonfigKupon } from '@/lib/target/kupon';
+
 export type DealerNightOption = {
   id: string;
   name: string;
   targetDn?: number;
   eventDate?: string | null;
+  kupon?: KonfigKupon;
   depots?: { kode: string; depot: string }[];
 };
 
@@ -30,6 +33,8 @@ export type TargetRow = {
   formVerifikasi: number | null;
   formTerakhir: number | null;
   qtyHadir: number | null;
+  /** Pax terdaftar dari master; null = belum didata. */
+  paxTerdaftar: number | null;
   nomorUndian: string | null;
   checkedInAt: string | null;
   rank?: number;

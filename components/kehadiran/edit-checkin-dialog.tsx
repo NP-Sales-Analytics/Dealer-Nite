@@ -12,6 +12,7 @@ import { Dialog, DialogClose, DialogContent, DialogTitle } from '@/components/ui
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { AttendanceRow } from '@/lib/dashboard/types';
+import { statusPax } from '@/lib/reservation/pax';
 import { inisial } from '@/lib/utils';
 
 /** Dipasang dengan key=row.id oleh pemanggil, jadi state awal selalu milik baris ini. */
@@ -30,6 +31,7 @@ export function EditCheckinDialog({
 
   const valid = qty !== '' && Number.isInteger(Number(qty)) && Number(qty) >= 0
     && nomorUndianValid(undian) && depot !== '';
+  const melebihi = statusPax(Number(qty), row.paxTerdaftar) === 'melebihi';
 
   async function simpan() {
     setSibuk(true);
@@ -126,6 +128,11 @@ export function EditCheckinDialog({
             <div className="space-y-2">
               <Label htmlFor="e-qty">Jumlah pax hadir</Label>
               <QtyStepper id="e-qty" value={qty} onChange={setQty} />
+              {row.paxTerdaftar != null && (
+                <p className={melebihi ? 'text-sm font-medium text-destructive' : 'text-sm text-muted-foreground'}>
+                  Terdaftar {row.paxTerdaftar} pax{melebihi && ` · ${qty} pax melebihi pendaftaran`}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">

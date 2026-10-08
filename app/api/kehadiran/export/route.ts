@@ -6,6 +6,7 @@ import { matchesDashboardFilter, readFilter } from '@/lib/dashboard/filters';
 import { resolveDashboardDealerNight } from '@/lib/dashboard/scope';
 import { loadAttendance } from '@/lib/dashboard/service';
 import { angka, header, teks, waktuWib } from '@/lib/excel/kolom';
+import { LABEL_STATUS_PAX, statusPax } from '@/lib/reservation/pax';
 import { targetErrorResponse } from '@/app/api/targets/_response';
 
 type ExportRow = Awaited<ReturnType<typeof loadAttendance>>[number];
@@ -16,6 +17,11 @@ const COLUMNS = [
   { header: header('Region'), width: 10, cell: (row: ExportRow) => teks(row.region) },
   { header: header('Depot'), width: 18, cell: (row: ExportRow) => teks(row.depot) },
   { header: header('Qty Hadir'), width: 11, cell: (row: ExportRow) => angka(row.qtyHadir) },
+  { header: header('Pax Terdaftar'), width: 13, cell: (row: ExportRow) => (row.paxTerdaftar == null ? teks('-') : angka(row.paxTerdaftar)) },
+  { header: header('Status Pax'), width: 14, cell: (row: ExportRow) => {
+    const status = statusPax(row.qtyHadir, row.paxTerdaftar);
+    return teks(status ? LABEL_STATUS_PAX[status] : '-');
+  } },
   { header: header('Nomor Undian'), width: 14, cell: (row: ExportRow) => teks(row.nomorUndian) },
   { header: header('Waktu Hadir (WIB)'), width: 20, cell: (row: ExportRow) => teks(waktuWib(row.checkedInAt)) },
   { header: header('Jenis Entri'), width: 14, cell: (row: ExportRow) => teks(row.isManualEntry ? 'Manual' : 'Terdaftar') },

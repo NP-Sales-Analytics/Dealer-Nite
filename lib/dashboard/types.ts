@@ -15,6 +15,8 @@ export type AttendanceRow = {
   region: string | null;
   wilayah: string | null;
   qtyHadir: number;
+  /** Pax terdaftar di master; null untuk tamu manual / belum didata. */
+  paxTerdaftar: number | null;
   nomorUndian: string | null;
   checkedInAt: string;
   isManualEntry: boolean;
