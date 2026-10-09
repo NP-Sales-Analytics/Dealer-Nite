@@ -2,7 +2,7 @@
 
 import { eq } from 'drizzle-orm';
 import { redirect } from 'next/navigation';
-import { HOME_BY_ROLE, type Role } from '@/lib/auth';
+import { halamanAwal, type Role } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { profiles } from '@/lib/db/schema';
 import { hashPassword, normalisasiNama } from '@/lib/password';
@@ -27,14 +27,14 @@ export async function signIn(_prev: string | null, formData: FormData): Promise<
   // harus cocok dengan nama lengkap akun itu. Satu pesan untuk semua kegagalan
   // supaya tidak membocorkan mana yang benar: username atau password.
   const [akun] = await db
-    .select({ id: profiles.id, role: profiles.role, fullName: profiles.fullName })
+    .select({ id: profiles.id, role: profiles.role, fullName: profiles.fullName, allowedPages: profiles.allowedPages })
     .from(profiles)
     .where(eq(profiles.passwordHash, hashPassword(password)))
     .limit(1);
   if (!akun || normalisasiNama(akun.fullName) !== username) return GAGAL;
 
   await setSessionCookie(akun.id);
-  redirect(HOME_BY_ROLE[akun.role as Role]);
+  redirect(halamanAwal(akun.role as Role, akun.allowedPages ?? []));
 }
 
 export async function signOut() {

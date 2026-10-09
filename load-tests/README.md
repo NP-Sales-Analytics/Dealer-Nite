@@ -45,7 +45,7 @@ ringkasan. Uji berhenti otomatis bila p95 > 3 detik atau error server > 2%.
 
 Campuran pengguna (per 10 VU): 4 pencatat kehadiran (cari + check-in), 3 layar
 pemantau (dashboard/kehadiran/leaderboard, polling 10 detik), 2 admin target
-(daftar, riwayat, pratinjau formulir, verifikasi/penyesuaian), 1 admin kupon.
+(daftar, riwayat, verifikasi/penyesuaian), 1 admin kupon.
 
 ## Selesai
 

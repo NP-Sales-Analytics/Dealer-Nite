@@ -1,7 +1,9 @@
 import { ShieldOff } from 'lucide-react';
+import Link from 'next/link';
 import { signOut } from '@/app/(auth)/login/actions';
 import { Brand } from '@/components/shared/brand';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 export default function NoAccessPage() {
   return (
@@ -15,7 +17,9 @@ export default function NoAccessPage() {
         <p className="mt-1 text-sm text-muted-foreground">
           Akun Anda belum diberi izin untuk halaman ini. Hubungi superadmin bila ini keliru.
         </p>
-        <form action={signOut} className="mt-5">
+        {/* "/" mengarahkan ke halaman pertama yang diizinkan akun ini. */}
+        <Link href="/" className={cn(buttonVariants(), 'mt-5 h-11 w-full')}>Ke halaman awal</Link>
+        <form action={signOut} className="mt-2">
           <Button variant="outline" className="h-11 w-full">Keluar</Button>
         </form>
       </div>

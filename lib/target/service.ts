@@ -87,7 +87,7 @@ async function ambilNoFormulir(tx: Tx, dealerNightId: string): Promise<number> {
   return Number(row.nomor);
 }
 
-/** Nomor yang akan dipakai penyimpanan berikutnya di DN ini (pratinjau, belum dipesan). */
+/** Nomor yang akan dipakai penyimpanan berikutnya di DN ini (belum dipesan). */
 export async function noFormulirBerikut(dealerNightId: string): Promise<number> {
   const [row] = rowsFrom<{ nomor: number | string }>(await db.execute(sql`
     select form_terakhir + 1 as nomor from dealer_nights where id = ${dealerNightId}

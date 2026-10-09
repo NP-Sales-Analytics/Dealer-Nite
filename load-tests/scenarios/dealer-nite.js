@@ -36,7 +36,7 @@ const PROFIL = {
 const MODE = __ENV.MODE || 'smoke';
 const NAMA = [
   'search', 'checkin', 'dashboard_summary', 'dashboard_depot', 'dashboard_filters', 'kehadiran_recent',
-  'leaderboard', 'targets_list', 'targets_history', 'form_berikut', 'target_adjust', 'kupon_list', 'kupon_catat', 'page',
+  'leaderboard', 'targets_list', 'targets_history', 'target_adjust', 'kupon_list', 'kupon_catat', 'page',
 ];
 
 export const options = {
@@ -111,13 +111,12 @@ function pemantau() {
   sleep(10);
 }
 
-// Admin target: daftar -> riwayat -> pratinjau formulir -> verifikasi/penyesuaian.
+// Admin target: daftar -> riwayat -> verifikasi/penyesuaian.
 function adminTarget() {
   halaman('/order/detail');
   req('GET', `/api/targets/list?${q}`, 'targets_list');
   const toko = acak(CUSTOMERS);
   req('GET', `/api/targets/history?customerId=${toko.id}`, 'targets_history');
-  req('GET', `/api/targets/form-berikut?${q}`, 'form_berikut');
   sleep(antara(2, 4));
   const target = (50 + Math.floor(Math.random() * 4950)) * 1_000_000;
   req('POST', '/api/targets/adjust', 'target_adjust', { customerId: toko.id, newTarget: target }, [200, 400]);
