@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import { redirect } from 'next/navigation';
 import { NextResponse } from 'next/server';
 import { cache } from 'react';
-import { halamanEfektif } from '@/lib/access';
+import { HALAMAN, halamanEfektif } from '@/lib/access';
 import { db } from '@/lib/db';
 import { profiles, type DbRole } from '@/lib/db/schema';
 import { getSession } from '@/lib/session';
@@ -27,6 +27,16 @@ export const HOME_BY_ROLE: Record<Role, string> = {
   management: '/dashboard',
   dn_user: '/leaderboard',
 };
+
+/**
+ * Halaman pertama setelah login: halaman bawaan role bila diizinkan, selain itu
+ * halaman pertama yang diizinkan sesuai urutan sidebar.
+ */
+export function halamanAwal(role: Role, allowedPages: string[]): string {
+  const boleh = halamanEfektif(role, allowedPages);
+  if (boleh.includes(HOME_BY_ROLE[role])) return HOME_BY_ROLE[role];
+  return HALAMAN.find((item) => boleh.includes(item.href))?.href ?? '/no-access';
+}
 
 const cacheProfil = ttlCache(async (userId: string) => {
   const [profile] = await db.select().from(profiles).where(eq(profiles.id, userId)).limit(1);

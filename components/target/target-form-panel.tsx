@@ -1,6 +1,5 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
 import { BadgeCheck, FileText, SlidersHorizontal } from 'lucide-react';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
@@ -17,7 +16,7 @@ import { cn } from '@/lib/utils';
  * Form verifikasi (belum diverifikasi) atau penyesuaian (sudah). Dipasang dengan
  * key yang memuat status & target terakhir, jadi isiannya ikut segar setelah simpan.
  */
-export function TargetFormPanel({ row, onSaved }: { row: TargetRow; onSaved: () => void }) {
+export function TargetFormPanel({ row, onSaved }: { row: TargetRow; onSaved: (noFormulir: number) => void }) {
   const verified = !!row.verifiedAt;
   const [value, setValue] = useState(String(row.targetEfektif));
   const [pending, startTransition] = useTransition();
@@ -29,19 +28,6 @@ export function TargetFormPanel({ row, onSaved }: { row: TargetRow; onSaved: () 
   // Penyesuaian tanpa perubahan nilai tidak disimpan, jadi tidak memakan nomor formulir.
   const bisaSimpan = valid && (!verified || delta !== 0);
 
-  // Pratinjau nomor formulir; disegarkan berkala karena admin lain bisa menyimpan lebih dulu.
-  const formBerikut = useQuery({
-    queryKey: ['targets', 'form-berikut', row.dealerNightId],
-    queryFn: async (): Promise<{ nomor: number }> => {
-      const response = await fetch(`/api/targets/form-berikut?dealerNightId=${encodeURIComponent(row.dealerNightId)}`);
-      if (!response.ok) throw new Error('Gagal memuat nomor formulir.');
-      return response.json();
-    },
-    refetchInterval: 5_000,
-    staleTime: 0,
-  });
-  const nomorPratinjau = formBerikut.data?.nomor;
-
   const simpan = () => startTransition(async () => {
     try {
       const response = await fetch('/api/targets/adjust', {
@@ -51,15 +37,10 @@ export function TargetFormPanel({ row, onSaved }: { row: TargetRow; onSaved: () 
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Gagal menyimpan.');
-      const nomor = Number(result.noFormulir);
-      toast.success(`${verified ? 'Penyesuaian' : 'Verifikasi'} tersimpan dengan No. Formulir ${nomor}.`);
-      if (nomorPratinjau !== undefined && nomor !== nomorPratinjau) {
-        toast.warning(
-          `No. Formulir berubah dari ${nomorPratinjau} menjadi ${nomor} karena admin lain menyimpan lebih dulu. Tulis nomor ${nomor} di formulir.`,
-          { duration: 15_000 },
-        );
-      }
-      onSaved();
+      // Nomor baru dipesan saat simpan (bukan dipratinjau), jadi beberapa admin
+      // bisa mengisi formulir bersamaan tanpa nomor yang tiba-tiba berubah.
+      // Pop-up nomor dipegang halaman induk: panel & dialog detail ditutup setelah simpan.
+      onSaved(Number(result.noFormulir));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Gagal menyimpan.');
     }
@@ -112,16 +93,10 @@ export function TargetFormPanel({ row, onSaved }: { row: TargetRow; onSaved: () 
         ))}
       </div>
 
-      <div className="flex items-center gap-3 rounded-xl border border-dashed border-primary/40 bg-primary/5 px-3.5 py-2.5">
-        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary" aria-hidden>
-          <FileText className="size-4" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold">No. Formulir</p>
-          <p className="text-[11px] text-muted-foreground">Tulis nomor ini di formulir fisik</p>
-        </div>
-        <span className="text-2xl font-bold tabular-nums text-primary">{nomorPratinjau ?? '…'}</span>
-      </div>
+      <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+        <FileText className="size-3.5 shrink-0" aria-hidden />
+        Jangan tulis formulir dulu. No. Formulir muncul setelah disimpan.
+      </p>
 
       <Button type="submit" className="h-11 w-full gap-2" disabled={!bisaSimpan || pending}>
         <Ikon className="size-4" />

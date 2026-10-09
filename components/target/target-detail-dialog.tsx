@@ -86,12 +86,14 @@ function Baris({ icon: Icon, label, nilai }: { icon: typeof Store; label: string
 }
 
 export function TargetDetailDialog({
-  row, canAdjust, onOpenChange, onSaved,
+  row, canAdjust, onOpenChange, onSaved, onTargetSaved,
 }: {
   row: TargetRow;
   canAdjust: boolean;
   onOpenChange: (value: boolean) => void;
   onSaved: () => void;
+  /** Verifikasi/penyesuaian tersimpan dengan nomor formulir ini. */
+  onTargetSaved: (noFormulir: number) => void;
 }) {
   const verified = !!row.verifiedAt;
   const history = useQuery({
@@ -250,7 +252,7 @@ export function TargetDetailDialog({
           {/* Kanan: langsung ke verifikasi (belum) atau penyesuaian (sudah) */}
           {canAdjust && (
             <aside className="order-1 border-b border-border bg-secondary/25 px-5 py-4 sm:px-6 lg:order-none lg:overflow-y-auto lg:border-b-0 lg:border-l">
-              <TargetFormPanel key={`${row.verifiedAt}-${row.targetEfektif}`} row={row} onSaved={onSaved} />
+              <TargetFormPanel key={`${row.verifiedAt}-${row.targetEfektif}`} row={row} onSaved={onTargetSaved} />
             </aside>
           )}
         </div>

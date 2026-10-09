@@ -111,6 +111,7 @@ export function TargetDetail({
   const [master, setMaster] = useState<TargetRow | 'baru' | null>(null);
   const [upload, setUpload] = useState(false);
   const [hapus, setHapus] = useState<TargetRow | null>(null);
+  const [formulir, setFormulir] = useState<{ nomor: number; nama: string; jenis: string } | null>(null);
   const queryClient = useQueryClient();
   useTargetVisibilityRefresh(queryClient);
 
@@ -365,8 +366,30 @@ export function TargetDetail({
           canAdjust={canAdjust}
           onOpenChange={(open) => !open && setDetail(null)}
           onSaved={segarkan}
+          onTargetSaved={(nomor) => {
+            const kini = semua.find((row) => row.customerId === detail.customerId) ?? detail;
+            setFormulir({ nomor, nama: kini.mgName, jenis: kini.verifiedAt ? 'Penyesuaian' : 'Verifikasi' });
+            setDetail(null);
+            segarkan();
+          }}
         />
       )}
+      {/* Tanpa onOpenChange: hanya tertutup lewat tombol, supaya nomor pasti dicatat. */}
+      <AlertDialog open={formulir !== null}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{formulir?.jenis} tersimpan</AlertDialogTitle>
+            <AlertDialogDescription>Tulis nomor ini di formulir fisik {formulir?.nama}.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="rounded-xl border border-dashed border-primary/40 bg-primary/5 py-4 text-center">
+            <p className="text-xs font-semibold text-muted-foreground">No. Formulir</p>
+            <p className="text-5xl font-bold tabular-nums text-primary">{formulir?.nomor}</p>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogAction className="h-11" onClick={() => setFormulir(null)}>Sudah saya tulis</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       {master && (
         <MasterTokoDialog
           key={master === 'baru' ? 'baru' : master.customerId}
