@@ -25,7 +25,7 @@ const waktu = (iso: string) => `${tanggalJakarta(iso)}, ${jamJakarta(iso)}`;
 
 function Judul({ children, icon: Icon }: { children: React.ReactNode; icon?: typeof Printer }) {
   return (
-    <h3 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+    <h3 className="flex items-center gap-1.5 text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">
       {Icon && <Icon className="size-3.5" aria-hidden />}
       {children}
     </h3>
@@ -140,7 +140,7 @@ export function KuponDialog({ row, konfig, canManage, onOpenChange, onChanged }:
                           <span className={cn('size-2.5 rounded-full', tema[warna].dot)} aria-hidden />
                           Kupon {tema[warna].label}
                         </span>
-                        <span className="text-[11px] text-muted-foreground">per {tema[warna].nilai}</span>
+                        <span className="text-[0.6875rem] text-muted-foreground">per {tema[warna].nilai}</span>
                       </div>
                       <p className="mt-2 text-3xl font-bold tabular-nums">{k.hak[warna]}<span className="ml-1 text-sm font-medium text-muted-foreground">hak</span></p>
                       <div className="mt-3"><BarProses tema={tema[warna]} hak={k.hak[warna]} dibuat={k.dibuat[warna]} diberikan={k.diberikan[warna]} /></div>
@@ -153,7 +153,7 @@ export function KuponDialog({ row, konfig, canManage, onOpenChange, onChanged }:
                         </div>
                       </dl>
                       {k.kelebihan[warna] > 0 && (
-                        <p className="mt-2 text-[11px] text-amber-700 dark:text-amber-300">
+                        <p className="mt-2 text-[0.6875rem] text-amber-700 dark:text-amber-300">
                           Kelebihan {k.kelebihan[warna]} karena target turun setelah kupon dibuat.
                         </p>
                       )}
@@ -194,12 +194,12 @@ export function KuponDialog({ row, konfig, canManage, onOpenChange, onChanged }:
                   {riwayat.map((item) => (
                     <li key={item.id} className="relative">
                       <span
-                        className={cn('absolute -left-[25px] top-1 size-2.5 rounded-full border-2 border-background', item.tahap === 'dibuat' ? 'bg-sky-500' : 'bg-violet-500')}
+                        className={cn('absolute -left-[1.5625rem] top-1 size-2.5 rounded-full border-2 border-background', item.tahap === 'dibuat' ? 'bg-sky-500' : 'bg-violet-500')}
                         aria-hidden
                       />
                       <div className="flex flex-wrap items-center gap-2">
                         <span className={cn(
-                          'rounded-md px-1.5 py-0.5 text-[11px] font-semibold',
+                          'rounded-md px-1.5 py-0.5 text-[0.6875rem] font-semibold',
                           item.tahap === 'dibuat' ? 'bg-sky-50 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300' : 'bg-violet-50 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300',
                         )}
                         >

@@ -1,9 +1,30 @@
 'use server';
 
+import { and, eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { cakupanDepot, canReadDealerNight } from '@/lib/access';
 import { requireRole } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { dealerNights } from '@/lib/db/schema';
 import { simpanTargetPax } from '@/lib/pax-targets';
+import { aturDnTampilanAwal, depotSatuDn, wilayahDn } from '@/lib/target/dealer-night-options';
+import { WILAYAH, type Wilayah } from '@/lib/target/dn-bawaan';
+
+/** DN tampilan awal satu wilayah untuk semua halaman; string kosong = otomatis (DN terdekat). */
+export async function simpanDnTampilanAwal(wilayah: string, dealerNightId: string): Promise<string | null> {
+  const me = await requireRole(['superadmin']);
+  if (!WILAYAH.includes(wilayah as Wilayah)) return 'Wilayah tidak dikenal.';
+  if (me.wilayah && me.wilayah !== wilayah) return `Anda hanya bisa mengatur ${me.wilayah}.`;
+  if (dealerNightId) {
+    const [dn] = await db.select({ id: dealerNights.id }).from(dealerNights)
+      .where(and(eq(dealerNights.id, dealerNightId), eq(dealerNights.active, true))).limit(1);
+    if (!dn) return 'Dealer Night tidak ditemukan atau tidak aktif.';
+    if (wilayahDn(await depotSatuDn(dealerNightId)) !== wilayah) return `Dealer Night ini bukan wilayah ${wilayah}.`;
+  }
+  await aturDnTampilanAwal(wilayah as Wilayah, dealerNightId || null);
+  revalidatePath('/', 'layout');
+  return null;
+}
 
 export async function simpanSettingPax(formData: FormData): Promise<string | null> {
   const user = await requireRole(['superadmin', 'admin']);

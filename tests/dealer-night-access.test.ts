@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canAdjustTarget, canReadDealerNight } from '@/lib/access';
+import { cakupanDnAkun, canAdjustTarget, canReadDealerNight, superAdminPusat } from '@/lib/access';
 
 describe('Dealer Night authorization', () => {
   it('limits a scoped account to its Dealer Nights', () => {
@@ -26,8 +26,24 @@ describe('Dealer Night authorization', () => {
     expect(canAdjustTarget({ role, dealerNightIds: null }, 'bogor')).toBe(true);
   });
 
-  it('superadmin ignores a stale scope list', () => {
-    expect(canReadDealerNight({ role: 'superadmin', dealerNightIds: [] }, 'bogor')).toBe(true);
+  // getSessionUser mengisi dealerNightIds Super Admin wilayah dengan DN wilayahnya.
+  it('Super Admin wilayah hanya membaca dan mengubah DN wilayahnya', () => {
+    const timur = { role: 'superadmin', dealerNightIds: ['manado', 'kupang'], wilayah: 'Indonesia Timur' } as const;
+    expect(canReadDealerNight(timur, 'manado')).toBe(true);
+    expect(canAdjustTarget(timur, 'kupang')).toBe(true);
+    expect(canReadDealerNight(timur, 'bogor')).toBe(false);
+    expect(canAdjustTarget(timur, 'bogor')).toBe(false);
+    expect(superAdminPusat(timur)).toBe(false);
+    expect(superAdminPusat({ role: 'superadmin', wilayah: null })).toBe(true);
+    expect(superAdminPusat({ role: 'admin', wilayah: null })).toBe(false);
+  });
+
+  it('label cakupan superadmin memakai wilayah, bukan daftar DN lama di DB', () => {
+    const opsi = [{ id: 'bogor', name: 'DN Bogor' }];
+    expect(cakupanDnAkun({ role: 'superadmin', dealerNightIds: ['bogor'], wilayah: null }, opsi)).toEqual({ semua: 'Semua Dealer Night' });
+    expect(cakupanDnAkun({ role: 'superadmin', dealerNightIds: null, wilayah: 'Indonesia Timur' }, opsi))
+      .toEqual({ semua: 'Semua DN Indonesia Timur' });
+    expect(cakupanDnAkun({ role: 'admin', dealerNightIds: ['bogor'] }, opsi)).toEqual({ nama: ['DN Bogor'] });
   });
 
   it.each(['marketing', 'management'] as const)('%s is read-only', (role) => {

@@ -1,14 +1,15 @@
 'use client';
 
-import { CalendarDays, Save, Target, Users } from 'lucide-react';
+import { CalendarDays, Pin, Save, Target, Users } from 'lucide-react';
 import { useMemo, useState, useTransition } from 'react';
 import { toast } from 'sonner';
-import { simpanSettingPax } from '@/app/(app)/setting/pax/actions';
+import { simpanDnTampilanAwal, simpanSettingPax } from '@/app/(app)/setting/pax/actions';
 import { temaKupon } from '@/components/kupon/status';
 import { Button } from '@/components/ui/button';
-import { PilihBanyak } from '@/components/ui/combobox';
+import { PilihBanyak, PilihSatu } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
 import type { DealerNightTargetPax } from '@/lib/pax-targets';
+import { dnBawaan, WILAYAH, type DnAwalPerWilayah, type Wilayah } from '@/lib/target/dn-bawaan';
 import { formatRupiahRingkas } from '@/lib/target/money';
 import { cn } from '@/lib/utils';
 
@@ -24,7 +25,95 @@ const tanggal = (iso?: string | null) => (iso
   ? new Date(`${iso}T00:00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
   : 'Tanggal belum diatur');
 
-export function PaxTargetForm({ rows }: { rows: DealerNightTargetPax[] }) {
+const OTOMATIS = 'otomatis';
+
+/** Satu dropdown DN tampilan awal untuk satu wilayah; disimpan begitu dipilih. */
+function PilihDnAwalWilayah({ wilayah, rows, awal, bolehAtur }: {
+  wilayah: Wilayah; rows: DealerNightTargetPax[]; awal: string | null; bolehAtur: boolean;
+}) {
+  const dnWilayah = rows.filter((row) => row.wilayah === wilayah);
+  const [nilai, setNilai] = useState(() => (awal && dnWilayah.some((row) => row.id === awal) ? awal : OTOMATIS));
+  const [pending, start] = useTransition();
+  const terdekat = dnWilayah.find((row) => row.id === dnBawaan(dnWilayah.map((row) => ({ id: row.id, eventDate: row.eventDate }))))?.name;
+  const label = (id: string) => (id === OTOMATIS
+    ? `Otomatis · terdekat${terdekat ? ` (${terdekat})` : ''}`
+    : dnWilayah.find((row) => row.id === id)?.name ?? id);
+
+  const ubah = (id: string) => {
+    const lama = nilai;
+    setNilai(id);
+    start(async () => {
+      const pesan = await simpanDnTampilanAwal(wilayah, id === OTOMATIS ? '' : id);
+      if (pesan) {
+        setNilai(lama);
+        toast.error(pesan);
+        return;
+      }
+      toast.success(`${wilayah}: ${label(id)}.`);
+    });
+  };
+
+  return (
+    <div className="min-w-0 space-y-1.5">
+      <p className="text-xs font-semibold text-muted-foreground">{wilayah}</p>
+      {bolehAtur ? (
+        <PilihSatu
+          items={[OTOMATIS, ...dnWilayah.map((row) => row.id)]}
+          value={nilai}
+          onChange={(id) => id && id !== nilai && ubah(id)}
+          format={label}
+          placeholder={`DN awal ${wilayah}`}
+          cariPlaceholder="Cari Dealer Night..."
+          kosong="Dealer Night tidak ditemukan."
+          className={cn('w-full font-medium', nilai !== OTOMATIS && 'border-primary', pending && 'opacity-60')}
+        />
+      ) : (
+        <p className="flex h-11 items-center rounded-xl border border-border bg-secondary/40 px-3.5 text-sm font-medium">
+          <span className="truncate">{label(nilai)}</span>
+        </p>
+      )}
+    </div>
+  );
+}
+
+function DnTampilanAwal({ rows, dnAwal, wilayahDikelola }: {
+  rows: DealerNightTargetPax[]; dnAwal: DnAwalPerWilayah; wilayahDikelola: readonly Wilayah[];
+}) {
+  // Hanya wilayah yang DN-nya terlihat oleh akun ini (Super Admin wilayah: wilayahnya saja).
+  const tampil = WILAYAH.filter((wilayah) => rows.some((row) => row.wilayah === wilayah));
+  if (tampil.length === 0) return null;
+  return (
+    <div className="grid gap-4 rounded-2xl border border-border bg-card p-4 shadow-xs sm:p-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] lg:items-center">
+      <div className="flex min-w-0 items-start gap-3">
+        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary" aria-hidden>
+          <Pin className="size-5" />
+        </span>
+        <div className="min-w-0">
+          <h2 className="font-semibold">DN Tampilan Awal</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">DN yang langsung terbuka di setiap halaman, per wilayah.</p>
+        </div>
+      </div>
+      <div className={cn('grid gap-3', tampil.length > 1 && 'sm:grid-cols-2')}>
+        {tampil.map((wilayah) => (
+          <PilihDnAwalWilayah
+            key={wilayah}
+            wilayah={wilayah}
+            rows={rows}
+            awal={dnAwal[wilayah]}
+            bolehAtur={wilayahDikelola.includes(wilayah)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function PaxTargetForm({ rows, dnAwal, wilayahDikelola }: {
+  rows: DealerNightTargetPax[];
+  dnAwal: DnAwalPerWilayah;
+  /** Wilayah yang DN tampilan awalnya boleh diubah akun ini. */
+  wilayahDikelola: readonly Wilayah[];
+}) {
   const [pax, setPax] = useState<Record<string, string>>(
     () => Object.fromEntries(rows.map((row) => [row.id, String(row.targetPax)])),
   );
@@ -76,7 +165,7 @@ export function PaxTargetForm({ rows }: { rows: DealerNightTargetPax[] }) {
           </span>
           <p className="mt-2 text-xs text-muted-foreground sm:mt-3 sm:text-sm">Total Target DN</p>
           <p className="text-xl font-bold tracking-tight tabular-nums sm:text-3xl">{formatRupiahRingkas(total.dn)}</p>
-          <p className="mt-0.5 text-[11px] text-muted-foreground sm:text-xs">dari {terlihat.length} Dealer Night</p>
+          <p className="mt-0.5 text-[0.6875rem] text-muted-foreground sm:text-xs">dari {terlihat.length} Dealer Night</p>
         </div>
         <div className="rounded-2xl border border-border bg-card p-3 shadow-xs sm:p-5">
           <span className="grid size-8 place-items-center rounded-lg bg-secondary text-muted-foreground sm:size-10 sm:rounded-xl">
@@ -87,6 +176,8 @@ export function PaxTargetForm({ rows }: { rows: DealerNightTargetPax[] }) {
           <p className="mt-0.5 text-xs text-muted-foreground">orang dari {rows.length} Dealer Night</p>
         </div>
       </div>
+
+      <DnTampilanAwal rows={rows} dnAwal={dnAwal} wilayahDikelola={wilayahDikelola} />
 
       <form
         action={(formData) => start(async () => {

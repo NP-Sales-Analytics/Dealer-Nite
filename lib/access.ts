@@ -34,8 +34,31 @@ export const halamanEfektif = (role: Role, allowedPages: string[]) =>
 
 type DealerNightPrincipal = { role: Role; dealerNightIds: readonly string[] | null };
 
-export const aksesSemuaDealerNight = (user: DealerNightPrincipal) =>
-  user.role === 'superadmin' || user.dealerNightIds === null;
+/**
+ * Untuk SessionUser: superadmin pusat sudah berisi null, Super Admin wilayah
+ * berisi DN wilayahnya (lihat getSessionUser). Jangan pakai untuk baris profil
+ * mentah dari DB - pakai cakupanDnAkun.
+ */
+export const aksesSemuaDealerNight = (user: DealerNightPrincipal) => user.dealerNightIds === null;
+
+/** Super Admin tanpa batas wilayah: satu-satunya yang mengelola seluruh user dan setelan. */
+export const superAdminPusat = (user: { role: Role; wilayah?: string | null }) =>
+  user.role === 'superadmin' && !user.wilayah;
+
+/**
+ * Cakupan DN sebuah akun untuk tampilan (dari baris profil DB): teks tunggal
+ * untuk cakupan menyeluruh, atau daftar nama DN.
+ */
+export function cakupanDnAkun(
+  user: DealerNightPrincipal & { wilayah?: string | null },
+  options: { id: string; name: string }[],
+): { semua: string } | { nama: string[] } {
+  if (user.role === 'superadmin') return { semua: user.wilayah ? `Semua DN ${user.wilayah}` : 'Semua Dealer Night' };
+  if (user.dealerNightIds === null) return { semua: 'Semua Dealer Night' };
+  if (user.dealerNightIds.length === 0) return { semua: 'Belum ditentukan' };
+  const names = new Map(options.map((item) => [item.id, item.name]));
+  return { nama: user.dealerNightIds.map((id) => names.get(id) ?? id) };
+}
 
 export function canReadDealerNight(user: DealerNightPrincipal, dealerNightId: string): boolean {
   return aksesSemuaDealerNight(user) || user.dealerNightIds!.includes(dealerNightId);
@@ -60,13 +83,12 @@ export function canAdjustTarget(user: DealerNightPrincipal, dealerNightId: strin
 }
 
 export function labelDealerNightAccess(
-  user: DealerNightPrincipal & { depotCodes?: readonly string[] | null },
+  user: DealerNightPrincipal & { depotCodes?: readonly string[] | null; wilayah?: string | null },
   options: { id: string; name: string; depots?: { kode: string; depot: string }[] }[],
 ): string {
-  if (aksesSemuaDealerNight(user)) return 'Semua Dealer Night';
-  if (user.dealerNightIds!.length === 0) return 'Belum ditentukan';
-  const names = new Map(options.map((item) => [item.id, item.name]));
-  const dn = user.dealerNightIds!.map((id) => names.get(id) ?? id).join(', ');
+  const cakupan = cakupanDnAkun(user, options);
+  if ('semua' in cakupan) return cakupan.semua;
+  const dn = cakupan.nama.join(', ');
   if (!user.depotCodes?.length) return dn;
   const depot = new Map(options.flatMap((item) => (item.depots ?? []).map((d) => [d.kode, d.depot] as const)));
   return `${dn} · ${user.depotCodes.map((kode) => depot.get(kode) ?? kode).join(', ')}`;

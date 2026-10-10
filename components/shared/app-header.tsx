@@ -63,10 +63,10 @@ export function AppHeader() {
     .sort((a, b) => b.awalan.length - a.awalan.length)[0];
 
   return (
-    // h-[68px] menyamai tinggi header sidebar, sehingga garis bawah keduanya
+    // h-17 menyamai tinggi header sidebar, sehingga garis bawah keduanya
     // menyambung jadi satu garis lurus di desktop.
     //
-    <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-card px-4 md:h-[68px] md:px-6">
+    <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-card px-4 md:h-17 md:px-6">
       {/* Hanya di HP: sidebar tersembunyi jadi drawer, tombolnya di sini. */}
       <SidebarTrigger className="size-10 shrink-0 md:hidden" />
 

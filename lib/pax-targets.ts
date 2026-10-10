@@ -9,6 +9,8 @@ export type DealerNightTargetPax = {
   id: string; name: string; targetPax: number; targetDn: number; eventDate?: string | null; kupon: KonfigKupon;
   /** Wilayah DN (dari hierarki depotnya), untuk filter di Setting Target DN. */
   wilayah?: string | null;
+  /** DN tampilan awal pilihan Super Admin. */
+  bawaan?: boolean;
 };
 
 export async function bacaTargetPax(dealerNightId: string): Promise<number> {

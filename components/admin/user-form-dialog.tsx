@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { halamanEfektif, HALAMAN, ROLE_LABEL, SEMUA_ROLE } from '@/lib/access';
 import type { Role } from '@/lib/auth';
+import { WILAYAH } from '@/lib/target/dn-bawaan';
 
 export type DealerNightOption = { id: string; name: string; depots?: { kode: string; depot: string }[] };
 export type UserRow = {
@@ -22,7 +23,10 @@ export type UserRow = {
   dealerNightIds: string[] | null;
   depotCodes: string[] | null;
   bolehUnduh: boolean;
+  wilayah: string | null;
 };
+
+const PUSAT = 'pusat';
 
 function PemilihHalaman({ terpilih, onChange }: { terpilih: string[]; onChange: (value: string[]) => void }) {
   const toggle = (href: string) => onChange(
@@ -60,17 +64,25 @@ export function UserFormDialog({
   row,
   open,
   onOpenChange,
+  pusat,
+  akunSendiri = false,
   dealerNightOptions,
 }: {
   mode: 'create' | 'edit';
   row?: UserRow | null;
   open: boolean;
   onOpenChange: (value: boolean) => void;
+  /** Super Admin pusat; Super Admin wilayah tidak bisa membuat Super Admin atau memberi semua DN. */
+  pusat: boolean;
+  /** Role dan wilayah akun sendiri dikunci (ditegakkan juga di server). */
+  akunSendiri?: boolean;
   dealerNightOptions: DealerNightOption[];
 }) {
   const edit = mode === 'edit';
   const [pending, start] = useTransition();
   const [role, setRole] = useState<Role>(row?.role ?? 'admin');
+  const [wilayah, setWilayah] = useState(row?.wilayah ?? PUSAT);
+  const pilihanRole = pusat ? SEMUA_ROLE : SEMUA_ROLE.filter((item) => item !== 'superadmin');
   const [pages, setPages] = useState(row ? halamanEfektif(row.role, row.allowedPages) : []);
   const [semuaDn, setSemuaDn] = useState(row ? row.dealerNightIds === null : false);
   const [dnIds, setDnIds] = useState<string[]>(row?.dealerNightIds ?? []);
@@ -138,34 +150,60 @@ export function UserFormDialog({
           </div>
           <div className="space-y-2">
             <Label>Role</Label>
-            <Select value={role} onValueChange={(value) => value && setRole(value as Role)}>
+            <Select value={role} onValueChange={(value) => value && setRole(value as Role)} disabled={akunSendiri}>
               <SelectTrigger className="h-11 w-full"><SelectValue>{ROLE_LABEL[role]}</SelectValue></SelectTrigger>
               <SelectContent>
-                {SEMUA_ROLE.map((item) => <SelectItem key={item} value={item}>{ROLE_LABEL[item]}</SelectItem>)}
+                {pilihanRole.map((item) => <SelectItem key={item} value={item}>{ROLE_LABEL[item]}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
 
           {role === 'superadmin' ? (
-            <p className="rounded-xl border border-border bg-secondary/30 px-3.5 py-3 text-xs text-muted-foreground">
-              Super Admin selalu dapat mengakses seluruh Dealer Night.
-            </p>
+            pusat && !akunSendiri ? (
+              <div className="space-y-2">
+                <Label>Wilayah Super Admin</Label>
+                <input type="hidden" name="wilayah" value={wilayah === PUSAT ? '' : wilayah} />
+                <Select value={wilayah} onValueChange={(value) => value && setWilayah(value)}>
+                  <SelectTrigger className="h-11 w-full">
+                    <SelectValue>{wilayah === PUSAT ? 'Semua wilayah (pusat)' : wilayah}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={PUSAT}>Semua wilayah (pusat)</SelectItem>
+                    {WILAYAH.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {wilayah === PUSAT
+                    ? 'Mengakses seluruh Dealer Night dan semua user.'
+                    : `Hanya mengakses DN ${wilayah} dan hanya mengelola user yang ia buat sendiri.`}
+                </p>
+              </div>
+            ) : (
+              <p className="rounded-xl border border-border bg-secondary/30 px-3.5 py-3 text-xs text-muted-foreground">
+                {row?.wilayah ? `Super Admin ${row.wilayah}: seluruh Dealer Night di wilayah ini.` : 'Super Admin pusat: seluruh Dealer Night.'}
+              </p>
+            )
           ) : (
             <div className="space-y-2">
               <Label>Akses Dealer Night</Label>
               <div className="space-y-1 rounded-xl border border-border bg-background p-2">
-                <label className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2 text-sm font-medium hover:bg-secondary">
-                  <input
-                    type="checkbox"
-                    name="dealerNightScope"
-                    value="all"
-                    checked={semuaDn}
-                    onChange={(event) => setSemuaDn(event.target.checked)}
-                    className="size-4 accent-primary"
-                  />
-                  Semua Dealer Night
-                </label>
-                <div className="border-t border-border" />
+                {/* Hanya Super Admin pusat yang bisa memberi akses ke semua DN. */}
+                {pusat && (
+                  <>
+                    <label className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2 text-sm font-medium hover:bg-secondary">
+                      <input
+                        type="checkbox"
+                        name="dealerNightScope"
+                        value="all"
+                        checked={semuaDn}
+                        onChange={(event) => setSemuaDn(event.target.checked)}
+                        className="size-4 accent-primary"
+                      />
+                      Semua Dealer Night
+                    </label>
+                    <div className="border-t border-border" />
+                  </>
+                )}
                 {dealerNightOptions.map((item) => (
                   <label
                     key={item.id}
@@ -201,7 +239,7 @@ export function UserFormDialog({
               <div className="space-y-3 rounded-xl border border-border bg-background p-3">
                 {dnTerpilih.map((dn) => (
                   <div key={dn.id}>
-                    <p className="px-1 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{dn.name}</p>
+                    <p className="px-1 pb-1.5 text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">{dn.name}</p>
                     <div className="flex flex-wrap gap-2">
                       {(dn.depots ?? []).map((item) => {
                         const aktif = depotIds.includes(item.kode);

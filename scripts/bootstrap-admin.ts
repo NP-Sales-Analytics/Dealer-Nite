@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { db, mysqlPool } from '@/lib/db';
 import { profiles } from '@/lib/db/schema';
 import { hashPassword } from '@/lib/password';
@@ -19,7 +19,8 @@ async function main() {
   const [existingAdmin] = await db
     .select({ id: profiles.id })
     .from(profiles)
-    .where(eq(profiles.role, 'superadmin'))
+    // Hanya Super Admin pusat: Super Admin wilayah tidak boleh tertimpa jadi pusat.
+    .where(and(eq(profiles.role, 'superadmin'), isNull(profiles.wilayah)))
     .limit(1);
 
   if (passwordOwner && passwordOwner.id !== existingAdmin?.id) {
@@ -32,6 +33,7 @@ async function main() {
       passwordHash,
       role: 'superadmin',
       dealerNightIds: null,
+      wilayah: null,
     }).where(eq(profiles.id, existingAdmin.id));
   } else {
     await db.insert(profiles).values({

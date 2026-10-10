@@ -7,7 +7,7 @@ import { signIn } from './actions';
 import { Label } from '@/components/ui/label';
 
 const inputClass =
-  'h-12 w-full rounded-xl border border-border bg-white pl-11 text-[15px] text-foreground shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/15 focus-visible:outline-none';
+  'h-12 w-full rounded-xl border border-border bg-white pl-11 text-[0.9375rem] text-foreground shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/15 focus-visible:outline-none';
 
 /** Latar dekoratif: gelombang biru lembut seperti kain, murni hiasan. */
 function Latar() {
@@ -57,7 +57,7 @@ export default function LoginPage() {
           className="mx-auto h-auto w-44 sm:w-52"
         />
 
-        <h1 className="mt-7 text-center text-2xl font-bold tracking-tight text-foreground sm:text-[28px]">
+        <h1 className="mt-7 text-center text-2xl font-bold tracking-tight text-foreground sm:text-[1.75rem]">
           DN Administration System
         </h1>
         <p className="mx-auto mt-2 mb-8 max-w-xs text-center text-sm text-muted-foreground">

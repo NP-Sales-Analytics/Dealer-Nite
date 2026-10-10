@@ -182,7 +182,7 @@ export function KuponClient({ dealerNights, canManage, canExport }: {
                   <div key={label as string}>
                     <dt className="text-xs text-muted-foreground">{label}</dt>
                     <dd className={cn('text-lg font-bold tabular-nums', warnaTeks as string)}>{nilai}</dd>
-                    <dd className="text-[11px] text-muted-foreground">{sub}</dd>
+                    <dd className="text-[0.6875rem] text-muted-foreground">{sub}</dd>
                   </div>
                 ))}
               </dl>
@@ -307,7 +307,7 @@ export function KuponClient({ dealerNights, canManage, canExport }: {
                     )}
                     <TableCell className={cn('py-4', !canManage && 'pl-5')}>
                       <div className="flex items-center gap-3">
-                        <InitialAvatar nama={row.mgName} className="size-9 text-[11px]" />
+                        <InitialAvatar nama={row.mgName} className="size-9 text-[0.6875rem]" />
                         <div className="min-w-0">
                           <p className="font-medium leading-snug break-words">{row.mgName}</p>
                           <p className="text-xs text-muted-foreground"><span className="tabular-nums">{row.mgCode}</span> · {row.depotName}</p>

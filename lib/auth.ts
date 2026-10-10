@@ -6,6 +6,7 @@ import { HALAMAN, halamanEfektif } from '@/lib/access';
 import { db } from '@/lib/db';
 import { profiles, type DbRole } from '@/lib/db/schema';
 import { getSession } from '@/lib/session';
+import { dnIdsWilayah } from '@/lib/target/dealer-night-options';
 import { ttlCache } from '@/lib/ttl-cache';
 
 export type Role = DbRole;
@@ -18,6 +19,8 @@ export type SessionUser = {
   dealerNightIds: string[] | null;
   depotCodes: string[] | null;
   bolehUnduh: boolean;
+  /** Khusus superadmin: null = pusat (semua wilayah), selain itu Super Admin wilayah. */
+  wilayah: string | null;
 };
 
 export const HOME_BY_ROLE: Record<Role, string> = {
@@ -51,15 +54,20 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
 
   const profile = await cacheProfil.get(session.id);
   if (!profile) return null;
+  const superadmin = profile.role === 'superadmin';
+  const wilayah = superadmin ? profile.wilayah ?? null : null;
   return {
     id: profile.id,
     email: profile.email ?? '',
     fullName: profile.fullName,
     role: profile.role,
     allowedPages: profile.allowedPages ?? [],
-    dealerNightIds: profile.dealerNightIds ?? null,
-    depotCodes: profile.depotCodes?.length ? profile.depotCodes : null,
+    // Super Admin pusat = semua DN (null). Super Admin wilayah = DN wilayahnya saja,
+    // jadi semua pemeriksaan cakupan DN yang sudah ada otomatis ikut membatasinya.
+    dealerNightIds: superadmin ? (wilayah ? await dnIdsWilayah.get(wilayah) : null) : profile.dealerNightIds ?? null,
+    depotCodes: !superadmin && profile.depotCodes?.length ? profile.depotCodes : null,
     bolehUnduh: profile.bolehUnduh,
+    wilayah,
   };
 });
 

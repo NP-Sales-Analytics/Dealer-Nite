@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseDealerNightRecords } from '@/lib/csv/parse-dealer-night';
-import { dnBawaan } from '@/lib/target/dn-bawaan';
+import { dnBawaan, pilihDnAwal } from '@/lib/target/dn-bawaan';
 import { hitungKupon, prosesKupon } from '@/lib/target/kupon';
 import { statusPax } from '@/lib/reservation/pax';
 
@@ -38,6 +38,25 @@ describe('dnBawaan', () => {
 
   it('memilih acara terakhir bila semua sudah lewat', () => {
     expect(dnBawaan(options, '2027-02-01')).toBe('padang');
+  });
+
+  it('mendahulukan DN tampilan awal pilihan Super Admin', () => {
+    const dipilih = options.map((item) => ({ ...item, bawaan: item.id === 'padang' }));
+    expect(dnBawaan(dipilih, '2026-09-30')).toBe('padang');
+  });
+
+  it('memilih DN awal sesuai wilayah yang terlihat akun', () => {
+    const barat = { id: 'bogor', wilayah: 'Indonesia Barat' };
+    const timur = { id: 'manado', wilayah: 'Indonesia Timur' };
+    const awal = { 'Indonesia Barat': 'bogor', 'Indonesia Timur': 'manado' };
+    expect(pilihDnAwal([timur], awal)).toBe('manado');
+    expect(pilihDnAwal([barat], awal)).toBe('bogor');
+    // Akun yang melihat dua wilayah memakai pilihan Barat dulu.
+    expect(pilihDnAwal([barat, timur], awal)).toBe('bogor');
+    expect(pilihDnAwal([barat, timur], { ...awal, 'Indonesia Barat': null })).toBe('manado');
+    // Pilihan yang tidak terlihat akun, atau salah wilayah, diabaikan.
+    expect(pilihDnAwal([barat], { 'Indonesia Barat': null, 'Indonesia Timur': 'manado' })).toBeNull();
+    expect(pilihDnAwal([barat], { 'Indonesia Barat': null, 'Indonesia Timur': 'bogor' })).toBeNull();
   });
 
   it('tetap memilih sesuatu tanpa tanggal', () => {

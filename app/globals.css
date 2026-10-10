@@ -130,6 +130,16 @@
   html {
     @apply font-sans;
   }
+  /* Desktop: seluruh UI 90%, setara zoom browser 90%. Lewat ukuran font root,
+     bukan `zoom`, supaya unit viewport (h-svh sidebar) tetap penuh. Semua
+     ukuran Tailwind berbasis rem ikut mengecil; breakpoint tidak terpengaruh
+     karena rem di media query selalu memakai ukuran bawaan browser.
+     Karena itu ukuran arbitrer ditulis dalam rem, bukan px. */
+  @media (min-width: 64rem) {
+    html {
+      font-size: 90%;
+    }
+  }
 }
 
 /* Semua toast dapat segera ditutup. Tombol diletakkan di dalam sisi kanan

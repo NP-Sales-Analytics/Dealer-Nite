@@ -54,8 +54,8 @@ export function DepotBarChart({ rows }: { rows: DepotRow[] }) {
                       <span
                         className={
                           peringkat === 1
-                            ? 'grid size-6 shrink-0 place-items-center rounded-full bg-primary text-[11px] font-semibold text-primary-foreground'
-                            : 'grid size-6 shrink-0 place-items-center rounded-full bg-accent text-[11px] font-semibold text-accent-foreground'
+                            ? 'grid size-6 shrink-0 place-items-center rounded-full bg-primary text-[0.6875rem] font-semibold text-primary-foreground'
+                            : 'grid size-6 shrink-0 place-items-center rounded-full bg-accent text-[0.6875rem] font-semibold text-accent-foreground'
                         }
                       >
                         {peringkat}
