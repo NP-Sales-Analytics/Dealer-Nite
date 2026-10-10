@@ -1,21 +1,22 @@
 import { PaxTargetForm } from '@/components/setting/pax-target-form';
 import { requireHalaman } from '@/lib/auth';
-import { depotPerKode } from '@/lib/dashboard/hierarchy';
-import { dealerNightOptionsFor } from '@/lib/target/dealer-night-options';
+import { dealerNightOptionsFor, dnTampilanAwal } from '@/lib/target/dealer-night-options';
+import { WILAYAH } from '@/lib/target/dn-bawaan';
 
 export const dynamic = 'force-dynamic';
 
 export default async function SettingPaxPage() {
   const user = await requireHalaman('/setting/pax');
-  const hierarki = depotPerKode();
-  const rows = (await dealerNightOptionsFor(user)).map((row) => ({
-    ...row,
-    wilayah: row.depots.map((item) => hierarki.get(item.kode)?.wilayah).find(Boolean) ?? null,
-  }));
+  const [rows, dnAwal] = await Promise.all([dealerNightOptionsFor(user), dnTampilanAwal()]);
 
   return (
     <div className="mx-auto w-full max-w-6xl">
-      <PaxTargetForm rows={rows} />
+      <PaxTargetForm
+        rows={rows}
+        dnAwal={dnAwal}
+        // Super Admin pusat mengatur semua wilayah; Super Admin wilayah hanya wilayahnya.
+        wilayahDikelola={user.role !== 'superadmin' ? [] : user.wilayah ? WILAYAH.filter((w) => w === user.wilayah) : [...WILAYAH]}
+      />
     </div>
   );
 }

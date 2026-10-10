@@ -14,7 +14,7 @@ import { inisial, jamJakarta } from '@/lib/utils';
 function Avatar({ nama }: { nama: string }) {
   return (
     <span
-      className="grid size-9 shrink-0 place-items-center rounded-full bg-accent text-[11px] font-semibold text-accent-foreground"
+      className="grid size-9 shrink-0 place-items-center rounded-full bg-accent text-[0.6875rem] font-semibold text-accent-foreground"
       aria-hidden
     >
       {inisial(nama)}
@@ -98,7 +98,7 @@ export function AttendanceTable({
               </p>
               <div className="mt-3 flex items-center justify-between gap-3 border-t border-border pt-3">
                 <span className="flex min-w-0 items-center gap-2">
-                  <span className="grid size-8 shrink-0 place-items-center rounded-full bg-accent text-[11px] font-semibold text-accent-foreground" aria-hidden>
+                  <span className="grid size-8 shrink-0 place-items-center rounded-full bg-accent text-[0.6875rem] font-semibold text-accent-foreground" aria-hidden>
                     {r.depot.split(' ')[0]}
                   </span>
                   <span className="truncate text-sm font-medium">
@@ -184,7 +184,7 @@ export function AttendanceTable({
                 <TableCell className="py-4 text-center">
                   <PillPax hadir={r.qtyHadir} />
                   {r.paxTerdaftar != null && (
-                    <p className="mt-1 text-[11px] tabular-nums text-muted-foreground">dari {r.paxTerdaftar} terdaftar</p>
+                    <p className="mt-1 text-[0.6875rem] tabular-nums text-muted-foreground">dari {r.paxTerdaftar} terdaftar</p>
                   )}
                 </TableCell>
                 <TableCell className="py-4 text-center">

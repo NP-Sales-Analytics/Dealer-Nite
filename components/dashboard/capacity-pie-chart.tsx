@@ -34,7 +34,7 @@ function Donut({
 
       {/* Cincin tebal dengan lubang besar: angka persen jadi elemen utama dan
           cincinnya berperan sebagai bingkai, bukan sebaliknya. */}
-      <ChartContainer config={config} className="mx-auto h-[210px] w-full">
+      <ChartContainer config={config} className="mx-auto h-[13.125rem] w-full">
         <PieChart>
           <ChartTooltip content={<ChartTooltipContent nameKey="key" />} />
           <Pie
@@ -58,7 +58,7 @@ function Donut({
                     <tspan x={cx} y={cy - 3} className="fill-foreground text-3xl font-bold tabular-nums">
                       {persen}%
                     </tspan>
-                    <tspan x={cx} y={cy + 18} className="fill-muted-foreground text-[11px] tabular-nums">
+                    <tspan x={cx} y={cy + 18} className="fill-muted-foreground text-[0.6875rem] tabular-nums">
                       {hadir} / {total} {satuan}
                     </tspan>
                   </text>

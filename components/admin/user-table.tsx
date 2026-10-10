@@ -3,6 +3,7 @@
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
+import { CakupanDn } from './cakupan-dn';
 import { UserDetailDialog } from './user-detail-dialog';
 import { UserFormDialog, type DealerNightOption, type UserRow } from './user-form-dialog';
 import { deleteUser } from '@/app/(app)/admin/users/actions';
@@ -13,13 +14,13 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { halamanEfektif, labelDealerNightAccess, ROLE_LABEL } from '@/lib/access';
+import { halamanEfektif, ROLE_LABEL } from '@/lib/access';
 import { inisial } from '@/lib/utils';
 
 function Avatar({ nama }: { nama: string }) {
   return (
     <span
-      className="grid size-9 shrink-0 place-items-center rounded-full bg-accent text-[11px] font-semibold text-accent-foreground"
+      className="grid size-9 shrink-0 place-items-center rounded-full bg-accent text-[0.6875rem] font-semibold text-accent-foreground"
       aria-hidden
     >
       {inisial(nama)}
@@ -28,10 +29,12 @@ function Avatar({ nama }: { nama: string }) {
 }
 
 export function UserTable({
-  rows, currentUserId, dealerNightOptions,
+  rows, currentUserId, pusat, dealerNightOptions,
 }: {
   rows: UserRow[];
   currentUserId: string;
+  /** Super Admin pusat: boleh membuat Super Admin dan memberi akses semua DN. */
+  pusat: boolean;
   dealerNightOptions: DealerNightOption[];
 }) {
   const [pending, start] = useTransition();
@@ -80,8 +83,9 @@ export function UserTable({
                     <Badge variant="secondary" className="shrink-0">{ROLE_LABEL[u.role]}</Badge>
                   </div>
                   <div className="mt-3 flex items-center justify-between gap-3 border-t border-border pt-3">
-                    <span className="min-w-0 truncate text-xs text-muted-foreground">
-                      {boleh.length} halaman · {labelDealerNightAccess(u, dealerNightOptions)}
+                    <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+                      <span className="shrink-0">{boleh.length} halaman ·</span>
+                      <CakupanDn user={u} options={dealerNightOptions} />
                     </span>
                     {u.bolehUnduh ? (
                       <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
@@ -147,7 +151,9 @@ export function UserTable({
                       <Badge variant="secondary">{ROLE_LABEL[u.role]}</Badge>
                     </TableCell>
                     <TableCell className="py-4 text-muted-foreground">
-                      {labelDealerNightAccess(u, dealerNightOptions)}
+                      <div className="max-w-64">
+                        <CakupanDn user={u} options={dealerNightOptions} />
+                      </div>
                     </TableCell>
                     <TableCell className="py-4 text-center">
                       <span
@@ -204,6 +210,7 @@ export function UserTable({
         mode="create"
         open={tambah}
         onOpenChange={setTambah}
+        pusat={pusat}
         dealerNightOptions={dealerNightOptions}
       />
 
@@ -216,6 +223,8 @@ export function UserTable({
           row={edit}
           open
           onOpenChange={(v) => !v && setEdit(null)}
+          pusat={pusat}
+          akunSendiri={edit.id === currentUserId}
           dealerNightOptions={dealerNightOptions}
         />
       )}

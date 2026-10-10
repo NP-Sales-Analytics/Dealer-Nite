@@ -89,7 +89,9 @@ export function AppSidebar({ user }: { user: SessionUser }) {
 
           Agar terlihat, yang dinaikkan adalah z-index <Sidebar> di atas, bukan
           tombol ini: kontainer sidebar membuat stacking context sendiri, jadi
-          angka setinggi apa pun di sini tetap terkurung di dalamnya. */}
+          angka setinggi apa pun di sini tetap terkurung di dalamnya.
+          Semua ukuran di sini berbasis rem (h-17 = 68px) supaya tetap pas saat
+          tampilan desktop diskalakan 90% lewat ukuran font root. */}
       <button
         type="button"
         onClick={toggleSidebar}
@@ -100,7 +102,7 @@ export function AppSidebar({ user }: { user: SessionUser }) {
         <ChevronLeft className={`size-3.5 transition-transform ${tertutup ? 'rotate-180' : ''}`} />
       </button>
 
-      <SidebarHeader className="h-[68px] shrink-0 justify-center border-b border-sidebar-border px-4 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-2">
+      <SidebarHeader className="h-17 shrink-0 justify-center border-b border-sidebar-border px-4 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-2">
         <div className="group-data-[collapsible=icon]:hidden">
           <Brand />
         </div>
@@ -122,7 +124,9 @@ export function AppSidebar({ user }: { user: SessionUser }) {
 
           return (
             <SidebarGroup key={grup.label}>
-              <SidebarGroupLabel>{grup.label}</SidebarGroupLabel>
+              <SidebarGroupLabel className="text-[0.6875rem] font-semibold tracking-wider text-muted-foreground uppercase">
+                {grup.label}
+              </SidebarGroupLabel>
               <SidebarMenu>
                 {tampil.map((l) => {
                   const active = l.href === hrefAktif;
@@ -137,7 +141,9 @@ export function AppSidebar({ user }: { user: SessionUser }) {
                         // Tutup drawer setelah memilih menu; tanpa ini drawer tetap
                         // menutupi halaman tujuan di HP.
                         onClick={() => setOpenMobile(false)}
-                        className="h-11 gap-3 text-[15px]"
+                        // Bar aksen kiri lewat inset shadow: ikut melengkung mengikuti
+                        // sudut tombol, tanpa elemen tambahan.
+                        className="h-11 gap-3 rounded-lg text-[0.9375rem] font-semibold data-active:font-semibold data-active:shadow-[inset_3px_0_0_var(--sidebar-primary)]"
                       >
                         <l.icon className="size-5 shrink-0" />
                         <span>{l.label}</span>

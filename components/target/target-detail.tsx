@@ -286,7 +286,7 @@ export function TargetDetail({
                     <TableCell className="whitespace-nowrap py-4 pl-5 text-muted-foreground">{row.depotName}</TableCell>
                     <TableCell className="py-4">
                       <div className="flex items-center gap-3">
-                        <InitialAvatar nama={row.mgName} className="size-9 text-[11px]" />
+                        <InitialAvatar nama={row.mgName} className="size-9 text-[0.6875rem]" />
                         <div className="min-w-0">
                           <p className="font-medium leading-snug break-words">{row.mgName}</p>
                           <p className="text-xs tabular-nums text-muted-foreground">{row.mgCode}</p>

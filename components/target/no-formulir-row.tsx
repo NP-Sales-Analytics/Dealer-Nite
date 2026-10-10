@@ -53,7 +53,7 @@ export function NoFormulirRow({ customerId, riwayat, canEdit, onSaved }: {
   });
 
   return (
-    <div className="py-2 text-[13px] leading-snug">
+    <div className="py-2 text-[0.8125rem] leading-snug">
       <div className="grid grid-cols-[1rem_5.25rem_minmax(0,1fr)] items-start gap-2.5">
         <FileText className="mt-px size-3.5 text-muted-foreground" aria-hidden />
         <span className="text-xs text-muted-foreground">No. Formulir</span>
@@ -84,18 +84,18 @@ export function NoFormulirRow({ customerId, riwayat, canEdit, onSaved }: {
           className="mt-2.5 space-y-2 rounded-lg border border-primary/30 bg-primary/5 p-2.5"
           onSubmit={(event) => { event.preventDefault(); if (valid) simpan(); }}
         >
-          <p className="text-[11px] text-muted-foreground">Sesuaikan dengan nomor di formulir fisik.</p>
+          <p className="text-[0.6875rem] text-muted-foreground">Sesuaikan dengan nomor di formulir fisik.</p>
           {riwayat.map((item) => (
             <label key={item.id} className="flex items-center gap-2">
               <span
                 className={cn(
-                  'w-24 shrink-0 rounded-md px-1.5 py-0.5 text-center text-[11px] font-semibold',
+                  'w-24 shrink-0 rounded-md px-1.5 py-0.5 text-center text-[0.6875rem] font-semibold',
                   item.jenis === 'verifikasi' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' : 'bg-primary/10 text-primary',
                 )}
               >
                 {item.jenis === 'verifikasi' ? 'Verifikasi' : 'Penyesuaian'}
               </span>
-              <span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">{tanggalSingkat(item.createdAt)}</span>
+              <span className="min-w-0 flex-1 truncate text-[0.6875rem] text-muted-foreground">{tanggalSingkat(item.createdAt)}</span>
               <span className="text-xs text-muted-foreground">Form</span>
               <input
                 inputMode="numeric"

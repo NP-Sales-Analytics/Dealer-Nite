@@ -5,6 +5,8 @@ export type DealerNightOption = {
   name: string;
   targetDn?: number;
   eventDate?: string | null;
+  /** DN tampilan awal pilihan Super Admin. */
+  bawaan?: boolean;
   kupon?: KonfigKupon;
   depots?: { kode: string; depot: string }[];
 };

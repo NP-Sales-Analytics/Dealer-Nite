@@ -1,6 +1,7 @@
 'use client';
 
 import { Pencil, Trash2, X } from 'lucide-react';
+import { CakupanDn } from './cakupan-dn';
 import type { DealerNightOption, UserRow } from './user-form-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,7 +13,7 @@ function Baris({ label, nilai }: { label: string; nilai: string | null }) {
   return (
     <div className="flex items-start justify-between gap-4 px-4 py-2.5">
       <span className="shrink-0 text-sm text-muted-foreground">{label}</span>
-      <span className="min-w-0 break-all text-right text-sm font-medium">
+      <span className="min-w-0 break-words text-right text-sm font-medium">
         {nilai ? nilai : <span className="text-muted-foreground">&mdash;</span>}
       </span>
     </div>
@@ -22,7 +23,7 @@ function Baris({ label, nilai }: { label: string; nilai: string | null }) {
 function Seksi({ judul, children }: { judul: string; children: React.ReactNode }) {
   return (
     <section className="space-y-2">
-      <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <h3 className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">
         {judul}
       </h3>
       <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-secondary/30">
@@ -79,7 +80,10 @@ export function UserDetailDialog({
               {row.email && <p className="mt-0.5 break-all text-sm text-muted-foreground">{row.email}</p>}
               <div className="mt-2 flex flex-wrap gap-1.5">
                 <Badge variant="secondary">{ROLE_LABEL[row.role]}</Badge>
-                <Badge variant="outline">{cakupan}</Badge>
+                {/* Ringkas seperti kolom Cakupan Data; daftar lengkap ada di seksi Akses. */}
+                <span className="inline-flex max-w-full min-w-0 items-center rounded-4xl border border-border py-0.5 pr-1 pl-2 text-xs font-medium">
+                  <CakupanDn user={row} options={dealerNightOptions} />
+                </span>
                 {akunSendiri && <Badge variant="outline">Akun Anda</Badge>}
               </div>
             </div>
@@ -91,7 +95,7 @@ export function UserDetailDialog({
           </Seksi>
 
           <section className="space-y-2">
-            <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <h3 className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">
               Halaman yang bisa diakses{bawaan && ' (bawaan role)'}
             </h3>
             <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-secondary/30">

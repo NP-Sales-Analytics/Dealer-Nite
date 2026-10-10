@@ -20,7 +20,7 @@ const waktu = (iso: string) => `${tanggalJakarta(iso)}, ${jamJakarta(iso)}`;
 
 function Judul({ children, icon: Icon }: { children: React.ReactNode; icon?: typeof Store }) {
   return (
-    <h3 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+    <h3 className="flex items-center gap-1.5 text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">
       {Icon && <Icon className="size-3.5" aria-hidden />}
       {children}
     </h3>
@@ -55,7 +55,7 @@ function Tahap({ nomor, label, nilai, selisih, aktif, kosong }: {
       <div className="flex items-center gap-2">
         <span
           className={cn(
-            'grid size-5 shrink-0 place-items-center rounded-full text-[11px] font-bold',
+            'grid size-5 shrink-0 place-items-center rounded-full text-[0.6875rem] font-bold',
             nilai === null ? 'bg-secondary text-muted-foreground' : aktif ? 'bg-primary text-primary-foreground' : 'bg-foreground/80 text-background',
           )}
         >
@@ -77,7 +77,7 @@ function Tahap({ nomor, label, nilai, selisih, aktif, kosong }: {
 
 function Baris({ icon: Icon, label, nilai }: { icon: typeof Store; label: string; nilai: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-[1rem_5.25rem_minmax(0,1fr)] items-start gap-2.5 py-2 text-[13px] leading-snug">
+    <div className="grid grid-cols-[1rem_5.25rem_minmax(0,1fr)] items-start gap-2.5 py-2 text-[0.8125rem] leading-snug">
       <Icon className="mt-px size-3.5 text-muted-foreground" aria-hidden />
       <span className="text-xs text-muted-foreground">{label}</span>
       <span className="break-words font-medium">{nilai || '—'}</span>
@@ -208,19 +208,19 @@ export function TargetDetailDialog({
                     <ol className="relative space-y-3 border-l border-border pl-4">
                       {!verified && (
                         <li className="relative">
-                          <span className="absolute -left-[21px] top-1 size-2.5 rounded-full border-2 border-dashed border-amber-400 bg-background" aria-hidden />
+                          <span className="absolute -left-[1.3125rem] top-1 size-2.5 rounded-full border-2 border-dashed border-amber-400 bg-background" aria-hidden />
                           <p className="text-sm text-muted-foreground">Menunggu verifikasi admin DN</p>
                         </li>
                       )}
                       {terbaru.map((item) => (
                         <li key={item.id} className="relative">
                           <span
-                            className={cn('absolute -left-[21px] top-1 size-2.5 rounded-full border-2 border-background', item.jenis === 'verifikasi' ? 'bg-emerald-500' : 'bg-primary')}
+                            className={cn('absolute -left-[1.3125rem] top-1 size-2.5 rounded-full border-2 border-background', item.jenis === 'verifikasi' ? 'bg-emerald-500' : 'bg-primary')}
                             aria-hidden
                           />
                           <div className="flex flex-wrap items-center gap-1.5">
                             <span className={cn(
-                              'rounded-md px-1.5 py-0.5 text-[11px] font-semibold',
+                              'rounded-md px-1.5 py-0.5 text-[0.6875rem] font-semibold',
                               item.jenis === 'verifikasi' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' : 'bg-primary/10 text-primary',
                             )}
                             >
@@ -234,11 +234,11 @@ export function TargetDetailDialog({
                             <ArrowRight className="mx-1 inline size-3 text-muted-foreground" aria-hidden />
                             <span className="font-semibold">{formatRupiah(item.sesudah)}</span>
                           </p>
-                          <p className="text-[11px] text-muted-foreground">{item.recordedByName ?? 'Akun lama'} · {waktu(item.createdAt)}</p>
+                          <p className="text-[0.6875rem] text-muted-foreground">{item.recordedByName ?? 'Akun lama'} · {waktu(item.createdAt)}</p>
                         </li>
                       ))}
                       <li className="relative">
-                        <span className="absolute -left-[21px] top-1 size-2.5 rounded-full border-2 border-background bg-muted-foreground" aria-hidden />
+                        <span className="absolute -left-[1.3125rem] top-1 size-2.5 rounded-full border-2 border-background bg-muted-foreground" aria-hidden />
                         <p className="text-xs text-muted-foreground">Target dari pusat</p>
                         <p className="text-xs font-semibold tabular-nums">{formatRupiah(row.targetAwal)}</p>
                       </li>

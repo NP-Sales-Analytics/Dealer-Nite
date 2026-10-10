@@ -93,7 +93,7 @@ export function TargetFormPanel({ row, onSaved }: { row: TargetRow; onSaved: (no
         ))}
       </div>
 
-      <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+      <p className="flex items-center gap-1.5 text-[0.6875rem] text-muted-foreground">
         <FileText className="size-3.5 shrink-0" aria-hidden />
         Jangan tulis formulir dulu. No. Formulir muncul setelah disimpan.
       </p>

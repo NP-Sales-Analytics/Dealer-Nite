@@ -23,7 +23,7 @@ function Baris({ label, nilai }: { label: string; nilai: React.ReactNode }) {
 function Seksi({ judul, children }: { judul: string; children: React.ReactNode }) {
   return (
     <section className="space-y-2">
-      <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <h3 className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">
         {judul}
       </h3>
       <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-secondary/30">
