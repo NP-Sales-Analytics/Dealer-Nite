@@ -13,8 +13,9 @@ import { dnBawaan, WILAYAH, type DnAwalPerWilayah, type Wilayah } from '@/lib/ta
 import { formatRupiahRingkas } from '@/lib/target/money';
 import { cn } from '@/lib/utils';
 
-// Dealer Night | Target DN | Pax | Pembagi slot besar | Pembagi slot kecil
-const KOLOM = 'lg:grid-cols-[minmax(0,1fr)_12rem_7.5rem_12rem_12rem]';
+// Dealer Night | Target minimal | Target DN | Pax | Pembagi slot besar | Pembagi slot kecil
+// (di HP: minimal + target sebaris, pax selebar baris, lalu dua pembagi).
+const KOLOM = 'lg:grid-cols-[minmax(0,1fr)_11rem_11rem_7rem_11rem_11rem]';
 
 const angka = (value: string) => {
   const n = Number(value.replace(/[^0-9]/g, ''));
@@ -119,6 +120,9 @@ export function PaxTargetForm({ rows, dnAwal, wilayahDikelola }: {
   );
   const [targetDn, setTargetDn] = useState<Record<string, string>>(
     () => Object.fromEntries(rows.map((row) => [row.id, String(row.targetDn)])),
+  );
+  const [minTarget, setMinTarget] = useState<Record<string, string>>(
+    () => Object.fromEntries(rows.map((row) => [row.id, String(row.minTargetDn)])),
   );
   const [kupon, setKupon] = useState<Record<string, { pink: string; hijau: string }>>(
     () => Object.fromEntries(rows.map((row) => [row.id, {
@@ -233,6 +237,7 @@ export function PaxTargetForm({ rows, dnAwal, wilayahDikelola }: {
 
           <div className={cn(KOLOM, 'hidden gap-4 border-b border-border bg-secondary/40 px-5 py-2.5 text-xs font-medium text-muted-foreground lg:grid')}>
             <span>Dealer Night</span>
+            <span>Target Minimal / Toko</span>
             <span>Total Target DN</span>
             <span>Target Pax</span>
             <span>Pembagi Kupon Pink / Putih</span>
@@ -256,6 +261,18 @@ export function PaxTargetForm({ rows, dnAwal, wilayahDikelola }: {
                   </p>
                 </div>
                 <label className="relative block">
+                  <span className="sr-only">Target minimal per toko {row.name}</span>
+                  {/* "Min" juga terlihat di HP, tempat header kolom disembunyikan. */}
+                  <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-xs text-muted-foreground">Min Rp</span>
+                  <Input
+                    name="minTargetDn"
+                    inputMode="numeric"
+                    value={angka(minTarget[row.id] ?? '0').toLocaleString('id-ID')}
+                    onChange={(event) => setMinTarget((lama) => ({ ...lama, [row.id]: event.target.value }))}
+                    className="h-11 pl-15 text-right font-semibold tabular-nums"
+                  />
+                </label>
+                <label className="relative block">
                   <span className="sr-only">Total Target DN {row.name}</span>
                   <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-xs text-muted-foreground">Rp</span>
                   <Input
@@ -266,7 +283,7 @@ export function PaxTargetForm({ rows, dnAwal, wilayahDikelola }: {
                     className="h-11 pl-9 text-right font-semibold tabular-nums"
                   />
                 </label>
-                <label className="relative block">
+                <label className="relative col-span-2 block lg:col-span-1">
                   <span className="sr-only">Target pax {row.name}</span>
                   <Input
                     name="targetPax"

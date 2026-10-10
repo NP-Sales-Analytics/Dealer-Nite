@@ -81,6 +81,7 @@ export async function dealerNightOptionsFor(user: SessionUser) {
       name: dealerNights.name,
       targetPax: dealerNights.targetPax,
       targetDn: dealerNights.targetDn,
+      minTargetDn: dealerNights.minTargetDn,
       eventDate: dealerNights.eventDate,
       depotCodes: dealerNights.depotCodes,
       kuponSkema: dealerNights.kuponSkema,
@@ -92,7 +93,8 @@ export async function dealerNightOptionsFor(user: SessionUser) {
     .orderBy(sql`${dealerNights.eventDate} is null`, asc(dealerNights.eventDate), asc(dealerNights.name));
   const [depots, awal] = await Promise.all([depotDealerNight(rows), awalPromise]);
   const options = rows.map((row) => ({
-    id: row.id, name: row.name, targetPax: row.targetPax, targetDn: row.targetDn, eventDate: row.eventDate,
+    id: row.id, name: row.name, targetPax: row.targetPax, targetDn: row.targetDn, minTargetDn: row.minTargetDn,
+    eventDate: row.eventDate,
     wilayah: wilayahDn(depots.get(row.id) ?? []),
     kupon: { skema: row.kuponSkema, nilai: { pink: row.nilaiKuponPink, hijau: row.nilaiKuponHijau } },
     depots: (depots.get(row.id) ?? []).filter((item) => bolehDepot(user, item.kode)),

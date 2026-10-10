@@ -86,9 +86,11 @@ function Baris({ icon: Icon, label, nilai }: { icon: typeof Store; label: string
 }
 
 export function TargetDetailDialog({
-  row, canAdjust, onOpenChange, onSaved, onTargetSaved,
+  row, canAdjust, minTarget, onOpenChange, onSaved, onTargetSaved,
 }: {
   row: TargetRow;
+  /** Target minimal DN toko ini. */
+  minTarget: number;
   canAdjust: boolean;
   onOpenChange: (value: boolean) => void;
   onSaved: () => void;
@@ -252,7 +254,7 @@ export function TargetDetailDialog({
           {/* Kanan: langsung ke verifikasi (belum) atau penyesuaian (sudah) */}
           {canAdjust && (
             <aside className="order-1 border-b border-border bg-secondary/25 px-5 py-4 sm:px-6 lg:order-none lg:overflow-y-auto lg:border-b-0 lg:border-l">
-              <TargetFormPanel key={`${row.verifiedAt}-${row.targetEfektif}`} row={row} onSaved={onTargetSaved} />
+              <TargetFormPanel key={`${row.verifiedAt}-${row.targetEfektif}`} row={row} minTarget={minTarget} onSaved={onTargetSaved} />
             </aside>
           )}
         </div>

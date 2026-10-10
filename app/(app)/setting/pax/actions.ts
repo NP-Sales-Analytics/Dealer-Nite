@@ -33,10 +33,11 @@ export async function simpanSettingPax(formData: FormData): Promise<string | nul
   const nilai = formData.getAll('targetPax').map((value) => String(value).trim());
   const rupiah = (key: string) => formData.getAll(key).map((value) => String(value).replace(/[^0-9]/g, ''));
   const targetDn = rupiah('targetDn');
+  const minTarget = rupiah('minTargetDn');
   const kuponPink = rupiah('nilaiKuponPink');
   const kuponHijau = rupiah('nilaiKuponHijau');
 
-  if (ids.length === 0 || [nilai, targetDn, kuponPink, kuponHijau].some((list) => list.length !== ids.length)) {
+  if (ids.length === 0 || [nilai, targetDn, minTarget, kuponPink, kuponHijau].some((list) => list.length !== ids.length)) {
     return 'Daftar Dealer Night tidak lengkap. Muat ulang halaman lalu coba lagi.';
   }
   if (ids.some((id) => !canReadDealerNight(user, id))) return 'Tidak punya akses ke Dealer Night ini.';
@@ -48,15 +49,17 @@ export async function simpanSettingPax(formData: FormData): Promise<string | nul
       dealerNightId,
       targetPax: nilai[index] === '' ? Number.NaN : Number(nilai[index]),
       targetDn: Number(targetDn[index] || 0),
+      minTargetDn: Number(minTarget[index] || 0),
       nilaiKuponPink: Number(kuponPink[index] || 0),
       nilaiKuponHijau: Number(kuponHijau[index] || 0),
     })));
   } catch {
-    return 'Target pax harus 0 sampai 1.000.000, Target DN berupa rupiah bulat, dan pembagi kupon minimal Rp1.000.000.';
+    return 'Target pax harus 0 sampai 1.000.000, Target DN berupa rupiah bulat, target minimal dan pembagi kupon minimal Rp1.000.000.';
   }
 
   revalidatePath('/setting/pax');
   revalidatePath('/dashboard');
   revalidatePath('/kupon');
+  revalidatePath('/order/detail');
   return null;
 }

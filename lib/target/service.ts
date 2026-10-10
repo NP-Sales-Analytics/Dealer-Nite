@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { targetAdjustments } from '@/lib/db/schema';
-import { MIN_TARGET_DN, validateTargetDn } from '@/lib/target/rules';
+import { BATAS_BAWAH_TARGET, pesanTargetMinimal, validateTargetDn } from '@/lib/target/rules';
 import { isoUtc as isoAtauNull } from '@/lib/utils';
 
 export type TargetSnapshot = {
@@ -42,31 +42,32 @@ const teksAtauNull = (value: unknown) => (value == null ? null : String(value));
 
 const PESAN_GALAT = {
   NOT_FOUND: 'Toko tidak ditemukan.',
-  BELOW_MINIMUM: 'Target DN minimal Rp50.000.000.',
+  BELOW_MINIMUM: 'Target DN di bawah minimal Dealer Night ini.',
   INVALID_TARGET: 'Target DN tidak valid.',
   NO_CHANGE: 'Target baru sama dengan target saat ini, tidak ada yang disesuaikan.',
 } as const;
 
 export class TargetServiceError extends Error {
-  constructor(public readonly code: keyof typeof PESAN_GALAT) {
-    super(PESAN_GALAT[code]);
+  constructor(public readonly code: keyof typeof PESAN_GALAT, pesan?: string) {
+    super(pesan ?? PESAN_GALAT[code]);
     this.name = 'TargetServiceError';
   }
 }
 
-type CustomerRow = { id: string; dealerNightId: string; targetAwal: number | string; verifiedAt: unknown };
+type CustomerRow = { id: string; dealerNightId: string; targetAwal: number | string; verifiedAt: unknown; minTarget: number | string };
 type SumRow = { totalDelta: number | string | null };
 
 function rowsFrom<T>(result: unknown): T[] {
   return (result as [T[], unknown])[0];
 }
 
+// Minimal per DN dicek setelah toko (dan DN-nya) terbaca; di sini hanya batas bawah global.
 function checkedTarget(value: number) {
   try {
-    return validateTargetDn(value);
+    return validateTargetDn(value, BATAS_BAWAH_TARGET);
   } catch {
-    if (Number.isSafeInteger(value) && value < MIN_TARGET_DN) {
-      throw new TargetServiceError('BELOW_MINIMUM');
+    if (Number.isSafeInteger(value) && value < BATAS_BAWAH_TARGET) {
+      throw new TargetServiceError('BELOW_MINIMUM', pesanTargetMinimal(BATAS_BAWAH_TARGET));
     }
     throw new TargetServiceError('INVALID_TARGET');
   }
@@ -110,13 +111,17 @@ export async function adjustTarget({
 
   return db.transaction(async (tx) => {
     const customerRows = rowsFrom<CustomerRow>(await tx.execute(sql`
-      select id, dealer_night_id as dealerNightId, target_dn_awal as targetAwal, verified_at as verifiedAt
-      from customers
-      where id = ${customerId}
-      for update
+      select c.id, c.dealer_night_id as dealerNightId, c.target_dn_awal as targetAwal, c.verified_at as verifiedAt,
+        d.min_target_dn as minTarget
+      from customers c
+      join dealer_nights d on d.id = c.dealer_night_id
+      where c.id = ${customerId}
+      for update of c
     `));
     const customer = customerRows[0];
     if (!customer) throw new TargetServiceError('NOT_FOUND');
+    const minTarget = Number(customer.minTarget);
+    if (newTarget < minTarget) throw new TargetServiceError('BELOW_MINIMUM', pesanTargetMinimal(minTarget));
 
     const sumRows = rowsFrom<SumRow>(await tx.execute(sql`
       select coalesce(sum(delta), 0) as totalDelta

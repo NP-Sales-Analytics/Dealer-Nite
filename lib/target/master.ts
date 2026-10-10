@@ -4,9 +4,9 @@ import { z } from 'zod';
 import { MAKS_PAX, type DealerNightMasterRow } from '@/lib/csv/parse-dealer-night';
 import { depotPerKode } from '@/lib/dashboard/hierarchy';
 import { db } from '@/lib/db';
-import { customers } from '@/lib/db/schema';
+import { customers, dealerNights } from '@/lib/db/schema';
 import { depotSatuDn } from '@/lib/target/dealer-night-options';
-import { MIN_TARGET_DN } from '@/lib/target/rules';
+import { BATAS_BAWAH_TARGET, pesanTargetMinimal } from '@/lib/target/rules';
 
 export class MasterError extends Error {
   constructor(message: string, public readonly status = 400) {
@@ -27,8 +27,9 @@ export const masterInputSchema = z.object({
   depotCode: teks(20),
   salesman: opsional,
   spv: opsional,
+  // Minimal per DN dicek di createMaster/updateMaster; di sini batas bawah global.
   targetDnAwal: z.number().int('Target DN harus bilangan bulat rupiah.').safe()
-    .min(MIN_TARGET_DN, 'Target DN minimal Rp50.000.000.'),
+    .min(BATAS_BAWAH_TARGET, pesanTargetMinimal(BATAS_BAWAH_TARGET)),
   // Pax terdaftar; null/kosong = belum didata.
   qtyUndangan: z.number().int('Pax harus bilangan bulat.').min(1, 'Pax minimal 1.')
     .max(MAKS_PAX, `Pax maksimal ${MAKS_PAX}.`).nullable().default(null),
@@ -51,7 +52,20 @@ async function depotDn(dealerNightId: string, depotCode: string) {
   return { depotName: depot.depot, wilayah: induk?.wilayah || null, region: induk?.region || null };
 }
 
+export async function minTargetDn(dealerNightId: string): Promise<number> {
+  const [row] = await db.select({ min: dealerNights.minTargetDn }).from(dealerNights)
+    .where(eq(dealerNights.id, dealerNightId)).limit(1);
+  if (!row) throw new MasterError('Dealer Night tidak ditemukan.', 404);
+  return row.min;
+}
+
+async function cekTargetMinimal(dealerNightId: string, target: number) {
+  const min = await minTargetDn(dealerNightId);
+  if (target < min) throw new MasterError(pesanTargetMinimal(min));
+}
+
 export async function createMaster(input: MasterInput) {
+  await cekTargetMinimal(input.dealerNightId, input.targetDnAwal);
   const depot = await depotDn(input.dealerNightId, input.depotCode);
   try {
     await db.insert(customers).values({ id: randomUUID(), ...input, ...depot });
@@ -79,6 +93,8 @@ export async function updateMaster(id: string, input: MasterInput) {
   if (existing.verifiedAt && existing.targetDnAwal !== input.targetDnAwal) {
     throw new MasterError('Target awal tidak bisa diubah setelah diverifikasi. Gunakan Sesuaikan Target.');
   }
+  // Target lama yang tidak diubah tetap sah walau minimal DN kemudian dinaikkan.
+  if (existing.targetDnAwal !== input.targetDnAwal) await cekTargetMinimal(input.dealerNightId, input.targetDnAwal);
   const depot = await depotDn(input.dealerNightId, input.depotCode);
   try {
     await db.update(customers).set({ ...input, ...depot, updatedAt: new Date() }).where(eq(customers.id, id));
@@ -104,6 +120,9 @@ export async function importMaster(dealerNightId: string, rows: DealerNightMaste
   if (salah) {
     throw new MasterError(`MG Code ${salah.mgCode}: depot ${salah.depotName} bukan bagian Dealer Night ini.`);
   }
+  const min = await minTargetDn(dealerNightId);
+  const kecil = rows.find((row) => row.targetDnAwal < min);
+  if (kecil) throw new MasterError(`MG Code ${kecil.mgCode}: ${pesanTargetMinimal(min)}`);
 
   return db.transaction(async (tx) => {
     const existing = await tx

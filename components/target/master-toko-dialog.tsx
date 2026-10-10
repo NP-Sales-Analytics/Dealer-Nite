@@ -11,7 +11,7 @@ import { Dialog, DialogClose, DialogContent, DialogTitle } from '@/components/ui
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { parseRupiahInput } from '@/lib/target/form';
-import { MIN_TARGET_DN } from '@/lib/target/rules';
+import { MIN_TARGET_DN, teksMinimal } from '@/lib/target/rules';
 
 function Isian({ id, label, value, onChange, placeholder, disabled }: {
   id: string; label: string; value: string; onChange: (v: string) => void; placeholder?: string; disabled?: boolean;
@@ -50,7 +50,9 @@ export function MasterTokoDialog({
   const [pending, start] = useTransition();
   const set = (key: keyof typeof form) => (value: string) => setForm((lama) => ({ ...lama, [key]: value }));
 
-  const depots = dealerNights.find((item) => item.id === dealerNightId)?.depots ?? [];
+  const dn = dealerNights.find((item) => item.id === dealerNightId);
+  const depots = dn?.depots ?? [];
+  const minTarget = dn?.minTargetDn ?? MIN_TARGET_DN;
   const namaDepot = (kode: string) => depots.find((item) => item.kode === kode)?.depot ?? kode;
   const target = parseRupiahInput(form.target);
   const pax = form.pax === '' ? null : Number(form.pax);
@@ -74,7 +76,7 @@ export function MasterTokoDialog({
     onOpenChange(false);
   });
   const valid = !!dealerNightId && !!form.mgCode.trim() && !!form.mgName.trim() && !!form.sotpCode.trim()
-    && !!form.sotpName.trim() && !!form.depotCode && Number.isFinite(target) && target >= MIN_TARGET_DN && paxValid;
+    && !!form.sotpName.trim() && !!form.depotCode && Number.isFinite(target) && target >= minTarget && paxValid;
 
   const simpan = () => start(async () => {
     const response = await fetch(edit ? `/api/master/${row!.customerId}` : '/api/master', {
@@ -194,7 +196,7 @@ export function MasterTokoDialog({
             <p className="text-xs text-muted-foreground">
               {targetTerkunci
                 ? 'Target sudah diverifikasi admin DN. Ubah lewat penyesuaian, atau Reset Verifikasi di bawah.'
-                : 'Minimal Rp50.000.000. Admin DN akan memverifikasi target ini.'}
+                : `${teksMinimal(minTarget)} Admin DN akan memverifikasi target ini.`}
             </p>
           </div>
 

@@ -9,19 +9,24 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { buildTargetAdjustment, parseRupiahInput, targetFormCopy } from '@/lib/target/form';
 import { formatRupiah } from '@/lib/target/money';
-import { MIN_TARGET_DN } from '@/lib/target/rules';
+import { teksMinimal } from '@/lib/target/rules';
 import { cn } from '@/lib/utils';
 
 /**
  * Form verifikasi (belum diverifikasi) atau penyesuaian (sudah). Dipasang dengan
  * key yang memuat status & target terakhir, jadi isiannya ikut segar setelah simpan.
  */
-export function TargetFormPanel({ row, onSaved }: { row: TargetRow; onSaved: (noFormulir: number) => void }) {
+export function TargetFormPanel({ row, minTarget, onSaved }: {
+  row: TargetRow;
+  /** Target minimal DN toko ini (Setting Target DN); server menegakkan nilai yang sama. */
+  minTarget: number;
+  onSaved: (noFormulir: number) => void;
+}) {
   const verified = !!row.verifiedAt;
   const [value, setValue] = useState(String(row.targetEfektif));
   const [pending, startTransition] = useTransition();
   const parsed = parseRupiahInput(value);
-  const valid = Number.isFinite(parsed) && parsed >= MIN_TARGET_DN;
+  const valid = Number.isFinite(parsed) && parsed >= minTarget;
   const delta = valid ? parsed - row.targetEfektif : 0;
   const copy = targetFormCopy({ currentTarget: verified ? row.targetEfektif : row.targetAwal, verified });
   const Ikon = verified ? SlidersHorizontal : BadgeCheck;
@@ -72,7 +77,7 @@ export function TargetFormPanel({ row, onSaved }: { row: TargetRow; onSaved: (no
           />
         </div>
         <p className={cn('text-xs', valid || value === '' ? 'text-muted-foreground' : 'text-destructive')}>
-          Minimal Rp50.000.000.
+          {teksMinimal(minTarget)}
         </p>
       </div>
 

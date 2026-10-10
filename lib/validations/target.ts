@@ -1,12 +1,13 @@
 import { z } from 'zod';
-import { MIN_TARGET_DN } from '@/lib/target/rules';
+import { BATAS_BAWAH_TARGET, pesanTargetMinimal } from '@/lib/target/rules';
 
 export const targetAdjustmentSchema = z.object({
   customerId: z.string().uuid(),
+  // Minimal per DN dicek di adjustTarget (butuh DN toko); di sini batas bawah global.
   newTarget: z.number()
     .int('Target DN harus berupa bilangan bulat rupiah.')
     .safe('Target DN di luar rentang angka yang aman.')
-    .min(MIN_TARGET_DN, 'Target DN minimal Rp50.000.000.'),
+    .min(BATAS_BAWAH_TARGET, pesanTargetMinimal(BATAS_BAWAH_TARGET)),
   note: z.string().trim().max(1000).optional(),
 });
 

@@ -1,5 +1,5 @@
 import { parse } from 'csv-parse/sync';
-import { validateTargetDn } from '@/lib/target/rules';
+import { BATAS_BAWAH_TARGET, validateTargetDn } from '@/lib/target/rules';
 
 export type DealerNightMasterRow = {
   mgCode: string;
@@ -89,7 +89,8 @@ export function parseDealerNightRecords(
 
     const targetDnAwal = rupiahDariSel(record['Target DN Pembulatan Inc. PPN']);
     try {
-      validateTargetDn(targetDnAwal);
+      // Minimal per DN dicek saat import (importMaster); parser tidak tahu DN tujuannya.
+      validateTargetDn(targetDnAwal, BATAS_BAWAH_TARGET);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(`Baris ${rowNumber}: ${message}`);
