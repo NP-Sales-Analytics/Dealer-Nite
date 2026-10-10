@@ -11,8 +11,10 @@ describe('targetAdjustmentSchema', () => {
     });
   });
 
-  it('rejects values below Rp50 million, fractional, or unsafe', () => {
-    expect(() => targetAdjustmentSchema.parse({ customerId, newTarget: 49_999_999 })).toThrow();
+  // Minimal per DN dicek di adjustTarget; schema hanya menjaga batas bawah global Rp1 juta.
+  it('rejects values below Rp1 million, fractional, or unsafe', () => {
+    expect(() => targetAdjustmentSchema.parse({ customerId, newTarget: 999_999 })).toThrow();
+    expect(targetAdjustmentSchema.parse({ customerId, newTarget: 25_000_000 }).newTarget).toBe(25_000_000);
     expect(() => targetAdjustmentSchema.parse({ customerId, newTarget: 50_000_000.5 })).toThrow();
     expect(() => targetAdjustmentSchema.parse({ customerId, newTarget: Number.MAX_SAFE_INTEGER + 1 })).toThrow();
   });

@@ -25,6 +25,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { dnBawaan } from '@/lib/target/dn-bawaan';
+import { MIN_TARGET_DN } from '@/lib/target/rules';
 import { formatRupiah, formatRupiahRingkas } from '@/lib/target/money';
 import { targetPollingInterval, useTargetVisibilityRefresh } from '@/lib/target/use-target-polling';
 import { useDebounce } from '@/lib/use-debounce';
@@ -364,6 +365,7 @@ export function TargetDetail({
           key={detail.customerId}
           row={semua.find((row) => row.customerId === detail.customerId) ?? detail}
           canAdjust={canAdjust}
+          minTarget={dealerNights.find((item) => item.id === detail.dealerNightId)?.minTargetDn ?? MIN_TARGET_DN}
           onOpenChange={(open) => !open && setDetail(null)}
           onSaved={segarkan}
           onTargetSaved={(nomor) => {

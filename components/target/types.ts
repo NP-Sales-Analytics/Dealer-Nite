@@ -4,6 +4,8 @@ export type DealerNightOption = {
   id: string;
   name: string;
   targetDn?: number;
+  /** Target DN minimal per toko di DN ini. */
+  minTargetDn?: number;
   eventDate?: string | null;
   /** DN tampilan awal pilihan Super Admin. */
   bawaan?: boolean;

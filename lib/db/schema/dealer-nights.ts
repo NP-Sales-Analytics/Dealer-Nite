@@ -8,6 +8,8 @@ export const dealerNights = mysqlTable('dealer_nights', {
   active: boolean('active').notNull().default(true),
   targetPax: int('target_pax').notNull().default(0),
   targetDn: bigint('target_dn', { mode: 'number' }).notNull().default(0),
+  // Target DN minimal per toko di DN ini.
+  minTargetDn: bigint('min_target_dn', { mode: 'number' }).notNull().default(50_000_000),
   formTerakhir: int('form_terakhir').notNull().default(0),
   eventDate: date('event_date', { mode: 'string' }),
   depotCodes: json('depot_codes').$type<string[] | null>(),

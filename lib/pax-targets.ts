@@ -6,7 +6,7 @@ import type { KonfigKupon } from '@/lib/target/kupon';
 import { targetPaxListSchema, type TargetPaxItem } from '@/lib/validations/pax-target';
 
 export type DealerNightTargetPax = {
-  id: string; name: string; targetPax: number; targetDn: number; eventDate?: string | null; kupon: KonfigKupon;
+  id: string; name: string; targetPax: number; targetDn: number; minTargetDn: number; eventDate?: string | null; kupon: KonfigKupon;
   /** Wilayah DN (dari hierarki depotnya), untuk filter di Setting Target DN. */
   wilayah?: string | null;
   /** DN tampilan awal pilihan Super Admin. */
@@ -25,7 +25,7 @@ export async function simpanTargetPax(input: TargetPaxItem[]) {
   await db.transaction(async (tx) => {
     for (const item of parsed) {
       await tx.update(dealerNights).set({
-        targetPax: item.targetPax, targetDn: item.targetDn,
+        targetPax: item.targetPax, targetDn: item.targetDn, minTargetDn: item.minTargetDn,
         nilaiKuponPink: item.nilaiKuponPink, nilaiKuponHijau: item.nilaiKuponHijau,
       })
         .where(eq(dealerNights.id, item.dealerNightId));

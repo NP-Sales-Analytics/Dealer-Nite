@@ -194,6 +194,14 @@ describe('Target DN ledger', () => {
     })).rejects.toMatchObject({ code: 'BELOW_MINIMUM' });
   });
 
+  it('memakai target minimal milik DN toko', async () => {
+    await db.update(dealerNights).set({ minTargetDn: 25_000_000 }).where(eq(dealerNights.id, ids.dealerNight));
+    await expect(adjustTarget({ customerId: ids.customer, newTarget: 30_000_000, actorId: ids.actor })).resolves.toBeDefined();
+    await db.update(dealerNights).set({ minTargetDn: 100_000_000 }).where(eq(dealerNights.id, ids.dealerNight));
+    await expect(adjustTarget({ customerId: ids.customer, newTarget: 80_000_000, actorId: ids.actor }))
+      .rejects.toMatchObject({ code: 'BELOW_MINIMUM', message: 'Target DN minimal Rp100.000.000.' });
+  });
+
   it('serializes concurrent adjustments without losing a write', async () => {
     const results = await Promise.all([
       adjustTarget({ customerId: ids.customer, newTarget: 900_000_000, actorId: ids.actor }),
