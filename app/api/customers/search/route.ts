@@ -1,4 +1,4 @@
-import { and, eq, inArray, like, or } from 'drizzle-orm';
+import { and, desc, eq, inArray, like, or, sql } from 'drizzle-orm';
 import { NextResponse, type NextRequest } from 'next/server';
 import { cakupanDepot } from '@/lib/access';
 import { requireHalamanApi } from '@/lib/auth';
@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
       wilayah: customers.wilayah,
       region: customers.region,
       paxTerdaftar: customers.qtyUndangan,
+      noUndian: customers.noUndian,
       reservationId: reservations.id,
       qtyHadirSebelumnya: reservations.qtyHadir,
     })
@@ -41,9 +42,10 @@ export async function GET(request: NextRequest) {
     .where(and(
       eq(customers.dealerNightId, dealerNightId),
       cakupanDepot(user) ? inArray(customers.depotCode, [...cakupanDepot(user)!]) : undefined,
-      or(like(customers.mgName, needle), like(customers.mgCode, needle)),
+      or(like(customers.mgName, needle), like(customers.mgCode, needle), like(customers.noUndian, needle)),
     ))
-    .orderBy(customers.mgName)
+    // No Undian yang persis sama tampil paling atas.
+    .orderBy(desc(sql`${customers.noUndian} = ${query}`), customers.mgName)
     .limit(10);
 
   return NextResponse.json({ results: rows.map((row) => ({

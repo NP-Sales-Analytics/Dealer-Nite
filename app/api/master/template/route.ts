@@ -5,7 +5,7 @@ import { angka, header, rupiah, teks } from '@/lib/excel/kolom';
 
 type Contoh = {
   mgCode: string; mgName: string; sotpCode: string; sotpName: string; depotCode: string;
-  salesman: string; spv: string; target: number; pax: number;
+  salesman: string; spv: string; target: number; pax: number; noUndian: string;
 };
 
 // Judul kolom wajib sama persis dengan yang dibaca lib/csv/parse-dealer-night.ts.
@@ -20,11 +20,12 @@ const COLUMNS = [
   { header: header('SPV'), width: 28, cell: (r: Contoh) => teks(r.spv) },
   { header: header('Target DN Pembulatan Inc. PPN'), width: 26, cell: (r: Contoh) => rupiah(r.target) },
   { header: header('Pax'), width: 8, cell: (r: Contoh) => angka(r.pax) },
+  { header: header('No Undian'), width: 12, cell: (r: Contoh) => teks(r.noUndian) },
 ];
 
 const CONTOH: Contoh[] = [{
   mgCode: '632723', mgName: 'CV. CONTOH TOKO', sotpCode: '632723', sotpName: 'CV. CONTOH TOKO', depotCode: '1S',
-  salesman: '90002029 Mr NAMA SALESMAN', spv: '90000385 Mr NAMA SPV', target: 100_000_000, pax: 3,
+  salesman: '90002029 Mr NAMA SALESMAN', spv: '90000385 Mr NAMA SPV', target: 100_000_000, pax: 3, noUndian: '0123',
 }];
 
 export async function GET() {

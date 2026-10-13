@@ -201,38 +201,37 @@ export function PaxTargetForm({ rows, dnAwal, wilayahDikelola }: {
                 Pembagi kupon = nilai target untuk 1 kupon.
               </p>
             </div>
-            <Button type="submit" className="h-11 gap-2 px-5" disabled={pending}>
-              <Save className="size-4" />
-              {pending ? 'Menyimpan...' : 'Simpan Target'}
-            </Button>
-          </div>
-
-          <div className="flex flex-wrap gap-2.5 border-b border-border px-4 py-3 sm:px-5">
-            <PilihBanyak
-              items={daftarWilayah}
-              value={filterWilayah}
-              onChange={setFilterWilayah}
-              labelSemua="Wilayah"
-              satuan="Wilayah"
-              cariPlaceholder="Cari wilayah..."
-              kosong="Wilayah tidak ditemukan."
-              className="min-w-0 flex-1 sm:w-48 sm:flex-none"
-            />
-            <PilihBanyak
-              items={rows.filter((row) => filterWilayah.length === 0 || (!!row.wilayah && filterWilayah.includes(row.wilayah))).map((row) => row.name)}
-              value={filterDn}
-              onChange={setFilterDn}
-              labelSemua="Dealer Night"
-              satuan="DN"
-              cariPlaceholder="Cari Dealer Night..."
-              kosong="Dealer Night tidak ditemukan."
-              className="min-w-0 flex-1 sm:w-56 sm:flex-none"
-            />
-            {(filterWilayah.length > 0 || filterDn.length > 0) && (
-              <Button type="button" variant="outline" className="h-11 shrink-0 px-4" onClick={() => { setFilterWilayah([]); setFilterDn([]); }}>
-                Reset
+            <div className="flex w-full flex-wrap items-center gap-2.5 lg:w-auto">
+              <PilihBanyak
+                items={daftarWilayah}
+                value={filterWilayah}
+                onChange={setFilterWilayah}
+                labelSemua="Wilayah"
+                satuan="Wilayah"
+                cariPlaceholder="Cari wilayah..."
+                kosong="Wilayah tidak ditemukan."
+                className="min-w-0 flex-1 sm:w-48 sm:flex-none"
+              />
+              <PilihBanyak
+                items={rows.filter((row) => filterWilayah.length === 0 || (!!row.wilayah && filterWilayah.includes(row.wilayah))).map((row) => row.name)}
+                value={filterDn}
+                onChange={setFilterDn}
+                labelSemua="Dealer Night"
+                satuan="DN"
+                cariPlaceholder="Cari Dealer Night..."
+                kosong="Dealer Night tidak ditemukan."
+                className="min-w-0 flex-1 sm:w-56 sm:flex-none"
+              />
+              {(filterWilayah.length > 0 || filterDn.length > 0) && (
+                <Button type="button" variant="outline" className="h-11 shrink-0 px-4" onClick={() => { setFilterWilayah([]); setFilterDn([]); }}>
+                  Reset
+                </Button>
+              )}
+              <Button type="submit" className="h-11 w-full gap-2 px-5 sm:w-auto" disabled={pending}>
+                <Save className="size-4" />
+                {pending ? 'Menyimpan...' : 'Simpan Target'}
               </Button>
-            )}
+            </div>
           </div>
 
           <div className={cn(KOLOM, 'hidden gap-4 border-b border-border bg-secondary/40 px-5 py-2.5 text-xs font-medium text-muted-foreground lg:grid')}>

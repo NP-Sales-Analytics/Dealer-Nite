@@ -32,6 +32,8 @@ export function CheckinForm({ dealerNights }: { dealerNights: DealerNightOption[
   const [dealerNightId, setDealerNightId] = useState(() => dnBawaan(dealerNights));
 
   const reset = () => { setSelected(null); setQty('1'); setUndian(''); };
+  // No Undian dari master langsung terisi; pencatat tinggal mengoreksi bila beda.
+  const pilih = (customer: CustomerSearchResult) => { setSelected(customer); setUndian(customer.noUndian ?? ''); };
 
   async function submit(confirmOverwrite = false) {
     if (!selected) return;
@@ -101,7 +103,7 @@ export function CheckinForm({ dealerNights }: { dealerNights: DealerNightOption[
       />
       {!selected ? (
         <>
-          <SearchBar dealerNightId={dealerNightId} onSelect={setSelected} />
+          <SearchBar dealerNightId={dealerNightId} onSelect={pilih} />
           <Button
             variant="link"
             className="h-11 px-0 text-base"
@@ -135,7 +137,12 @@ export function CheckinForm({ dealerNights }: { dealerNights: DealerNightOption[
             </div>
             <div className="min-w-0 space-y-2.5">
               <Label htmlFor="undian" className="text-base">Nomor undian</Label>
-              <NomorUndianInput id="undian" value={undian} onChange={setUndian} autoFocus />
+              <NomorUndianInput id="undian" value={undian} onChange={setUndian} autoFocus={!selected.noUndian} />
+              {selected.noUndian && (
+                <p className="text-sm text-muted-foreground">
+                  {undian === selected.noUndian ? 'Terisi otomatis dari master data.' : `Master data: ${selected.noUndian}`}
+                </p>
+              )}
             </div>
           </div>
 

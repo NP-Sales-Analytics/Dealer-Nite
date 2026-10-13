@@ -48,6 +48,25 @@ describe('parseDealerNightCsv', () => {
   it('tanpa kolom Pax, pax tidak disentuh (undefined)', () => {
     const csv = [HEADER, '632723,Toko A,632723,Toko A,1S,Sales,SPV," 60,000,000 "'].join('\n');
     expect(parseDealerNightCsv(csv, HIERARCHY)[0]).not.toHaveProperty('qtyUndangan');
+    expect(parseDealerNightCsv(csv, HIERARCHY)[0]).not.toHaveProperty('noUndian');
+  });
+
+  it('membaca kolom No Undian: angka (nol depan tetap), kosong = blank, salah/duplikat = ditolak', () => {
+    const csv = [
+      `${HEADER},Pax,No. Undian`,
+      '632723,Toko A,632723,Toko A,1S,Sales,SPV," 60,000,000 ",3,0123',
+      '632724,Toko B,632724,Toko B,1S,Sales,SPV," 70,000,000 ",,',
+    ].join('\n');
+    expect(parseDealerNightCsv(csv, HIERARCHY).map((row) => row.noUndian)).toEqual(['0123', null]);
+
+    const huruf = [`${HEADER},No Undian`, '632723,Toko A,632723,Toko A,1S,Sales,SPV," 60,000,000 ",A12'].join('\n');
+    expect(() => parseDealerNightCsv(huruf, HIERARCHY)).toThrow('Baris 2: No Undian harus berupa angka');
+    const dobel = [
+      `${HEADER},Nomor Undian`,
+      '632723,Toko A,632723,Toko A,1S,Sales,SPV," 60,000,000 ",7',
+      '632724,Toko B,632724,Toko B,1S,Sales,SPV," 70,000,000 ",7',
+    ].join('\n');
+    expect(() => parseDealerNightCsv(dobel, HIERARCHY)).toThrow('Baris 3: No Undian 7 sudah dipakai MG Code 632723');
   });
 
   it('accepts the Rp53 million source row', () => {

@@ -39,6 +39,8 @@ export type TargetRow = {
   qtyHadir: number | null;
   /** Pax terdaftar dari master; null = belum didata. */
   paxTerdaftar: number | null;
+  /** No. Undian dari master; null = belum didata. */
+  undianMaster: string | null;
   nomorUndian: string | null;
   checkedInAt: string | null;
   rank?: number;
