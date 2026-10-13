@@ -15,6 +15,8 @@ export type DealerNightMasterRow = {
   targetDnAwal: number;
   /** Pax terdaftar. null = sel Pax kosong; undefined = file tidak punya kolom Pax (pax lama dibiarkan). */
   qtyUndangan?: number | null;
+  /** No. Undian. null = sel kosong; undefined = file tidak punya kolom No Undian (nomor lama dibiarkan). */
+  noUndian?: string | null;
 };
 
 export const MAKS_PAX = 1000;
@@ -34,6 +36,8 @@ const clean = (value: unknown) => String(value ?? '').trim().replace(/\s+/g, ' '
 
 /** Kolom opsional paling kanan template; huruf besar/kecil diabaikan. */
 const isKolomPax = (header: string) => clean(header).toLowerCase() === 'pax';
+/** Kolom opsional No Undian: "No Undian", "No. Undian", atau "Nomor Undian". */
+const isKolomUndian = (header: string) => /^(no\.?|nomor) ?undian$/.test(clean(header).toLowerCase());
 
 export type DepotByCode = Map<string, { depotName: string; wilayah: string; region: string }>;
 
@@ -65,9 +69,11 @@ export function parseDealerNightRecords(
   depots: DepotByCode,
 ): DealerNightMasterRow[] {
   const seen = new Set<string>();
+  const undianDipakai = new Map<string, string>();
   const rows = records.filter((record) => Object.values(record).some((value) => clean(value) !== ''));
   if (rows.length === 0) throw new Error('File tidak berisi data toko.');
   const kolomPax = Object.keys(rows[0]).find(isKolomPax);
+  const kolomUndian = Object.keys(rows[0]).find(isKolomUndian);
 
   return rows.map((record) => {
     const rowNumber = records.indexOf(record) + 2;
@@ -96,6 +102,13 @@ export function parseDealerNightRecords(
       throw new Error(`Baris ${rowNumber}: ${message}`);
     }
 
+    const noUndian = kolomUndian === undefined ? undefined : undianDariSel(record[kolomUndian], rowNumber);
+    if (noUndian) {
+      const pemilik = undianDipakai.get(noUndian);
+      if (pemilik) throw new Error(`Baris ${rowNumber}: No Undian ${noUndian} sudah dipakai MG Code ${pemilik} di file ini`);
+      undianDipakai.set(noUndian, mgCode);
+    }
+
     return {
       mgCode,
       mgName,
@@ -107,6 +120,7 @@ export function parseDealerNightRecords(
       spv: clean(record.SPV),
       targetDnAwal,
       ...(kolomPax === undefined ? {} : { qtyUndangan: paxDariSel(record[kolomPax], rowNumber) }),
+      ...(noUndian === undefined ? {} : { noUndian }),
     };
   });
 }
@@ -120,6 +134,14 @@ function paxDariSel(value: unknown, rowNumber: number): number | null {
     throw new Error(`Baris ${rowNumber}: Pax harus bilangan bulat 1 sampai ${MAKS_PAX} atau dikosongkan`);
   }
   return pax;
+}
+
+/** Sel No Undian: kosong = belum didata (null), selain itu 1-20 digit angka. */
+function undianDariSel(value: unknown, rowNumber: number): string | null {
+  const teks = clean(value);
+  if (teks === '') return null;
+  if (!/^\d{1,20}$/.test(teks)) throw new Error(`Baris ${rowNumber}: No Undian harus berupa angka (maksimal 20 digit) atau dikosongkan`);
+  return teks;
 }
 
 /** Excel menyimpan angka sebagai number; CSV sebagai teks berformat " 5,619,000,000 ". */

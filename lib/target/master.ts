@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import { MAKS_PAX, type DealerNightMasterRow } from '@/lib/csv/parse-dealer-night';
 import { depotPerKode } from '@/lib/dashboard/hierarchy';
@@ -33,12 +33,23 @@ export const masterInputSchema = z.object({
   // Pax terdaftar; null/kosong = belum didata.
   qtyUndangan: z.number().int('Pax harus bilangan bulat.').min(1, 'Pax minimal 1.')
     .max(MAKS_PAX, `Pax maksimal ${MAKS_PAX}.`).nullable().default(null),
+  // No. Undian dari master; kosong = belum didata.
+  noUndian: z.string().trim().regex(/^\d{0,20}$/, 'No Undian harus berupa angka (maksimal 20 digit).')
+    .nullable().default(null).transform((value) => value || null),
 }).strict();
 
 export type MasterInput = z.infer<typeof masterInputSchema>;
 
 const isDup = (error: unknown) =>
   (error as { cause?: { code?: string } }).cause?.code === 'ER_DUP_ENTRY';
+
+/** Pesan bentrok unik: MG Code atau No Undian, dilihat dari nama indeksnya. */
+function pesanDup(error: unknown, input: { mgCode: string; noUndian: string | null }) {
+  const pesan = (error as { cause?: { sqlMessage?: string } }).cause?.sqlMessage ?? '';
+  return pesan.includes('customers_dn_undian_unique')
+    ? `No Undian ${input.noUndian} sudah dipakai toko lain di Dealer Night ini.`
+    : `MG Code ${input.mgCode} sudah terdaftar di Dealer Night ini.`;
+}
 
 /** Depot wajib termasuk DN tujuan, supaya toko tidak nyasar ke acara lain. */
 async function depotDn(dealerNightId: string, depotCode: string) {
@@ -70,7 +81,7 @@ export async function createMaster(input: MasterInput) {
   try {
     await db.insert(customers).values({ id: randomUUID(), ...input, ...depot });
   } catch (error) {
-    if (isDup(error)) throw new MasterError(`MG Code ${input.mgCode} sudah terdaftar di Dealer Night ini.`, 409);
+    if (isDup(error)) throw new MasterError(pesanDup(error, input), 409);
     throw error;
   }
 }
@@ -99,7 +110,7 @@ export async function updateMaster(id: string, input: MasterInput) {
   try {
     await db.update(customers).set({ ...input, ...depot, updatedAt: new Date() }).where(eq(customers.id, id));
   } catch (error) {
-    if (isDup(error)) throw new MasterError(`MG Code ${input.mgCode} sudah terdaftar di Dealer Night ini.`, 409);
+    if (isDup(error)) throw new MasterError(pesanDup(error, input), 409);
     throw error;
   }
 }
@@ -111,8 +122,8 @@ export async function deleteMaster(id: string) {
 /**
  * Upload massal: semua atau tidak sama sekali. MG Code yang sudah ada
  * diperbarui, kecuali toko yang targetnya sudah diverifikasi admin DN -
- * data itu dilewati supaya verifikasi tidak tertimpa data pusat. Pax tetap
- * diperbarui untuk toko terverifikasi karena bukan bagian dari target.
+ * data itu dilewati supaya verifikasi tidak tertimpa data pusat. Pax dan
+ * No Undian tetap diperbarui untuk toko terverifikasi karena bukan bagian target.
  */
 export async function importMaster(dealerNightId: string, rows: DealerNightMasterRow[]) {
   const milikDn = new Set((await depotSatuDn(dealerNightId)).map((item) => item.kode));
@@ -126,10 +137,28 @@ export async function importMaster(dealerNightId: string, rows: DealerNightMaste
 
   return db.transaction(async (tx) => {
     const existing = await tx
-      .select({ id: customers.id, mgCode: customers.mgCode, verifiedAt: customers.verifiedAt })
+      .select({ id: customers.id, mgCode: customers.mgCode, mgName: customers.mgName, noUndian: customers.noUndian, verifiedAt: customers.verifiedAt })
       .from(customers)
       .where(eq(customers.dealerNightId, dealerNightId));
     const byMg = new Map(existing.map((row) => [row.mgCode, row]));
+
+    // No Undian unik per DN. Toko yang ada di file boleh saling bertukar nomor,
+    // jadi yang dicek hanya bentrok dengan toko yang TIDAK ada di file.
+    const diFile = new Set(rows.map((row) => row.mgCode));
+    const undianLain = new Map(existing.filter((row) => row.noUndian && !diFile.has(row.mgCode))
+      .map((row) => [row.noUndian!, row]));
+    const bentrok = rows.find((row) => row.noUndian && undianLain.has(row.noUndian));
+    if (bentrok) {
+      const pemilik = undianLain.get(bentrok.noUndian!)!;
+      throw new MasterError(`MG Code ${bentrok.mgCode}: No Undian ${bentrok.noUndian} sudah dipakai ${pemilik.mgName} (${pemilik.mgCode}).`);
+    }
+    // Kosongkan dulu nomor toko di file supaya pertukaran nomor antartoko tidak
+    // tersandung indeks unik di tengah jalan.
+    const tukar = rows.filter((row) => row.noUndian !== undefined).map((row) => row.mgCode);
+    if (tukar.length > 0) {
+      await tx.update(customers).set({ noUndian: null })
+        .where(and(eq(customers.dealerNightId, dealerNightId), inArray(customers.mgCode, tukar)));
+    }
     let baru = 0;
     let diperbarui = 0;
     let dilewati = 0;
@@ -150,14 +179,20 @@ export async function importMaster(dealerNightId: string, rows: DealerNightMaste
         targetDnAwal: row.targetDnAwal,
         // Tanpa kolom Pax di file, pax yang sudah didata tidak disentuh.
         ...(row.qtyUndangan === undefined ? {} : { qtyUndangan: row.qtyUndangan }),
+        ...(row.noUndian === undefined ? {} : { noUndian: row.noUndian }),
       };
       const lama = byMg.get(row.mgCode);
       if (!lama) {
         await tx.insert(customers).values({ id: randomUUID(), ...values });
         baru += 1;
       } else if (lama.verifiedAt) {
-        if (row.qtyUndangan !== undefined) {
-          await tx.update(customers).set({ qtyUndangan: row.qtyUndangan, updatedAt: new Date() })
+        // Pax & No Undian bukan bagian target, jadi tetap diperbarui.
+        const lain = {
+          ...(row.qtyUndangan === undefined ? {} : { qtyUndangan: row.qtyUndangan }),
+          ...(row.noUndian === undefined ? {} : { noUndian: row.noUndian }),
+        };
+        if (Object.keys(lain).length > 0) {
+          await tx.update(customers).set({ ...lain, updatedAt: new Date() })
             .where(and(eq(customers.id, lama.id), eq(customers.dealerNightId, dealerNightId)));
         }
         dilewati += 1;

@@ -17,6 +17,8 @@ export type CustomerSearchResult = {
   qtyHadirSebelumnya: number | null;
   /** Pax terdaftar di master; null = belum didata. */
   paxTerdaftar: number | null;
+  /** No. Undian dari master; null = belum didata. */
+  noUndian: string | null;
 };
 
 export function SearchBar({ dealerNightId, onSelect }: { dealerNightId: string; onSelect: (c: CustomerSearchResult) => void }) {
@@ -54,7 +56,7 @@ export function SearchBar({ dealerNightId, onSelect }: { dealerNightId: string; 
         <input
           value={term}
           onChange={(e) => setTerm(e.target.value)}
-          placeholder="Ketik nama toko atau MG Code..."
+          placeholder="Ketik nama toko, MG Code, atau No Undian..."
           autoFocus
           autoComplete="off"
           aria-label="Cari toko"
@@ -100,7 +102,7 @@ export function SearchBar({ dealerNightId, onSelect }: { dealerNightId: string; 
                     )}
                   </span>
                   <span className="text-xs leading-relaxed text-muted-foreground">
-                    {c.kodeSap} · {c.depot ?? '-'} · {c.wilayah ?? '-'} / {c.region ?? '-'}
+                    {c.kodeSap}{c.noUndian && <> · Undian {c.noUndian}</>} · {c.depot ?? '-'} · {c.wilayah ?? '-'} / {c.region ?? '-'}
                   </span>
                 </button>
               </li>

@@ -17,6 +17,8 @@ export const customers = mysqlTable('customers', {
     .references(() => dealerNights.id, { onDelete: 'cascade' }),
   mgCode: varchar('mg_code', { length: 32 }).notNull(),
   mgName: varchar('mg_name', { length: 200 }).notNull(),
+  // No. Undian dari master; null = belum didata.
+  noUndian: varchar('no_undian', { length: 20 }),
   sotpCode: varchar('sotp_code', { length: 32 }).notNull(),
   sotpName: varchar('sotp_name', { length: 200 }).notNull(),
   depotCode: varchar('depot_code', { length: 20 }).notNull(),
@@ -39,6 +41,7 @@ export const customers = mysqlTable('customers', {
     .default(sql`CURRENT_TIMESTAMP(3)`),
 }, (table) => [
   uniqueIndex('customers_dn_mg_unique').on(table.dealerNightId, table.mgCode),
+  uniqueIndex('customers_dn_undian_unique').on(table.dealerNightId, table.noUndian),
   index('customers_dn_idx').on(table.dealerNightId),
   index('customers_depot_idx').on(table.depotCode),
 ]);

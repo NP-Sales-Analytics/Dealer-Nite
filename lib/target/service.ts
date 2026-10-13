@@ -34,6 +34,8 @@ export type TargetListRow = TargetSnapshot & {
   qtyHadir: number | null;
   /** Pax terdaftar dari master; null = belum didata. */
   paxTerdaftar: number | null;
+  /** No. Undian dari master; null = belum didata. */
+  undianMaster: string | null;
   nomorUndian: string | null;
   checkedInAt: string | null;
 };
@@ -203,7 +205,7 @@ export async function listTargets(dealerNightId: string): Promise<TargetListRow[
       a.terakhir as lastAdjustedAt, c.verified_at as verifiedAt, p.full_name as verifiedByName,
       c.target_verifikasi as targetVerifikasi, a.formVerifikasi, a.formTerakhir,
       r.qty_hadir as qtyHadir, r.nomor_undian as nomorUndian, r.checked_in_at as checkedInAt,
-      c.qty_undangan as paxTerdaftar
+      c.qty_undangan as paxTerdaftar, c.no_undian as undianMaster
     from customers c
     left join (
       select t.customer_id, sum(t.delta) as total, sum(t.jenis = 'penyesuaian') as jumlah, max(t.created_at) as terakhir,
@@ -244,6 +246,7 @@ export async function listTargets(dealerNightId: string): Promise<TargetListRow[
     formTerakhir: row.formTerakhir == null ? null : Number(row.formTerakhir),
     qtyHadir: row.qtyHadir == null ? null : Number(row.qtyHadir),
     paxTerdaftar: row.paxTerdaftar == null ? null : Number(row.paxTerdaftar),
+    undianMaster: teksAtauNull(row.undianMaster),
     nomorUndian: teksAtauNull(row.nomorUndian),
     checkedInAt: isoAtauNull(row.checkedInAt),
   }));

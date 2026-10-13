@@ -46,6 +46,7 @@ export function MasterTokoDialog({
     spv: row?.spv ?? '',
     target: row ? String(row.targetAwal) : '',
     pax: row?.paxTerdaftar == null ? '' : String(row.paxTerdaftar),
+    noUndian: row?.undianMaster ?? '',
   });
   const [pending, start] = useTransition();
   const set = (key: keyof typeof form) => (value: string) => setForm((lama) => ({ ...lama, [key]: value }));
@@ -86,6 +87,7 @@ export function MasterTokoDialog({
         dealerNightId,
         mgCode: form.mgCode, mgName: form.mgName, sotpCode: form.sotpCode, sotpName: form.sotpName,
         depotCode: form.depotCode, salesman: form.salesman, spv: form.spv, targetDnAwal: target, qtyUndangan: pax,
+        noUndian: form.noUndian,
       }),
     }).catch(() => null);
     const body = await response?.json().catch(() => ({}));
@@ -137,13 +139,6 @@ export function MasterTokoDialog({
             )}
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Isian id="mg-code" label="MG Code" value={form.mgCode} onChange={set('mgCode')} placeholder="632723" />
-            <Isian id="mg-name" label="MG Name" value={form.mgName} onChange={set('mgName')} placeholder="Nama toko" />
-            <Isian id="sotp-code" label="SOTP Code" value={form.sotpCode} onChange={set('sotpCode')} />
-            <Isian id="sotp-name" label="SOTP Name" value={form.sotpName} onChange={set('sotpName')} />
-          </div>
-
           <div className="space-y-2">
             <Label htmlFor="m-depot">Depot</Label>
             <PilihSatu
@@ -160,24 +155,43 @@ export function MasterTokoDialog({
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
+            <Isian id="mg-code" label="MG Code" value={form.mgCode} onChange={set('mgCode')} placeholder="632723" />
+            <Isian id="mg-name" label="MG Name" value={form.mgName} onChange={set('mgName')} placeholder="Nama toko" />
+            <Isian id="sotp-code" label="SOTP Code" value={form.sotpCode} onChange={set('sotpCode')} />
+            <Isian id="sotp-name" label="SOTP Name" value={form.sotpName} onChange={set('sotpName')} />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
             <Isian id="salesman" label="Salesman (opsional)" value={form.salesman} onChange={set('salesman')} />
             <Isian id="spv" label="SPV (opsional)" value={form.spv} onChange={set('spv')} />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="m-pax">Pax terdaftar (opsional)</Label>
-            <Input
-              id="m-pax"
-              inputMode="numeric"
-              value={form.pax}
-              onChange={(event) => set('pax')(event.target.value.replace(/[^0-9]/g, ''))}
-              placeholder="Jumlah orang yang didaftarkan"
-              aria-invalid={!paxValid}
-              className="h-11 tabular-nums"
-            />
-            <p className={paxValid ? 'text-xs text-muted-foreground' : 'text-xs text-destructive'}>
-              1 sampai 1.000 orang. Kosongkan bila belum didata; pencatatan kehadiran akan memperingatkan bila melebihi.
-            </p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="m-pax">Pax terdaftar (opsional)</Label>
+              <Input
+                id="m-pax"
+                inputMode="numeric"
+                value={form.pax}
+                onChange={(event) => set('pax')(event.target.value.replace(/[^0-9]/g, ''))}
+                placeholder="Jumlah orang yang didaftarkan"
+                aria-invalid={!paxValid}
+                className="h-11 tabular-nums"
+              />
+              {!paxValid && <p className="text-xs text-destructive">Pax harus 1 sampai 1.000 orang.</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="m-undian">No Undian (opsional)</Label>
+              <Input
+                id="m-undian"
+                inputMode="numeric"
+                value={form.noUndian}
+                onChange={(event) => set('noUndian')(event.target.value.replace(/\D/g, '').slice(0, 20))}
+                placeholder="Contoh: 0123"
+                className="h-11 tabular-nums"
+              />
+            </div>
           </div>
 
           <div className="space-y-2">

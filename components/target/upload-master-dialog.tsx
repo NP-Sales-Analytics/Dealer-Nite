@@ -1,11 +1,11 @@
 'use client';
 
-import { CheckCircle2, FileSpreadsheet, FileUp, X } from 'lucide-react';
+import { CheckCircle2, Download, FileSpreadsheet, FileUp, X } from 'lucide-react';
 import { useRef, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 import { DealerNightSelect } from './dealer-night-select';
 import type { DealerNightOption } from './types';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Dialog, DialogClose, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
@@ -81,7 +81,7 @@ export function UploadMasterDialog({
               </div>
               {hasil.dilewati > 0 && (
                 <p className="text-xs text-muted-foreground">
-                  Toko yang dilewati sudah diverifikasi admin DN, jadi datanya tidak ditimpa (hanya Pax yang diperbarui).
+                  Toko yang dilewati sudah diverifikasi admin DN, jadi datanya tidak ditimpa (hanya Pax dan No Undian yang diperbarui).
                 </p>
               )}
             </div>
@@ -95,6 +95,20 @@ export function UploadMasterDialog({
                     Depot yang diterima: {dn.depots.map((item) => item.depot).join(', ')}
                   </p>
                 )}
+              </div>
+
+              <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-3.5 py-3">
+                <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" aria-hidden>
+                  <FileSpreadsheet className="size-4.5" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold">Template Master Toko</p>
+                  <p className="text-xs text-muted-foreground">Isi data toko di template ini supaya kolomnya sesuai.</p>
+                </div>
+                <a href="/api/master/template" download className={cn(buttonVariants({ variant: 'outline' }), 'h-10 shrink-0 gap-1.5')}>
+                  <Download className="size-4" />
+                  Unduh
+                </a>
               </div>
 
               <input
@@ -123,16 +137,11 @@ export function UploadMasterDialog({
                 <p className="rounded-xl border border-destructive/40 bg-destructive/5 px-3.5 py-3 text-sm text-destructive">{galat}</p>
               )}
 
-              <div className="rounded-xl border border-border bg-secondary/30 px-3.5 py-3 text-xs leading-relaxed text-muted-foreground">
-                Kolom wajib: MG Code, MG Name, SOTP Code, SOTP Name, Depot Code, Salesman, SPV,
-                Target DN Pembulatan Inc. PPN. Kolom Pax (paling kanan) berisi jumlah orang
-                yang didaftarkan tiap toko; boleh dikosongkan.{' '}
-                <a href="/api/master/template" download className="font-semibold text-primary underline-offset-2 hover:underline">
-                  Unduh template Excel
-                </a>
-                <br />
-                MG Code yang sudah ada akan diperbarui. Satu baris salah membatalkan seluruh upload.
-              </div>
+              <ul className="list-disc space-y-1 pl-4 text-xs leading-relaxed text-muted-foreground">
+                <li>Kolom Pax dan No Undian boleh dikosongkan.</li>
+                <li>MG Code yang sudah ada akan diperbarui.</li>
+                <li>Satu baris salah membatalkan seluruh upload.</li>
+              </ul>
             </>
           )}
         </div>
