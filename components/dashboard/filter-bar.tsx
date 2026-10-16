@@ -70,7 +70,7 @@ const cocok = (s: Simpul, w: string[], r: string[], d: string[]) =>
   && (d.length === 0 || d.includes(s.depot));
 
 export function FilterBar({
-  value, options, onChange, withSearch = false, searchPlaceholder = 'Cari nama toko atau MG Code...', filterToko = false,
+  value, options, onChange, withSearch = false, searchPlaceholder = 'Cari nama toko atau kode toko...', filterToko = false,
   tanpaRegion = false, filterStatusPax = false, awal,
 }: {
   value: FilterState;

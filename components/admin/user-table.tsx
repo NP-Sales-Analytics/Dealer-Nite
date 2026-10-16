@@ -1,6 +1,6 @@
 'use client';
 
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 import { CakupanDn } from './cakupan-dn';
@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { halamanEfektif, ROLE_LABEL } from '@/lib/access';
+import { cocokCari } from '@/lib/cari';
 import { inisial } from '@/lib/utils';
 
 function Avatar({ nama }: { nama: string }) {
@@ -42,26 +43,40 @@ export function UserTable({
   const [edit, setEdit] = useState<UserRow | null>(null);
   const [tambah, setTambah] = useState(false);
   const [hapus, setHapus] = useState<UserRow | null>(null);
+  const [cari, setCari] = useState('');
+  const tampil = rows.filter((u) => cocokCari(cari, [u.fullName]));
 
   return (
     <>
       {/* Toolbar di atas tabel, bukan di header halaman: header sekarang milik
           layout dan dipakai bersama semua halaman. */}
-      <div className="mb-4 flex items-center justify-between gap-3 sm:mb-6">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-6">
         <p className="text-sm text-muted-foreground">
-          {rows.length} akun terdaftar
+          {cari.trim() ? `${tampil.length} dari ${rows.length} akun` : `${rows.length} akun terdaftar`}
         </p>
-        <Button className="h-11 gap-2" onClick={() => setTambah(true)}>
-          <Plus className="size-4" />
-          Tambah User
-        </Button>
+        <div className="flex w-full items-center gap-2.5 sm:w-auto">
+          <label className="relative block min-w-0 flex-1 sm:w-64 sm:flex-none">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={cari}
+              onChange={(event) => setCari(event.target.value)}
+              placeholder="Cari nama..."
+              aria-label="Cari user"
+              className="h-11 w-full rounded-xl border border-border bg-card pl-10 pr-4 text-sm placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:outline-none"
+            />
+          </label>
+          <Button className="h-11 shrink-0 gap-2" onClick={() => setTambah(true)}>
+            <Plus className="size-4" />
+            Tambah User
+          </Button>
+        </div>
       </div>
 
       {/* Sama dengan Detail Toko Hadir: kartu di HP (tanpa geser ke kanan),
           tabel mulai md. Ketuk kartu untuk detail; ubah & hapus ada di dialognya. */}
       <div className="min-w-0 rounded-2xl border border-border bg-card shadow-xs">
         <ul className="space-y-2.5 p-3 md:hidden">
-          {rows.map((u) => {
+          {tampil.map((u) => {
             const boleh = halamanEfektif(u.role, u.allowedPages);
             return (
               <li key={u.id}>
@@ -114,7 +129,7 @@ export function UserTable({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((u) => {
+              {tampil.map((u) => {
                 const akunSendiri = u.id === currentUserId;
                 const boleh = halamanEfektif(u.role, u.allowedPages);
 
@@ -193,6 +208,9 @@ export function UserTable({
             </TableBody>
           </Table>
         </div>
+        {tampil.length === 0 && (
+          <p className="px-5 py-8 text-center text-sm text-muted-foreground">Tidak ada user dengan nama &ldquo;{cari.trim()}&rdquo;.</p>
+        )}
       </div>
 
       {/* Detail ditutup lebih dulu sebelum edit/hapus dibuka: dua dialog

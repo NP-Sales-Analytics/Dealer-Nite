@@ -24,6 +24,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { cocokCari } from '@/lib/cari';
 import { dnBawaan } from '@/lib/target/dn-bawaan';
 import { MIN_TARGET_DN } from '@/lib/target/rules';
 import { formatRupiah, formatRupiahRingkas } from '@/lib/target/money';
@@ -40,8 +41,7 @@ const cocok = (row: TargetRow, f: FilterState, q: string) =>
   && (f.depot.length === 0 || f.depot.includes(row.depotName))
   && lolosHadir(f, row.qtyHadir)
   && lolosTambah(f, row.targetVerifikasi, row.targetEfektif)
-  && (!q || `${row.mgCode} ${row.mgName} ${row.sotpCode} ${row.sotpName} ${row.salesman ?? ''} ${row.spv ?? ''}`
-    .toLowerCase().includes(q));
+  && cocokCari(q, [row.mgName, row.mgCode, row.salesman, row.spv], row.formulir);
 
 /** Target yang disepakati admin DN saat verifikasi; sebelum itu yang ada hanya target pusat. */
 /** Target DN kumulatif: nilai verifikasi ditambah semua penyesuaian sesudahnya. */
@@ -211,7 +211,7 @@ export function TargetDetail({
         onChange={setFilter}
         withSearch
         filterToko
-        searchPlaceholder="Cari toko, MG Code, salesman, atau SPV..."
+        searchPlaceholder="Cari nama toko, kode toko, salesman, SPV, atau no. formulir..."
         awal={(
           <DealerNightSelect
             options={dealerNights}

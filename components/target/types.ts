@@ -43,6 +43,10 @@ export type TargetRow = {
   undianMaster: string | null;
   nomorUndian: string | null;
   checkedInAt: string | null;
+  /** Semua Sold To Party MG ini; [0] = SOTP utama. */
+  sotp: { kode: string; nama: string }[];
+  /** Semua No. Formulir toko ini, untuk pencarian. */
+  formulir: number[];
   rank?: number;
 };
 

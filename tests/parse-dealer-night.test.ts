@@ -24,6 +24,7 @@ describe('parseDealerNightCsv', () => {
       mgName: 'CV. HALIM JAYA BERSAMA',
       sotpCode: '632723',
       sotpName: 'CV. HALIM JAYA BERSAMA',
+      sotp: [{ kode: '632723', nama: 'CV. HALIM JAYA BERSAMA' }],
       depotCode: '1S',
       depotName: '1S Bogor',
       wilayah: 'Indonesia Barat',
@@ -77,13 +78,46 @@ describe('parseDealerNightCsv', () => {
     expect(parseDealerNightCsv(csv, HIERARCHY)[0].targetDnAwal).toBe(53_000_000);
   });
 
-  it('rejects duplicate MG codes with the source row', () => {
+  it('MG Code berulang = beberapa SOTP; baris tambahan cukup MG Code + SOTP', () => {
     const csv = [
       HEADER,
+      '640100,PT Grup,640101,Cabang A,1S,Sales,SPV," 250,000,000 "',
       '632723,Toko A,632723,Toko A,1S,Sales,SPV," 60,000,000 "',
-      '632723,Toko B,632723,Toko B,1S,Sales,SPV," 70,000,000 "',
+      '640100,,640102,Cabang B,,,,',
+      '640100,PT GRUP,640103,Cabang C,1S,,," 250,000,000 "',
     ].join('\n');
-    expect(() => parseDealerNightCsv(csv, HIERARCHY)).toThrow('Baris 3: MG Code 632723 duplikat');
+    const rows = parseDealerNightCsv(csv, HIERARCHY);
+    expect(rows.map((row) => row.mgCode)).toEqual(['640100', '632723']);
+    expect(rows[0].sotp).toEqual([
+      { kode: '640101', nama: 'CABANG A' },
+      { kode: '640102', nama: 'CABANG B' },
+      { kode: '640103', nama: 'CABANG C' },
+    ]);
+    expect([rows[0].sotpCode, rows[0].targetDnAwal]).toEqual(['640101', 250_000_000]);
+  });
+
+  it('menolak baris SOTP tambahan yang kolom MG-nya berbeda, SOTP dobel, atau lebih dari 30', () => {
+    const beda = [
+      HEADER,
+      '640100,PT Grup,640101,Cabang A,1S,Sales,SPV," 250,000,000 "',
+      '640100,,640102,Cabang B,,,," 300,000,000 "',
+    ].join('\n');
+    expect(() => parseDealerNightCsv(beda, HIERARCHY))
+      .toThrow('Baris 3: Target DN Pembulatan Inc. PPN berbeda dengan baris 2 (MG Code 640100 sama)');
+
+    const dobel = [
+      HEADER,
+      '640100,PT Grup,640101,Cabang A,1S,Sales,SPV," 250,000,000 "',
+      '640100,,640101,Cabang A lagi,,,,',
+    ].join('\n');
+    expect(() => parseDealerNightCsv(dobel, HIERARCHY)).toThrow('Baris 3: SOTP Code 640101 duplikat di MG Code 640100');
+
+    const banyak = [
+      HEADER,
+      '640100,PT Grup,S1,Cabang 1,1S,Sales,SPV," 250,000,000 "',
+      ...Array.from({ length: 30 }, (_, i) => `640100,,S${i + 2},Cabang ${i + 2},,,,`),
+    ].join('\n');
+    expect(() => parseDealerNightCsv(banyak, HIERARCHY)).toThrow('Baris 32: MG Code 640100 melebihi 30 SOTP');
   });
 
   it('rejects unknown depots instead of guessing metadata', () => {

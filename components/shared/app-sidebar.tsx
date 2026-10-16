@@ -1,7 +1,7 @@
 'use client';
 
 import {
-  ChevronLeft, ClipboardCheck, ClipboardList, Gauge, LayoutDashboard, ListChecks,
+  ClipboardCheck, PanelLeftClose, ClipboardList, Gauge, LayoutDashboard, ListChecks,
   LogOut, Ticket, Trophy, Users,
 } from 'lucide-react';
 import Image from 'next/image';
@@ -58,8 +58,7 @@ const initials = (user: SessionUser) =>
 
 export function AppSidebar({ user }: { user: SessionUser }) {
   const pathname = usePathname();
-  const { setOpen, setOpenMobile, toggleSidebar, state } = useSidebar();
-  const tertutup = state === 'collapsed';
+  const { setOpen, setOpenMobile, toggleSidebar } = useSidebar();
 
   // Navigasi hanya dibuka saat perlu: setiap pindah halaman ia menutup lagi.
   // Lewat ref, karena setOpen bawaan sidebar berganti identitas tiap kali
@@ -81,30 +80,20 @@ export function AppSidebar({ user }: { user: SessionUser }) {
 
   return (
     <Sidebar collapsible="icon" className="z-40">
-      {/* Titik tengah tombol jatuh persis di perpotongan dua garis: -right-3
-          dengan tombol 24px menaruhnya di garis vertikal sidebar, top-14
-          menaruhnya di garis horizontal bawah header (68px dikurangi separuh
-          tinggi tombol). Desktop saja - di HP sidebar berupa drawer yang punya
-          tombolnya sendiri di header.
-
-          Agar terlihat, yang dinaikkan adalah z-index <Sidebar> di atas, bukan
-          tombol ini: kontainer sidebar membuat stacking context sendiri, jadi
-          angka setinggi apa pun di sini tetap terkurung di dalamnya.
-          Semua ukuran di sini berbasis rem (h-17 = 68px) supaya tetap pas saat
-          tampilan desktop diskalakan 90% lewat ukuran font root. */}
-      <button
-        type="button"
-        onClick={toggleSidebar}
-        aria-label={tertutup ? 'Buka navigasi' : 'Tutup navigasi'}
-        title={tertutup ? 'Buka navigasi' : 'Tutup navigasi'}
-        className="absolute -right-3 top-14 z-30 hidden size-6 place-items-center rounded-full border border-sidebar-border bg-sidebar text-muted-foreground shadow-xs transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none md:grid"
-      >
-        <ChevronLeft className={`size-3.5 transition-transform ${tertutup ? 'rotate-180' : ''}`} />
-      </button>
-
       <SidebarHeader className="h-17 shrink-0 justify-center border-b border-sidebar-border px-4 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-2">
-        <div className="group-data-[collapsible=icon]:hidden">
+        {/* Saat terbuka, tombol tutup ada di dalam sidebar; saat tertutup
+            pindah ke header (lihat AppHeader). */}
+        <div className="flex items-center justify-between gap-2 group-data-[collapsible=icon]:hidden">
           <Brand />
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            aria-label="Tutup navigasi"
+            title="Tutup navigasi"
+            className="grid size-9 shrink-0 place-items-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          >
+            <PanelLeftClose className="size-4.5" strokeWidth={1.75} />
+          </button>
         </div>
         <Image
           src="/logo-nippon.png"

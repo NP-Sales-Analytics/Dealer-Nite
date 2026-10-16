@@ -1,10 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { and, eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
-import { MAKS_PAX, type DealerNightMasterRow } from '@/lib/csv/parse-dealer-night';
+import { MAKS_PAX, MAKS_SOTP, type DealerNightMasterRow, type Sotp } from '@/lib/csv/parse-dealer-night';
 import { depotPerKode } from '@/lib/dashboard/hierarchy';
 import { db } from '@/lib/db';
-import { customers, dealerNights } from '@/lib/db/schema';
+import { customerSotp, customers, dealerNights } from '@/lib/db/schema';
 import { depotSatuDn } from '@/lib/target/dealer-night-options';
 import { BATAS_BAWAH_TARGET, pesanTargetMinimal } from '@/lib/target/rules';
 
@@ -22,8 +22,11 @@ export const masterInputSchema = z.object({
   dealerNightId: teks(36),
   mgCode: teks(32),
   mgName: teks(200).transform((value) => value.toUpperCase()),
-  sotpCode: teks(32),
-  sotpName: teks(200).transform((value) => value.toUpperCase()),
+  sotp: z.array(z.object({
+    kode: teks(32),
+    nama: teks(200).transform((value) => value.toUpperCase()),
+  }).strict()).min(1, 'Minimal 1 Sold To Party.').max(MAKS_SOTP, `Maksimal ${MAKS_SOTP} Sold To Party.`)
+    .refine((list) => new Set(list.map((item) => item.kode)).size === list.length, 'SOTP Code tidak boleh dobel.'),
   depotCode: teks(20),
   salesman: opsional,
   spv: opsional,
@@ -39,6 +42,19 @@ export const masterInputSchema = z.object({
 }).strict();
 
 export type MasterInput = z.infer<typeof masterInputSchema>;
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/** Kolom customers dari input: SOTP pertama menjadi SOTP utama. */
+const kolomToko = ({ sotp, ...input }: MasterInput) => ({ ...input, sotpCode: sotp[0].kode, sotpName: sotp[0].nama });
+
+/** Ganti seluruh daftar SOTP satu MG (dipanggil di dalam transaksi). */
+async function simpanSotp(tx: Tx, customerId: string, sotp: Sotp[]) {
+  await tx.delete(customerSotp).where(eq(customerSotp.customerId, customerId));
+  await tx.insert(customerSotp).values(sotp.map((item, index) => ({
+    customerId, urutan: index + 1, sotpCode: item.kode, sotpName: item.nama,
+  })));
+}
 
 const isDup = (error: unknown) =>
   (error as { cause?: { code?: string } }).cause?.code === 'ER_DUP_ENTRY';
@@ -79,7 +95,11 @@ export async function createMaster(input: MasterInput) {
   await cekTargetMinimal(input.dealerNightId, input.targetDnAwal);
   const depot = await depotDn(input.dealerNightId, input.depotCode);
   try {
-    await db.insert(customers).values({ id: randomUUID(), ...input, ...depot });
+    await db.transaction(async (tx) => {
+      const id = randomUUID();
+      await tx.insert(customers).values({ id, ...kolomToko(input), ...depot });
+      await simpanSotp(tx, id, input.sotp);
+    });
   } catch (error) {
     if (isDup(error)) throw new MasterError(pesanDup(error, input), 409);
     throw error;
@@ -108,7 +128,10 @@ export async function updateMaster(id: string, input: MasterInput) {
   if (existing.targetDnAwal !== input.targetDnAwal) await cekTargetMinimal(input.dealerNightId, input.targetDnAwal);
   const depot = await depotDn(input.dealerNightId, input.depotCode);
   try {
-    await db.update(customers).set({ ...input, ...depot, updatedAt: new Date() }).where(eq(customers.id, id));
+    await db.transaction(async (tx) => {
+      await tx.update(customers).set({ ...kolomToko(input), ...depot, updatedAt: new Date() }).where(eq(customers.id, id));
+      await simpanSotp(tx, id, input.sotp);
+    });
   } catch (error) {
     if (isDup(error)) throw new MasterError(pesanDup(error, input), 409);
     throw error;
@@ -124,6 +147,7 @@ export async function deleteMaster(id: string) {
  * diperbarui, kecuali toko yang targetnya sudah diverifikasi admin DN -
  * data itu dilewati supaya verifikasi tidak tertimpa data pusat. Pax dan
  * No Undian tetap diperbarui untuk toko terverifikasi karena bukan bagian target.
+ * Daftar SOTP toko baru/diperbarui diganti sesuai file.
  */
 export async function importMaster(dealerNightId: string, rows: DealerNightMasterRow[]) {
   const milikDn = new Set((await depotSatuDn(dealerNightId)).map((item) => item.kode));
@@ -162,6 +186,8 @@ export async function importMaster(dealerNightId: string, rows: DealerNightMaste
     let baru = 0;
     let diperbarui = 0;
     let dilewati = 0;
+    // Daftar SOTP ditulis sekaligus di akhir (satu delete + satu insert), bukan per toko.
+    const sotpBaru: { customerId: string; sotp: Sotp[] }[] = [];
 
     for (const row of rows) {
       const values = {
@@ -183,7 +209,9 @@ export async function importMaster(dealerNightId: string, rows: DealerNightMaste
       };
       const lama = byMg.get(row.mgCode);
       if (!lama) {
-        await tx.insert(customers).values({ id: randomUUID(), ...values });
+        const id = randomUUID();
+        await tx.insert(customers).values({ id, ...values });
+        sotpBaru.push({ customerId: id, sotp: row.sotp });
         baru += 1;
       } else if (lama.verifiedAt) {
         // Pax & No Undian bukan bagian target, jadi tetap diperbarui.
@@ -199,8 +227,16 @@ export async function importMaster(dealerNightId: string, rows: DealerNightMaste
       } else {
         await tx.update(customers).set({ ...values, updatedAt: new Date() })
           .where(and(eq(customers.id, lama.id), eq(customers.dealerNightId, dealerNightId)));
+        sotpBaru.push({ customerId: lama.id, sotp: row.sotp });
         diperbarui += 1;
       }
+    }
+
+    if (sotpBaru.length > 0) {
+      await tx.delete(customerSotp).where(inArray(customerSotp.customerId, sotpBaru.map((item) => item.customerId)));
+      await tx.insert(customerSotp).values(sotpBaru.flatMap(({ customerId, sotp }) => sotp.map((item, index) => ({
+        customerId, urutan: index + 1, sotpCode: item.kode, sotpName: item.nama,
+      }))));
     }
     return { baru, diperbarui, dilewati };
   });

@@ -1,7 +1,9 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { ArrowRight, Building2, CalendarClock, MapPin, Store, UserCheck, UserRound, Users, X } from 'lucide-react';
+import { ArrowRight, Building2, CalendarClock, Maximize2, MapPin, Store, UserCheck, UserRound, Users, X } from 'lucide-react';
+import { useState } from 'react';
+import { DataTokoDialog } from './data-toko-dialog';
 import { NoFormulirRow } from './no-formulir-row';
 import { PillHadir, PillStatus } from './pills';
 import { TargetFormPanel } from './target-form-panel';
@@ -98,6 +100,7 @@ export function TargetDetailDialog({
   onTargetSaved: (noFormulir: number) => void;
 }) {
   const verified = !!row.verifiedAt;
+  const [dataToko, setDataToko] = useState(false);
   const history = useQuery({
     queryKey: ['targets', 'history', row.customerId],
     queryFn: async (): Promise<{ history: Riwayat[] }> => {
@@ -174,11 +177,33 @@ export function TargetDetailDialog({
 
             <div className="grid gap-4 md:grid-cols-2">
               <section className="space-y-2.5">
-                <Judul icon={Store}>Data Toko</Judul>
+                <div className="flex items-center justify-between gap-2">
+                  <Judul icon={Store}>Data Toko</Judul>
+                  <button
+                    type="button"
+                    onClick={() => setDataToko(true)}
+                    aria-label="Lihat detail data toko"
+                    title="Lihat detail data toko"
+                    className="grid size-7 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                  >
+                    <Maximize2 className="size-3.5" />
+                  </button>
+                </div>
                 <div className="rounded-xl border border-border px-3.5 py-2">
                   <div className="divide-y divide-border">
                     <NoFormulirRow customerId={row.customerId} riwayat={terbaru} canEdit={canAdjust} onSaved={onSaved} />
-                    <Baris icon={Building2} label="SOTP" nilai={`${row.sotpName} · ${row.sotpCode}`} />
+                    <Baris
+                      icon={Building2}
+                      label="SOTP"
+                      nilai={row.sotp[0] && (
+                        <>
+                          {row.sotp[0].nama} · {row.sotp[0].kode}
+                          {row.sotp.length > 1 && (
+                            <span className="block text-xs font-normal text-muted-foreground">dan {row.sotp.length - 1} SOTP lainnya</span>
+                          )}
+                        </>
+                      )}
+                    />
                     <Baris icon={MapPin} label="Region" nilai={row.region ? `Region ${row.region}` : null} />
                     <Baris icon={UserRound} label="Salesman" nilai={row.salesman} />
                     <Baris icon={UserCheck} label="SPV" nilai={row.spv} />
@@ -258,6 +283,8 @@ export function TargetDetailDialog({
             </aside>
           )}
         </div>
+        {/* Di dalam popup induk supaya Esc/klik luar hanya menutup popup Data Toko. */}
+        {dataToko && <DataTokoDialog row={row} onOpenChange={setDataToko} />}
       </DialogContent>
     </Dialog>
   );

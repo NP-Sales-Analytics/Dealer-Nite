@@ -107,6 +107,7 @@ export function AttendanceClient({
         options={options.data}
         onChange={setFilter}
         withSearch
+        searchPlaceholder="Cari nama toko, kode toko, atau no undian..."
         tanpaRegion
         filterStatusPax
         awal={(

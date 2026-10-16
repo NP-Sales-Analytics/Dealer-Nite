@@ -4,8 +4,8 @@ import { getSessionUser } from '@/lib/auth';
 import { angka, header, rupiah, teks } from '@/lib/excel/kolom';
 
 type Contoh = {
-  mgCode: string; mgName: string; sotpCode: string; sotpName: string; depotCode: string;
-  salesman: string; spv: string; target: number; pax: number; noUndian: string;
+  mgCode: string; mgName: string | null; sotpCode: string; sotpName: string; depotCode: string | null;
+  salesman: string | null; spv: string | null; target: number | null; pax: number | null; noUndian: string | null;
 };
 
 // Judul kolom wajib sama persis dengan yang dibaca lib/csv/parse-dealer-night.ts.
@@ -23,10 +23,20 @@ const COLUMNS = [
   { header: header('No Undian'), width: 12, cell: (r: Contoh) => teks(r.noUndian) },
 ];
 
-const CONTOH: Contoh[] = [{
-  mgCode: '632723', mgName: 'CV. CONTOH TOKO', sotpCode: '632723', sotpName: 'CV. CONTOH TOKO', depotCode: '1S',
-  salesman: '90002029 Mr NAMA SALESMAN', spv: '90000385 Mr NAMA SPV', target: 100_000_000, pax: 3, noUndian: '0123',
-}];
+// Satu baris = satu Sold To Party. MG dengan beberapa SOTP ditulis beberapa baris
+// ber-MG Code sama; baris tambahannya cukup MG Code + SOTP Code + SOTP Name.
+const KOSONG = { mgName: null, depotCode: null, salesman: null, spv: null, target: null, pax: null, noUndian: null };
+const CONTOH: Contoh[] = [
+  {
+    mgCode: '632723', mgName: 'CV. CONTOH TOKO', sotpCode: '632723', sotpName: 'CV. CONTOH TOKO', depotCode: '1S',
+    salesman: '90002029 Mr NAMA SALESMAN', spv: '90000385 Mr NAMA SPV', target: 100_000_000, pax: 3, noUndian: '0123',
+  },
+  {
+    mgCode: '640100', mgName: 'PT. CONTOH GRUP', sotpCode: '640101', sotpName: 'PT. CONTOH GRUP CABANG A', depotCode: '1S',
+    salesman: '90002029 Mr NAMA SALESMAN', spv: '90000385 Mr NAMA SPV', target: 250_000_000, pax: 5, noUndian: '0124',
+  },
+  { ...KOSONG, mgCode: '640100', sotpCode: '640102', sotpName: 'PT. CONTOH GRUP CABANG B' },
+];
 
 export async function GET() {
   if (!(await getSessionUser())) return NextResponse.json({ error: 'Belum login' }, { status: 401 });

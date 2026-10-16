@@ -1,7 +1,7 @@
 'use client';
 
-import { RotateCcw, Store, X } from 'lucide-react';
-import { useState, useTransition } from 'react';
+import { Plus, RotateCcw, Store, Trash2, X } from 'lucide-react';
+import { useRef, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 import { DealerNightSelect } from './dealer-night-select';
 import type { DealerNightOption, TargetRow } from './types';
@@ -9,20 +9,30 @@ import { Button } from '@/components/ui/button';
 import { PilihSatu } from '@/components/ui/combobox';
 import { Dialog, DialogClose, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { parseRupiahInput } from '@/lib/target/form';
 import { MIN_TARGET_DN, teksMinimal } from '@/lib/target/rules';
 
-function Isian({ id, label, value, onChange, placeholder, disabled }: {
-  id: string; label: string; value: string; onChange: (v: string) => void; placeholder?: string; disabled?: boolean;
+const MAKS_SOTP = 30;
+
+/** Satu bagian form: judul kapital + keterangan, isian memakai placeholder. */
+function Bagian({ judul, keterangan, aksi, children }: {
+  judul: string; keterangan?: string; aksi?: React.ReactNode; children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-2">
-      <Label htmlFor={id}>{label}</Label>
-      <Input id={id} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} disabled={disabled} className="h-11" />
-    </div>
+    <section className="space-y-2.5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="text-[0.8125rem] font-bold uppercase tracking-wide">{judul}</h3>
+          {keterangan && <p className="mt-0.5 text-xs text-muted-foreground">{keterangan}</p>}
+        </div>
+        {aksi}
+      </div>
+      {children}
+    </section>
   );
 }
+
+type BarisSotp = { id: number; kode: string; nama: string };
 
 /** Tambah satu toko (row kosong) atau ubah toko yang ada. */
 export function MasterTokoDialog({
@@ -39,8 +49,6 @@ export function MasterTokoDialog({
   const [form, setForm] = useState({
     mgCode: row?.mgCode ?? '',
     mgName: row?.mgName ?? '',
-    sotpCode: row?.sotpCode ?? '',
-    sotpName: row?.sotpName ?? '',
     depotCode: row?.depotCode ?? '',
     salesman: row?.salesman ?? '',
     spv: row?.spv ?? '',
@@ -48,8 +56,14 @@ export function MasterTokoDialog({
     pax: row?.paxTerdaftar == null ? '' : String(row.paxTerdaftar),
     noUndian: row?.undianMaster ?? '',
   });
+  // id lokal hanya untuk key React, supaya isian tidak bergeser saat baris dihapus.
+  const idBerikut = useRef(0);
+  const barisBaru = (kode = '', nama = ''): BarisSotp => ({ id: idBerikut.current++, kode, nama });
+  const [sotp, setSotp] = useState<BarisSotp[]>(() => (row?.sotp.length ? row.sotp.map((item) => barisBaru(item.kode, item.nama)) : [barisBaru()]));
   const [pending, start] = useTransition();
   const set = (key: keyof typeof form) => (value: string) => setForm((lama) => ({ ...lama, [key]: value }));
+  const ubahSotp = (id: number, kolom: 'kode' | 'nama', value: string) =>
+    setSotp((lama) => lama.map((item) => (item.id === id ? { ...item, [kolom]: value } : item)));
 
   const dn = dealerNights.find((item) => item.id === dealerNightId);
   const depots = dn?.depots ?? [];
@@ -60,6 +74,10 @@ export function MasterTokoDialog({
   const paxValid = pax === null || (Number.isInteger(pax) && pax >= 1 && pax <= 1000);
   const targetTerkunci = edit && !!row?.verifiedAt;
   const [yakinReset, setYakinReset] = useState(false);
+
+  const kodeSotp = sotp.map((item) => item.kode.trim()).filter(Boolean);
+  const kodeDobel = kodeSotp.find((kode, index) => kodeSotp.indexOf(kode) !== index);
+  const sotpValid = sotp.every((item) => item.kode.trim() && item.nama.trim()) && !kodeDobel;
 
   const resetVerifikasi = () => start(async () => {
     const response = await fetch('/api/targets/reset', {
@@ -76,8 +94,8 @@ export function MasterTokoDialog({
     onSaved();
     onOpenChange(false);
   });
-  const valid = !!dealerNightId && !!form.mgCode.trim() && !!form.mgName.trim() && !!form.sotpCode.trim()
-    && !!form.sotpName.trim() && !!form.depotCode && Number.isFinite(target) && target >= minTarget && paxValid;
+  const valid = !!dealerNightId && !!form.mgCode.trim() && !!form.mgName.trim() && sotpValid
+    && !!form.depotCode && Number.isFinite(target) && target >= minTarget && paxValid;
 
   const simpan = () => start(async () => {
     const response = await fetch(edit ? `/api/master/${row!.customerId}` : '/api/master', {
@@ -85,7 +103,8 @@ export function MasterTokoDialog({
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         dealerNightId,
-        mgCode: form.mgCode, mgName: form.mgName, sotpCode: form.sotpCode, sotpName: form.sotpName,
+        mgCode: form.mgCode, mgName: form.mgName,
+        sotp: sotp.map((item) => ({ kode: item.kode, nama: item.nama })),
         depotCode: form.depotCode, salesman: form.salesman, spv: form.spv, targetDnAwal: target, qtyUndangan: pax,
         noUndian: form.noUndian,
       }),
@@ -124,10 +143,9 @@ export function MasterTokoDialog({
         <form
           id="master-form"
           onSubmit={(event) => { event.preventDefault(); if (valid) simpan(); }}
-          className="min-h-0 space-y-4 overflow-y-auto px-5 py-5"
+          className="min-h-0 space-y-6 overflow-y-auto px-5 py-5"
         >
-          <div className="space-y-2">
-            <Label>Dealer Night</Label>
+          <Bagian judul="Dealer Night" keterangan="Acara tempat toko ini didaftarkan.">
             {edit ? (
               <DealerNightSelect options={dealerNights.filter((item) => item.id === dealerNightId)} value={dealerNightId} onChange={() => {}} />
             ) : (
@@ -137,69 +155,119 @@ export function MasterTokoDialog({
                 onChange={(id) => { setDealerNightId(id); set('depotCode')(''); }}
               />
             )}
-          </div>
+          </Bagian>
 
-          <div className="space-y-2">
-            <Label htmlFor="m-depot">Depot</Label>
+          <Bagian judul="Depot" keterangan="Depot pengiriman untuk Master Group ini.">
             <PilihSatu
               id="m-depot"
               items={depots.map((item) => item.kode)}
               value={form.depotCode}
               onChange={set('depotCode')}
               format={namaDepot}
-              placeholder={depots.length ? 'Pilih depot' : 'DN ini belum punya depot'}
+              placeholder={depots.length ? 'Pilih Depot' : 'DN ini belum punya depot'}
               cariPlaceholder="Cari depot..."
               kosong="Depot tidak ditemukan."
             />
-            <p className="text-xs text-muted-foreground">Hanya depot yang termasuk Dealer Night ini.</p>
-          </div>
+          </Bagian>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Isian id="mg-code" label="MG Code" value={form.mgCode} onChange={set('mgCode')} placeholder="632723" />
-            <Isian id="mg-name" label="MG Name" value={form.mgName} onChange={set('mgName')} placeholder="Nama toko" />
-            <Isian id="sotp-code" label="SOTP Code" value={form.sotpCode} onChange={set('sotpCode')} />
-            <Isian id="sotp-name" label="SOTP Name" value={form.sotpName} onChange={set('sotpName')} />
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Isian id="salesman" label="Salesman (opsional)" value={form.salesman} onChange={set('salesman')} />
-            <Isian id="spv" label="SPV (opsional)" value={form.spv} onChange={set('spv')} />
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="m-pax">Pax terdaftar (opsional)</Label>
-              <Input
-                id="m-pax"
-                inputMode="numeric"
-                value={form.pax}
-                onChange={(event) => set('pax')(event.target.value.replace(/[^0-9]/g, ''))}
-                placeholder="Jumlah orang yang didaftarkan"
-                aria-invalid={!paxValid}
-                className="h-11 tabular-nums"
-              />
-              {!paxValid && <p className="text-xs text-destructive">Pax harus 1 sampai 1.000 orang.</p>}
+          <Bagian judul="Master Group" keterangan="Kode dan nama Master Group yang menaungi Sold To Party di bawah ini.">
+            <div className="grid grid-cols-[3fr_7fr] gap-3">
+              <Input aria-label="Kode MG" placeholder="Kode MG" value={form.mgCode} onChange={(e) => set('mgCode')(e.target.value)} className="h-11" />
+              <Input aria-label="Nama Master Group" placeholder="Nama Master Group" value={form.mgName} onChange={(e) => set('mgName')(e.target.value)} className="h-11" />
             </div>
+          </Bagian>
 
-            <div className="space-y-2">
-              <Label htmlFor="m-undian">No Undian (opsional)</Label>
+          <Bagian
+            judul="Sold To Party"
+            keterangan={`Cabang yang tergabung dalam Master Group ini. Minimal 1, maksimal ${MAKS_SOTP}.`}
+            aksi={<span className="shrink-0 text-xs font-semibold tabular-nums text-muted-foreground">{sotp.length} / {MAKS_SOTP}</span>}
+          >
+            <div className="space-y-2.5">
+              {sotp.map((item, index) => (
+                <div key={item.id} className="grid grid-cols-[3fr_7fr_auto] items-center gap-3">
+                  <Input
+                    aria-label={`Kode SOTP ${index + 1}`}
+                    placeholder="Kode SOTP"
+                    value={item.kode}
+                    onChange={(e) => ubahSotp(item.id, 'kode', e.target.value)}
+                    aria-invalid={!!kodeDobel && item.kode.trim() === kodeDobel}
+                    className="h-11"
+                  />
+                  <Input
+                    aria-label={`Nama Sold To Party ${index + 1}`}
+                    placeholder="Nama Sold To Party"
+                    value={item.nama}
+                    onChange={(e) => ubahSotp(item.id, 'nama', e.target.value)}
+                    className="h-11"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setSotp((lama) => lama.filter((baris) => baris.id !== item.id))}
+                    disabled={sotp.length === 1}
+                    aria-label={`Hapus Sold To Party ${index + 1}`}
+                    title={sotp.length === 1 ? 'Minimal 1 Sold To Party' : 'Hapus'}
+                    className="grid size-9 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-40"
+                  >
+                    <Trash2 className="size-4" />
+                  </button>
+                </div>
+              ))}
+              {kodeDobel && <p className="text-xs text-destructive">Kode SOTP {kodeDobel} dobel.</p>}
+              {sotp.length < MAKS_SOTP && (
+                <button
+                  type="button"
+                  onClick={() => setSotp((lama) => [...lama, barisBaru()])}
+                  className="flex h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-primary/40 text-sm font-semibold text-primary transition-colors hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                >
+                  <Plus className="size-4" />
+                  Tambah Sold To Party
+                </button>
+              )}
+            </div>
+          </Bagian>
+
+          <Bagian judul="Salesman & SPV" keterangan="Opsional.">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Input aria-label="Salesman" placeholder="Salesman" value={form.salesman} onChange={(e) => set('salesman')(e.target.value)} className="h-11" />
+              <Input aria-label="SPV" placeholder="SPV" value={form.spv} onChange={(e) => set('spv')(e.target.value)} className="h-11" />
+            </div>
+          </Bagian>
+
+          <Bagian judul="Pax & No Undian" keterangan="Opsional.">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Input
+                  aria-label="Pax terdaftar"
+                  inputMode="numeric"
+                  value={form.pax}
+                  onChange={(event) => set('pax')(event.target.value.replace(/[^0-9]/g, ''))}
+                  placeholder="Pax terdaftar"
+                  aria-invalid={!paxValid}
+                  className="h-11 tabular-nums"
+                />
+                {!paxValid && <p className="text-xs text-destructive">Pax harus 1 sampai 1.000 orang.</p>}
+              </div>
               <Input
-                id="m-undian"
+                aria-label="No Undian"
                 inputMode="numeric"
                 value={form.noUndian}
                 onChange={(event) => set('noUndian')(event.target.value.replace(/\D/g, '').slice(0, 20))}
-                placeholder="Contoh: 0123"
+                placeholder="No Undian"
                 className="h-11 tabular-nums"
               />
             </div>
-          </div>
+          </Bagian>
 
-          <div className="space-y-2">
-            <Label htmlFor="m-target">Target DN dari pusat</Label>
+          <Bagian
+            judul="Target DN"
+            keterangan={targetTerkunci
+              ? 'Target sudah diverifikasi admin DN. Ubah lewat penyesuaian, atau Reset Verifikasi di bawah.'
+              : `Target dari pusat. ${teksMinimal(minTarget)}`}
+          >
             <div className="relative">
               <span className="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-sm text-muted-foreground">Rp</span>
               <Input
-                id="m-target"
+                aria-label="Target DN dari pusat"
                 inputMode="numeric"
                 disabled={targetTerkunci}
                 value={Number.isFinite(target) ? target.toLocaleString('id-ID') : form.target}
@@ -207,13 +275,7 @@ export function MasterTokoDialog({
                 className="h-11 pl-10 font-semibold tabular-nums"
               />
             </div>
-            <p className="text-xs text-muted-foreground">
-              {targetTerkunci
-                ? 'Target sudah diverifikasi admin DN. Ubah lewat penyesuaian, atau Reset Verifikasi di bawah.'
-                : `${teksMinimal(minTarget)} Admin DN akan memverifikasi target ini.`}
-            </p>
-          </div>
-
+          </Bagian>
         </form>
 
         <footer className="flex gap-2 border-t border-border px-5 py-4">

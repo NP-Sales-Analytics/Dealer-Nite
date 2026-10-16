@@ -1,11 +1,16 @@
 import { parse } from 'csv-parse/sync';
 import { BATAS_BAWAH_TARGET, validateTargetDn } from '@/lib/target/rules';
 
+export type Sotp = { kode: string; nama: string };
+
 export type DealerNightMasterRow = {
   mgCode: string;
   mgName: string;
+  /** SOTP utama (= sotp[0]), disalin ke customers.sotp_*. */
   sotpCode: string;
   sotpName: string;
+  /** Semua Sold To Party MG ini, urut sesuai file. */
+  sotp: Sotp[];
   depotCode: string;
   depotName: string;
   wilayah: string;
@@ -20,6 +25,7 @@ export type DealerNightMasterRow = {
 };
 
 export const MAKS_PAX = 1000;
+export const MAKS_SOTP = 30;
 
 const HEADERS = [
   'MG Code',
@@ -63,37 +69,61 @@ export function checkHeaders(headers: string[]) {
   }
 }
 
-/** Baris master (CSV maupun Excel) -> data toko tervalidasi. Gagal di baris pertama yang salah. */
+const KOLOM_TARGET = 'Target DN Pembulatan Inc. PPN';
+
+/**
+ * Baris master (CSV maupun Excel) -> data toko tervalidasi. Gagal di baris pertama yang salah.
+ *
+ * Satu baris = satu Sold To Party. MG dengan beberapa SOTP ditulis beberapa baris
+ * dengan MG Code yang sama; baris tambahannya cukup MG Code + SOTP Code + SOTP Name.
+ * Kolom MG lain di baris tambahan boleh kosong, tapi bila diisi harus sama.
+ */
 export function parseDealerNightRecords(
   records: Record<string, unknown>[],
   depots: DepotByCode,
 ): DealerNightMasterRow[] {
-  const seen = new Set<string>();
   const undianDipakai = new Map<string, string>();
   const rows = records.filter((record) => Object.values(record).some((value) => clean(value) !== ''));
   if (rows.length === 0) throw new Error('File tidak berisi data toko.');
   const kolomPax = Object.keys(rows[0]).find(isKolomPax);
   const kolomUndian = Object.keys(rows[0]).find(isKolomUndian);
+  const kolomMg = ['MG Name', 'Depot Code', 'Salesman', 'SPV', KOLOM_TARGET, kolomPax, kolomUndian]
+    .filter((kolom): kolom is string => !!kolom);
+  const normal = (kolom: string, value: unknown) =>
+    (kolom === KOLOM_TARGET ? String(rupiahDariSel(value)) : clean(value).toUpperCase());
 
-  return rows.map((record) => {
+  const perMg = new Map<string, { row: DealerNightMasterRow; baris: number; record: Record<string, unknown> }>();
+  const hasil: DealerNightMasterRow[] = [];
+
+  for (const record of rows) {
     const rowNumber = records.indexOf(record) + 2;
     const mgCode = clean(record['MG Code']);
     if (!mgCode) throw new Error(`Baris ${rowNumber}: MG Code wajib diisi`);
-    if (seen.has(mgCode)) throw new Error(`Baris ${rowNumber}: MG Code ${mgCode} duplikat`);
-    seen.add(mgCode);
-
-    const mgName = clean(record['MG Name']).toUpperCase();
     const sotpCode = clean(record['SOTP Code']);
     const sotpName = clean(record['SOTP Name']).toUpperCase();
-    const depotCode = clean(record['Depot Code']);
-    if (!mgName || !sotpCode || !sotpName) {
-      throw new Error(`Baris ${rowNumber}: identitas MG/SOTP belum lengkap`);
+    if (!sotpCode || !sotpName) throw new Error(`Baris ${rowNumber}: SOTP Code dan SOTP Name wajib diisi`);
+
+    const induk = perMg.get(mgCode);
+    if (induk) {
+      const beda = kolomMg.find((kolom) => clean(record[kolom]) !== ''
+        && normal(kolom, record[kolom]) !== normal(kolom, induk.record[kolom]));
+      if (beda) throw new Error(`Baris ${rowNumber}: ${beda} berbeda dengan baris ${induk.baris} (MG Code ${mgCode} sama)`);
+      if (induk.row.sotp.some((item) => item.kode === sotpCode)) {
+        throw new Error(`Baris ${rowNumber}: SOTP Code ${sotpCode} duplikat di MG Code ${mgCode}`);
+      }
+      if (induk.row.sotp.length >= MAKS_SOTP) throw new Error(`Baris ${rowNumber}: MG Code ${mgCode} melebihi ${MAKS_SOTP} SOTP`);
+      induk.row.sotp.push({ kode: sotpCode, nama: sotpName });
+      continue;
     }
+
+    const mgName = clean(record['MG Name']).toUpperCase();
+    const depotCode = clean(record['Depot Code']);
+    if (!mgName) throw new Error(`Baris ${rowNumber}: MG Name wajib diisi`);
 
     const depot = depots.get(depotCode);
     if (!depot) throw new Error(`Baris ${rowNumber}: Depot Code ${depotCode} tidak dikenal`);
 
-    const targetDnAwal = rupiahDariSel(record['Target DN Pembulatan Inc. PPN']);
+    const targetDnAwal = rupiahDariSel(record[KOLOM_TARGET]);
     try {
       // Minimal per DN dicek saat import (importMaster); parser tidak tahu DN tujuannya.
       validateTargetDn(targetDnAwal, BATAS_BAWAH_TARGET);
@@ -109,11 +139,12 @@ export function parseDealerNightRecords(
       undianDipakai.set(noUndian, mgCode);
     }
 
-    return {
+    const row: DealerNightMasterRow = {
       mgCode,
       mgName,
       sotpCode,
       sotpName,
+      sotp: [{ kode: sotpCode, nama: sotpName }],
       depotCode,
       ...depot,
       salesman: clean(record.Salesman),
@@ -122,7 +153,10 @@ export function parseDealerNightRecords(
       ...(kolomPax === undefined ? {} : { qtyUndangan: paxDariSel(record[kolomPax], rowNumber) }),
       ...(noUndian === undefined ? {} : { noUndian }),
     };
-  });
+    perMg.set(mgCode, { row, baris: rowNumber, record });
+    hasil.push(row);
+  }
+  return hasil;
 }
 
 /** Sel Pax: kosong = belum didata (null), selain itu bilangan bulat 1..MAKS_PAX. */

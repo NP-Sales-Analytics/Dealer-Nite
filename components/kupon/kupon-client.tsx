@@ -16,6 +16,7 @@ import type { DealerNightOption } from '@/components/target/types';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { cocokCari } from '@/lib/cari';
 import type { KuponRow, TahapKupon } from '@/lib/kupon/service';
 import { dnBawaan } from '@/lib/target/dn-bawaan';
 import {
@@ -85,7 +86,7 @@ export function KuponClient({ dealerNights, canManage, canExport }: {
     && (filter.depot.length === 0 || filter.depot.includes(row.depotName))
     && lolosHadir(filter, row.qtyHadir)
     && lolosTambah(filter, row.targetVerifikasi, row.targetEfektif)
-    && (!q || `${row.mgCode} ${row.mgName} ${row.nomorUndian ?? ''}`.toLowerCase().includes(q)));
+    && cocokCari(q, [row.mgName, row.mgCode, row.salesman, row.spv], row.formulir));
 
   const ringkas = useMemo(() => {
     const total = { hak: KUPON_NOL, dibuat: KUPON_NOL, diberikan: KUPON_NOL, perluDibuat: KUPON_NOL, siapDiberikan: KUPON_NOL };
@@ -226,7 +227,7 @@ export function KuponClient({ dealerNights, canManage, canExport }: {
         onChange={setFilter}
         withSearch
         filterToko
-        searchPlaceholder="Cari toko, MG Code, atau nomor undian..."
+        searchPlaceholder="Cari nama toko, kode toko, salesman, SPV, atau no. formulir..."
         awal={(
           <DealerNightSelect
             options={dealerNights}

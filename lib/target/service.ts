@@ -38,6 +38,10 @@ export type TargetListRow = TargetSnapshot & {
   undianMaster: string | null;
   nomorUndian: string | null;
   checkedInAt: string | null;
+  /** Semua Sold To Party MG ini; [0] = SOTP utama. */
+  sotp: { kode: string; nama: string }[];
+  /** Semua No. Formulir (verifikasi & penyesuaian) toko ini, untuk pencarian. */
+  formulir: number[];
 };
 
 const teksAtauNull = (value: unknown) => (value == null ? null : String(value));
@@ -195,21 +199,23 @@ export async function getCustomerDealerNightId(customerId: string): Promise<stri
 }
 
 export async function listTargets(dealerNightId: string): Promise<TargetListRow[]> {
-  const rows = rowsFrom<Record<string, unknown>>(await db.execute(sql`
+  // Dua query paralel: satu round trip, tanpa menggandakan baris toko per SOTP.
+  const [hasil, sotpRows] = await Promise.all([db.execute(sql`
     select c.id as customerId, c.dealer_night_id as dealerNightId,
       c.mg_code as mgCode, c.mg_name as mgName, c.sotp_code as sotpCode, c.sotp_name as sotpName,
       c.depot_code as depotCode, c.depot_name as depotName, c.wilayah, c.region,
       c.salesman, c.spv, c.target_dn_awal as targetAwal,
       c.target_dn_awal + coalesce(a.total, 0) as targetEfektif,
       coalesce(a.total, 0) as delta, coalesce(a.jumlah, 0) as jumlahPenyesuaian,
-      a.terakhir as lastAdjustedAt, c.verified_at as verifiedAt, p.full_name as verifiedByName,
+      a.terakhir as lastAdjustedAt, a.semuaFormulir, c.verified_at as verifiedAt, p.full_name as verifiedByName,
       c.target_verifikasi as targetVerifikasi, a.formVerifikasi, a.formTerakhir,
       r.qty_hadir as qtyHadir, r.nomor_undian as nomorUndian, r.checked_in_at as checkedInAt,
       c.qty_undangan as paxTerdaftar, c.no_undian as undianMaster
     from customers c
     left join (
       select t.customer_id, sum(t.delta) as total, sum(t.jenis = 'penyesuaian') as jumlah, max(t.created_at) as terakhir,
-        max(case when t.jenis = 'verifikasi' then t.no_formulir end) as formVerifikasi, max(t.no_formulir) as formTerakhir
+        max(case when t.jenis = 'verifikasi' then t.no_formulir end) as formVerifikasi, max(t.no_formulir) as formTerakhir,
+        group_concat(t.no_formulir) as semuaFormulir
       from target_adjustments t
       join customers c2 on c2.id = t.customer_id
       where c2.dealer_night_id = ${dealerNightId}
@@ -219,7 +225,19 @@ export async function listTargets(dealerNightId: string): Promise<TargetListRow[
     left join reservations r on r.customer_id = c.id
     where c.dealer_night_id = ${dealerNightId}
     order by targetEfektif desc, lastAdjustedAt asc, c.mg_name asc
-  `));
+  `), db.execute(sql`
+    select s.customer_id as customerId, s.sotp_code as kode, s.sotp_name as nama
+    from customer_sotp s join customers c on c.id = s.customer_id
+    where c.dealer_night_id = ${dealerNightId}
+    order by s.customer_id, s.urutan
+  `)]);
+  const rows = rowsFrom<Record<string, unknown>>(hasil);
+  const sotpPerToko = new Map<string, { kode: string; nama: string }[]>();
+  for (const item of rowsFrom<{ customerId: string; kode: string; nama: string }>(sotpRows)) {
+    const daftar = sotpPerToko.get(item.customerId) ?? [];
+    daftar.push({ kode: String(item.kode), nama: String(item.nama) });
+    sotpPerToko.set(item.customerId, daftar);
+  }
 
   return rows.map((row) => ({
     customerId: String(row.customerId),
@@ -249,6 +267,9 @@ export async function listTargets(dealerNightId: string): Promise<TargetListRow[
     undianMaster: teksAtauNull(row.undianMaster),
     nomorUndian: teksAtauNull(row.nomorUndian),
     checkedInAt: isoAtauNull(row.checkedInAt),
+    // Toko tanpa baris customer_sotp (data lama/seed) memakai SOTP utama di customers.
+    sotp: sotpPerToko.get(String(row.customerId)) ?? [{ kode: String(row.sotpCode), nama: String(row.sotpName) }],
+    formulir: row.semuaFormulir == null ? [] : String(row.semuaFormulir).split(',').map(Number),
   }));
 }
 
