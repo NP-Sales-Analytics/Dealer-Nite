@@ -33,6 +33,8 @@ export type KuponRow = {
   qtyHadir: number | null;
   nomorUndian: string | null;
   checkedInAt: string | null;
+  /** Semua No. Formulir toko ini, untuk pencarian. */
+  formulir: number[];
   dibuat: JumlahKupon;
   diberikan: JumlahKupon;
   terakhir: string | null;
@@ -116,13 +118,13 @@ export async function listKupon(dealerNightId: string): Promise<KuponRow[]> {
     select c.id as customerId, c.mg_code as mgCode, c.mg_name as mgName, c.depot_code as depotCode, c.depot_name as depotName,
       c.wilayah, c.region, c.salesman, c.spv, c.verified_at is not null as verified, c.target_verifikasi as targetVerifikasi,
       c.target_dn_awal + coalesce(a.total, 0) as targetEfektif,
-      r.qty_hadir as qtyHadir, r.nomor_undian as nomorUndian, r.checked_in_at as checkedInAt,
+      r.qty_hadir as qtyHadir, r.nomor_undian as nomorUndian, r.checked_in_at as checkedInAt, a.semuaFormulir,
       coalesce(k.dibuatPink, 0) as dibuatPink, coalesce(k.dibuatHijau, 0) as dibuatHijau,
       coalesce(k.diberikanPink, 0) as diberikanPink, coalesce(k.diberikanHijau, 0) as diberikanHijau,
       k.terakhir
     from customers c
     left join (
-      select t.customer_id, sum(t.delta) as total
+      select t.customer_id, sum(t.delta) as total, group_concat(t.no_formulir) as semuaFormulir
       from target_adjustments t join customers c2 on c2.id = t.customer_id
       where c2.dealer_night_id = ${dealerNightId}
       group by t.customer_id
@@ -157,6 +159,7 @@ export async function listKupon(dealerNightId: string): Promise<KuponRow[]> {
     qtyHadir: row.qtyHadir == null ? null : Number(row.qtyHadir),
     nomorUndian: row.nomorUndian == null ? null : String(row.nomorUndian),
     checkedInAt: iso(row.checkedInAt),
+    formulir: row.semuaFormulir == null ? [] : String(row.semuaFormulir).split(',').map(Number),
     dibuat: { pink: Number(row.dibuatPink), hijau: Number(row.dibuatHijau) },
     diberikan: { pink: Number(row.diberikanPink), hijau: Number(row.diberikanHijau) },
     terakhir: iso(row.terakhir),

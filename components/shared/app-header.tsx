@@ -1,7 +1,8 @@
 'use client';
 
+import { PanelLeftOpen } from 'lucide-react';
 import { usePathname } from 'next/navigation';
-import { SidebarTrigger } from '@/components/ui/sidebar';
+import { useSidebar } from '@/components/ui/sidebar';
 
 /**
  * Judul diambil dari rute, bukan dikirim tiap halaman.
@@ -20,7 +21,7 @@ const JUDUL: { awalan: string; judul: string; keterangan: string }[] = [
   {
     awalan: '/reservation',
     judul: 'Pencatatan Kehadiran',
-    keterangan: 'Cari toko dengan nama atau MG Code, lalu isi jumlah orang yang hadir.',
+    keterangan: 'Cari toko dengan nama, kode toko, atau no undian, lalu isi jumlah orang yang hadir.',
   },
   {
     awalan: '/kehadiran',
@@ -56,6 +57,7 @@ const JUDUL: { awalan: string; judul: string; keterangan: string }[] = [
 
 export function AppHeader() {
   const pathname = usePathname();
+  const { isMobile, state, toggleSidebar } = useSidebar();
   // Yang terpanjang menang: '/admin/users' harus kalah-kan '/admin' seandainya
   // nanti ada halaman admin lain.
   const aktif = JUDUL
@@ -67,8 +69,19 @@ export function AppHeader() {
     // menyambung jadi satu garis lurus di desktop.
     //
     <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-card px-4 md:h-17 md:px-6">
-      {/* Hanya di HP: sidebar tersembunyi jadi drawer, tombolnya di sini. */}
-      <SidebarTrigger className="size-10 shrink-0 md:hidden" />
+      {/* Tombol buka navigasi: di HP selalu (drawer), di desktop hanya saat
+          sidebar tertutup - saat terbuka tombol tutupnya ada di dalam sidebar. */}
+      {(isMobile || state === 'collapsed') && (
+        <button
+          type="button"
+          onClick={toggleSidebar}
+          aria-label="Buka navigasi"
+          title="Buka navigasi"
+          className="grid size-10 shrink-0 place-items-center rounded-xl border border-primary/25 bg-primary/5 text-primary transition-colors hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        >
+          <PanelLeftOpen className="size-5" strokeWidth={1.75} />
+        </button>
+      )}
 
       <div className="min-w-0 flex-1">
         <h1 className="truncate text-base font-semibold leading-tight tracking-tight md:text-lg">

@@ -5,3 +5,4 @@ export * from './profiles';
 export * from './reservations';
 export * from './target-adjustments';
 export * from './kupon-proses';
+export * from './customer-sotp';

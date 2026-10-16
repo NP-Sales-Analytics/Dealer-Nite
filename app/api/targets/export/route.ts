@@ -7,27 +7,35 @@ import { resolveDealerNightId } from '@/lib/target/access';
 import { listTargets, type TargetListRow } from '@/lib/target/service';
 import { targetErrorResponse } from '../_response';
 
-type Baris = TargetListRow;
+// Satu baris per Sold To Party, sama dengan format upload master: baris pertama
+// MG memuat seluruh data, baris SOTP berikutnya hanya MG Code + SOTP supaya
+// jumlah target/pax di Excel tidak terhitung ganda.
+type Baris = { row: TargetListRow; sotp: { kode: string; nama: string }; utama: boolean };
+/** Kolom data MG: hanya terisi di baris SOTP pertama. */
+const mg = <T extends object>(sel: (row: TargetListRow) => T) => (b: Baris) => (b.utama ? sel(b.row) : teks(null));
+
 const COLUMNS = [
-  { header: header('MG Code'), width: 12, cell: (row: Baris) => teks(row.mgCode) },
-  { header: header('MG Name'), width: 34, cell: (row: Baris) => teks(row.mgName) },
-  { header: header('Depot'), width: 18, cell: (row: Baris) => teks(row.depotName) },
-  { header: header('SPV'), width: 28, cell: (row: Baris) => teks(row.spv) },
-  { header: header('Salesman'), width: 28, cell: (row: Baris) => teks(row.salesman) },
-  { header: header('Target Pusat'), width: 16, cell: (row: Baris) => rupiah(row.targetAwal) },
-  { header: header('Target Terverifikasi'), width: 18, cell: (row: Baris) => rupiah(row.targetVerifikasi) },
+  { header: header('MG Code'), width: 12, cell: (b: Baris) => teks(b.row.mgCode) },
+  { header: header('MG Name'), width: 34, cell: mg((row) => teks(row.mgName)) },
+  { header: header('SOTP Code'), width: 12, cell: (b: Baris) => teks(b.sotp.kode) },
+  { header: header('SOTP Name'), width: 34, cell: (b: Baris) => teks(b.sotp.nama) },
+  { header: header('Depot'), width: 18, cell: mg((row) => teks(row.depotName)) },
+  { header: header('SPV'), width: 28, cell: mg((row) => teks(row.spv)) },
+  { header: header('Salesman'), width: 28, cell: mg((row) => teks(row.salesman)) },
+  { header: header('Target Pusat'), width: 16, cell: mg((row) => rupiah(row.targetAwal)) },
+  { header: header('Target Terverifikasi'), width: 18, cell: mg((row) => rupiah(row.targetVerifikasi)) },
   {
     header: header('Penambahan Setelah Verifikasi'), width: 18,
-    cell: (row: Baris) => rupiah(row.targetVerifikasi == null ? null : row.targetEfektif - row.targetVerifikasi),
+    cell: mg((row) => rupiah(row.targetVerifikasi == null ? null : row.targetEfektif - row.targetVerifikasi)),
   },
-  { header: header('Target Saat Ini'), width: 16, cell: (row: Baris) => rupiah(row.targetEfektif) },
-  { header: header('Jumlah Penyesuaian'), width: 12, cell: (row: Baris) => angka(row.jumlahPenyesuaian) },
-  { header: header('Status Verifikasi'), width: 18, cell: (row: Baris) => teks(row.verifiedAt ? 'Terverifikasi' : 'Belum diverifikasi') },
-  { header: header('No. Form Verifikasi'), width: 12, cell: (row: Baris) => angka(row.formVerifikasi) },
-  { header: header('No. Form Terakhir'), width: 12, cell: (row: Baris) => angka(row.formTerakhir) },
-  { header: header('Pax Terdaftar'), width: 11, cell: (row: Baris) => angka(row.paxTerdaftar) },
-  { header: header('Kehadiran (pax)'), width: 11, cell: (row: Baris) => angka(row.qtyHadir) },
-  { header: header('Nomor Undian'), width: 14, cell: (row: Baris) => teks(row.nomorUndian) },
+  { header: header('Target Saat Ini'), width: 16, cell: mg((row) => rupiah(row.targetEfektif)) },
+  { header: header('Jumlah Penyesuaian'), width: 12, cell: mg((row) => angka(row.jumlahPenyesuaian)) },
+  { header: header('Status Verifikasi'), width: 18, cell: mg((row) => teks(row.verifiedAt ? 'Terverifikasi' : 'Belum diverifikasi')) },
+  { header: header('No. Form Verifikasi'), width: 12, cell: mg((row) => angka(row.formVerifikasi)) },
+  { header: header('No. Form Terakhir'), width: 12, cell: mg((row) => angka(row.formTerakhir)) },
+  { header: header('Pax Terdaftar'), width: 11, cell: mg((row) => angka(row.paxTerdaftar)) },
+  { header: header('Kehadiran (pax)'), width: 11, cell: mg((row) => angka(row.qtyHadir)) },
+  { header: header('Nomor Undian'), width: 14, cell: mg((row) => teks(row.nomorUndian)) },
 ];
 
 export async function GET(request: NextRequest) {
@@ -37,7 +45,8 @@ export async function GET(request: NextRequest) {
 
   try {
     const dealerNightId = resolveDealerNightId(user, request.nextUrl.searchParams.get('dealerNightId'));
-    const rows = (await listTargets(dealerNightId)).filter((row) => bolehDepot(user, row.depotCode));
+    const rows = (await listTargets(dealerNightId)).filter((row) => bolehDepot(user, row.depotCode))
+      .flatMap((row) => row.sotp.map((sotp, index): Baris => ({ row, sotp, utama: index === 0 })));
     const buffer = await writeExcelFile(rows, { columns: COLUMNS, sheet: 'Target DN', stickyRowsCount: 1 }).toBuffer();
     return new NextResponse(new Uint8Array(buffer), {
       headers: {

@@ -138,6 +138,7 @@ export function UploadMasterDialog({
               )}
 
               <ul className="list-disc space-y-1 pl-4 text-xs leading-relaxed text-muted-foreground">
+                <li>Satu baris per Sold To Party. MG dengan beberapa SOTP: ulangi MG Code di baris berikutnya, cukup isi SOTP Code & SOTP Name.</li>
                 <li>Kolom Pax dan No Undian boleh dikosongkan.</li>
                 <li>MG Code yang sudah ada akan diperbarui.</li>
                 <li>Satu baris salah membatalkan seluruh upload.</li>

@@ -8,6 +8,7 @@ import type { DealerNightOption, TargetResponse } from './types';
 import { Button } from '@/components/ui/button';
 import { PilihBanyak } from '@/components/ui/combobox';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cocokCari } from '@/lib/cari';
 import { formatRupiahRingkas } from '@/lib/target/money';
 import { targetPollingInterval, useTargetVisibilityRefresh } from '@/lib/target/use-target-polling';
 import { dnBawaan } from '@/lib/target/dn-bawaan';
@@ -52,15 +53,11 @@ export function TargetLeaderboard({ dealerNights }: { dealerNights: DealerNightO
       .map((row, index) => ({ ...row, rank: index + 1 })),
     [semua, depot],
   );
-  const terms = search.trim().toLowerCase().split(/\s+/).filter(Boolean);
-  const rows = berperingkat.filter((row) => {
-    const haystack = `${row.mgCode} ${row.mgName} ${row.depotName}`.toLowerCase();
-    return terms.every((term) => haystack.includes(term));
-  });
+  const rows = berperingkat.filter((row) => cocokCari(search, [row.mgName, row.mgCode]));
   const totalPages = Math.max(1, Math.ceil(rows.length / PER_HALAMAN));
   const aman = Math.min(page, totalPages);
   const tampil = rows.slice((aman - 1) * PER_HALAMAN, aman * PER_HALAMAN);
-  const adaFilter = depot.length > 0 || terms.length > 0;
+  const adaFilter = depot.length > 0 || search.trim() !== '';
 
   return (
     <main className="mx-auto w-full max-w-4xl space-y-4">
@@ -70,7 +67,7 @@ export function TargetLeaderboard({ dealerNights }: { dealerNights: DealerNightO
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Cari MG Code atau nama toko..."
+            placeholder="Cari nama toko atau kode toko..."
             aria-label="Cari toko"
             className="h-11 w-full rounded-xl border border-border bg-card pl-10 pr-4 text-sm placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:outline-none"
           />

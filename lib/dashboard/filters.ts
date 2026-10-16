@@ -1,4 +1,5 @@
 import type { NextRequest } from 'next/server';
+import { cocokCari } from '@/lib/cari';
 import { statusPax } from '@/lib/reservation/pax';
 
 export type DashboardFilter = {
@@ -46,18 +47,17 @@ export const bacaKunci = (key: string): DashboardFilter => JSON.parse(key) as Da
 export function matchesDashboardFilter(
   row: {
     wilayah: string | null; region: string | null; depot: string; kodeSap?: string | null; nama?: string | null;
-    qtyHadir?: number; paxTerdaftar?: number | null;
+    nomorUndian?: string | null; qtyHadir?: number; paxTerdaftar?: number | null;
   },
   filter: DashboardFilter,
 ) {
-  const query = filter.q?.toLocaleLowerCase('id') ?? null;
   return (filter.wilayah.length === 0 || (!!row.wilayah && filter.wilayah.includes(row.wilayah)))
     && (filter.region.length === 0 || (!!row.region && filter.region.includes(row.region)))
     && (filter.depot.length === 0 || filter.depot.includes(row.depot))
     && (filter.statusPax.length === 0
       || (row.qtyHadir !== undefined && filter.statusPax.includes(statusPax(row.qtyHadir, row.paxTerdaftar) ?? 'tanpa')))
     && (!filter.kodeSap || row.kodeSap === filter.kodeSap)
-    && (!query || `${row.nama ?? ''} ${row.kodeSap ?? ''}`.toLocaleLowerCase('id').includes(query));
+    && cocokCari(filter.q ?? '', [row.nama, row.kodeSap, row.nomorUndian]);
 }
 
 export const CATATAN_REGION_MANUAL = 'Manual entry mengikuti wilayah dan region dari depot yang dipilih.';

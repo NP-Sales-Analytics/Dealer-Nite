@@ -56,7 +56,7 @@ export function SearchBar({ dealerNightId, onSelect }: { dealerNightId: string; 
         <input
           value={term}
           onChange={(e) => setTerm(e.target.value)}
-          placeholder="Ketik nama toko, MG Code, atau No Undian..."
+          placeholder="Cari nama toko, kode toko, atau no undian..."
           autoFocus
           autoComplete="off"
           aria-label="Cari toko"
